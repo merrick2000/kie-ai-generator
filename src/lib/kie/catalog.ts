@@ -19,6 +19,7 @@ import {
   negativePrompt,
   nsfwChecker,
   opts,
+  optionalReference,
   outputFormat,
   prompt,
   ratio,
@@ -60,6 +61,35 @@ export interface ModelDef {
   featured?: boolean
   /** Media type the result is rendered as. */
   output: 'image' | 'video' | 'audio' | 'text'
+
+  /**
+   * Where to submit when the optional reference field holds something.
+   *
+   * Kie splits several models into two slugs, one for text-only input and one
+   * that takes a reference, and a request sent to the wrong one is rejected.
+   * Making the user pick the right slug means making them learn an API detail,
+   * so the reference field is offered on the text variant and the submission
+   * is routed here when it is filled.
+   *
+   * The input is rebuilt against the target model's own fields, which drops
+   * anything it does not accept. Kling, for instance, takes an aspect ratio
+   * for text-to-video but derives it from the image otherwise.
+   */
+  routeWithAssets?: {
+    modelId: string
+    /** Field on this model holding the references. */
+    from: string
+    /** Field on the target model that receives them. */
+    to: string
+  }
+
+  /**
+   * Kept out of the model picker.
+   *
+   * Used for a variant reachable by routing, so the list shows one entry per
+   * model rather than one per Kie slug.
+   */
+  hidden?: boolean
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -131,8 +161,18 @@ const IMAGE_TEXT: ModelDef[] = [
     speed: 'balanced',
     featured: true,
     badges: ['2K'],
+    routeWithAssets: {
+      modelId: 'seedream/5-pro-image-to-image',
+      from: 'reference_images',
+      to: 'image_urls',
+    },
     fields: [
       prompt({ maxLength: 5000 }),
+      optionalReference(10, {
+        label: 'Reference images',
+        description:
+          'Optional. Adding one guides the result instead of generating from the prompt alone.',
+      }),
       ratio(['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], '1:1'),
       {
         name: 'quality',
@@ -235,8 +275,18 @@ const IMAGE_TEXT: ModelDef[] = [
     tagline: 'Hyperreal materials, typography and product renders.',
     speed: 'balanced',
     featured: true,
+    routeWithAssets: {
+      modelId: 'flux-2/pro-image-to-image',
+      from: 'reference_images',
+      to: 'image_urls',
+    },
     fields: [
       prompt({ maxLength: 5000 }),
+      optionalReference(10, {
+        label: 'Reference images',
+        description:
+          'Optional. Adding one guides the result instead of generating from the prompt alone.',
+      }),
       ratio(['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3'], '1:1'),
       resolution(['1K', '2K'], '1K'),
       nsfwChecker(),
@@ -271,8 +321,18 @@ const IMAGE_TEXT: ModelDef[] = [
     speed: 'balanced',
     featured: true,
     badges: ['4K'],
+    routeWithAssets: {
+      modelId: 'gpt-image-2-image-to-image',
+      from: 'reference_images',
+      to: 'image_urls',
+    },
     fields: [
       prompt({ maxLength: 20000 }),
+      optionalReference(10, {
+        label: 'Reference images',
+        description:
+          'Optional. Adding one guides the result instead of generating from the prompt alone.',
+      }),
       ratio(
         ['auto', '1:1', '3:2', '2:3', '4:3', '3:4', '5:4', '4:5', '16:9', '9:16', '2:1', '1:2', '3:1', '1:3', '21:9', '9:21'],
         'auto',
@@ -306,8 +366,18 @@ const IMAGE_TEXT: ModelDef[] = [
     output: 'image',
     tagline: 'Strong bilingual text rendering, CJK included.',
     speed: 'fast',
+    routeWithAssets: {
+      modelId: 'qwen3/image-to-image',
+      from: 'reference_images',
+      to: 'image_urls',
+    },
     fields: [
       prompt({ maxLength: 5000 }),
+      optionalReference(3, {
+        label: 'Reference images',
+        description:
+          'Optional. Adding one guides the result instead of generating from the prompt alone.',
+      }),
       {
         name: 'image_size',
         kind: 'ratio',
@@ -476,6 +546,7 @@ const IMAGE_EDIT: ModelDef[] = [
     tagline: 'Material and lighting transfer with structural fidelity.',
     speed: 'balanced',
     featured: true,
+    hidden: true,
     fields: [
       prompt({ maxLength: 5000 }),
       imageUrls(10, { maxSizeMb: 30 }),
@@ -547,6 +618,7 @@ const IMAGE_EDIT: ModelDef[] = [
     output: 'image',
     tagline: 'Precise, instruction-driven retouching.',
     speed: 'balanced',
+    hidden: true,
     fields: [
       prompt({ maxLength: 20000 }),
       imageUrls(10),
@@ -564,6 +636,7 @@ const IMAGE_EDIT: ModelDef[] = [
     output: 'image',
     tagline: 'Photoreal edits that hold material detail.',
     speed: 'balanced',
+    hidden: true,
     fields: [
       prompt({ maxLength: 5000 }),
       imageUrls(10),
@@ -582,6 +655,7 @@ const IMAGE_EDIT: ModelDef[] = [
     output: 'image',
     tagline: 'Style transfer with bilingual text preservation.',
     speed: 'fast',
+    hidden: true,
     fields: [
       prompt({ maxLength: 5000 }),
       imageUrls(3),
@@ -878,8 +952,18 @@ const VIDEO_TEXT: ModelDef[] = [
     speed: 'balanced',
     featured: true,
     badges: ['15s'],
+    routeWithAssets: {
+      modelId: 'kling/v3-turbo-image-to-video',
+      from: 'reference_images',
+      to: 'image_urls',
+    },
     fields: [
       prompt({ maxLength: 2500 }),
+      optionalReference(1, {
+        label: 'Reference image',
+        description:
+          'Optional. Adding one guides the result instead of generating from the prompt alone.',
+      }),
       {
         name: 'duration',
         kind: 'number',
@@ -931,8 +1015,18 @@ const VIDEO_TEXT: ModelDef[] = [
     output: 'video',
     tagline: 'Clean 1080p motion with optional custom audio bed.',
     speed: 'balanced',
+    routeWithAssets: {
+      modelId: 'wan/2-7-image-to-video',
+      from: 'reference_images',
+      to: 'image_url',
+    },
     fields: [
       prompt({ maxLength: 5000 }),
+      optionalReference(1, {
+        label: 'Reference image',
+        description:
+          'Optional. Adding one guides the result instead of generating from the prompt alone.',
+      }),
       negativePrompt(),
       {
         ...audioUrl({
@@ -988,8 +1082,18 @@ const VIDEO_TEXT: ModelDef[] = [
     tagline: 'Up to 30 seconds with distinct tonal modes.',
     speed: 'fast',
     badges: ['30s'],
+    routeWithAssets: {
+      modelId: 'grok-imagine/image-to-video',
+      from: 'reference_images',
+      to: 'image_urls',
+    },
     fields: [
       prompt({ maxLength: 5000 }),
+      optionalReference(7, {
+        label: 'Reference images',
+        description:
+          'Optional. Adding one guides the result instead of generating from the prompt alone.',
+      }),
       ratio(['2:3', '3:2', '1:1', '16:9', '9:16'], '16:9'),
       {
         name: 'mode',
@@ -1026,8 +1130,18 @@ const VIDEO_TEXT: ModelDef[] = [
     tagline: 'Long-form prompts, 2K output.',
     speed: 'balanced',
     badges: ['2K'],
+    routeWithAssets: {
+      modelId: 'minimax-h3/image-to-video',
+      from: 'reference_images',
+      to: 'first_frame_url',
+    },
     fields: [
       prompt({ maxLength: 7000 }),
+      optionalReference(1, {
+        label: 'First frame',
+        description:
+          'Optional. Anchors the opening frame instead of generating from the prompt alone.',
+      }),
       {
         name: 'duration',
         kind: 'number',
@@ -1076,8 +1190,18 @@ const VIDEO_TEXT: ModelDef[] = [
     output: 'video',
     tagline: 'Stylised motion with strong anime presets.',
     speed: 'fast',
+    routeWithAssets: {
+      modelId: 'pixverse/image-to-video',
+      from: 'reference_images',
+      to: 'image_url',
+    },
     fields: [
       prompt({ maxLength: 5000 }),
+      optionalReference(1, {
+        label: 'Reference image',
+        description:
+          'Optional. Adding one guides the result instead of generating from the prompt alone.',
+      }),
       ratio(['16:9', '9:16', '1:1', '4:3', '3:4'], '16:9'),
       resolution(['360p', '540p', '720p', '1080p'], '720p'),
       {
@@ -1111,6 +1235,7 @@ const VIDEO_IMAGE: ModelDef[] = [
     tagline: 'Animate a still with spoken dialogue and camera moves.',
     speed: 'balanced',
     featured: true,
+    hidden: true,
     fields: [
       prompt({ maxLength: 2500 }),
       imageUrls(1, { label: 'Source image' }),
@@ -1165,6 +1290,7 @@ const VIDEO_IMAGE: ModelDef[] = [
     output: 'video',
     tagline: 'Up to 30 seconds of motion from up to 7 stills.',
     speed: 'fast',
+    hidden: true,
     fields: [
       prompt({ maxLength: 5000 }),
       imageUrls(7),
@@ -1200,6 +1326,7 @@ const VIDEO_IMAGE: ModelDef[] = [
     output: 'video',
     tagline: 'First/last frame interpolation at 2K.',
     speed: 'balanced',
+    hidden: true,
     fields: [
       prompt({ maxLength: 7000 }),
       imageUrl({ name: 'first_frame_url', label: 'First frame' }),
@@ -1231,6 +1358,7 @@ const VIDEO_IMAGE: ModelDef[] = [
     output: 'video',
     tagline: 'Stable 1080p animation from a still.',
     speed: 'balanced',
+    hidden: true,
     fields: [
       prompt({ maxLength: 5000 }),
       imageUrl(),
@@ -1286,6 +1414,7 @@ const VIDEO_IMAGE: ModelDef[] = [
     output: 'video',
     tagline: 'Stylised animation with anime-leaning motion.',
     speed: 'fast',
+    hidden: true,
     fields: [
       prompt({ maxLength: 5000 }),
       imageUrl(),

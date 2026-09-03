@@ -60,6 +60,9 @@ export function ModelPicker({ modelId, onSelect }: ModelPickerProps) {
     const q = query.trim().toLowerCase()
 
     return MODELS.filter((m) => {
+      // Variants reached by filling a reference field are not listed
+      // separately; showing both would present one model as two.
+      if (m.hidden) return false
       if (category !== 'all' && m.category !== category) return false
       if (!q) return true
       return (

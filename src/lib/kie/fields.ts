@@ -181,6 +181,27 @@ export const seed = (
   ...overrides,
 })
 
+/**
+ * An optional reference on a text-to-X model.
+ *
+ * Filling it routes the submission to the model's image-to-X variant, so the
+ * user never has to know Kie splits these into two slugs.
+ */
+export const optionalReference = (
+  maxItems: number,
+  overrides: Partial<AssetField> = {},
+): AssetField => ({
+  name: 'reference_images',
+  kind: maxItems > 1 ? 'images' : 'image',
+  label: 'Reference image',
+  description: 'Optional. Adding one guides the result instead of generating from the prompt alone.',
+  required: false,
+  maxItems,
+  accepts: 'JPEG, PNG, WebP',
+  maxSizeMb: 10,
+  ...overrides,
+})
+
 export const imageUrls = (
   maxItems: number,
   overrides: Partial<AssetField> = {},
