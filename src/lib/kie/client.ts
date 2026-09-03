@@ -8,6 +8,8 @@
 
 import 'server-only'
 
+import { randomBytes } from 'node:crypto'
+
 import { currentApiKey } from '@/lib/auth'
 
 import {
@@ -25,7 +27,16 @@ import {
 } from './types'
 
 const API_BASE = 'https://api.kie.ai'
-const UPLOAD_BASE = 'https://kieai.redpandaai.co'
+/**
+ * Upload hosts, tried in order.
+ *
+ * Kie's own documentation disagrees with itself here: the reference pages use
+ * api.kie.ai and return `downloadUrl`, while the quickstart uses the older
+ * redpandaai.co host and returns `fileUrl`. Both are tried, and either
+ * response shape is accepted, so an endpoint migration on their side does not
+ * silently break every model that takes a reference file.
+ */
+const UPLOAD_HOSTS = ['https://api.kie.ai', 'https://kieai.redpandaai.co'] as const
 
 /** Thrown for any non-success Kie response, carrying the upstream code. */
 export class KieError extends Error {
@@ -301,70 +312,214 @@ export function getDownloadUrl(url: string, signal?: AbortSignal) {
  * ──────────────────────────────────────────────────────────────────────────*/
 
 /**
- * Upload a file to Kie's CDN so a model can consume it as a URL.
+ * Response shape, reconciled across both documented variants.
  *
- * Uses the stream endpoint, which handles large files without the ~33% base64
- * overhead. Returns the public `fileUrl`.
+ * The reference pages return `filePath` and `downloadUrl`; the quickstart
+ * returns `fileUrl` and `fileId`. Everything is optional so neither shape is
+ * rejected for missing the other's fields.
  */
-export async function uploadFile(
-  file: File,
-  uploadPath = 'highfield',
-): Promise<UploadResultData> {
-  const form = new FormData()
-  form.append('file', file)
-  form.append('uploadPath', uploadPath)
-
-  const res = await fetch(`${UPLOAD_BASE}/api/file-stream-upload`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${await apiKey()}` },
-    body: form,
-    cache: 'no-store',
-  })
-
-  const text = await res.text()
-  let payload: { success?: boolean; code?: number; msg?: string; data?: UploadResultData }
-
-  try {
-    payload = text ? JSON.parse(text) : {}
-  } catch {
-    throw new KieError(`Upload failed: non-JSON response (HTTP ${res.status}).`, res.status, res.status)
-  }
-
-  const code = payload.code ?? res.status
-  if (!res.ok || code !== KIE_CODE.SUCCESS || !payload.data?.fileUrl) {
-    throw new KieError(payload.msg || 'File upload failed.', code, res.status)
-  }
-
-  return payload.data
+interface UploadResponseData {
+  fileId?: string
+  fileName?: string
+  originalName?: string
+  fileSize?: number
+  mimeType?: string
+  uploadPath?: string
+  filePath?: string
+  fileUrl?: string
+  downloadUrl?: string
+  uploadTime?: string
+  uploadedAt?: string
+  expiresAt?: string
 }
 
-/** Upload from a remote URL, letting Kie fetch it server-side. */
-export async function uploadFromUrl(
-  fileUrl: string,
-  uploadPath = 'highfield',
+/**
+ * Pull the public URL out of an upload response.
+ *
+ * Models are given this string verbatim, so it has to be an absolute URL.
+ * `filePath` is only usable when it already is one; a bare storage path would
+ * be accepted by us and then rejected by the model.
+ */
+function publicUrlFrom(data: UploadResponseData): string | null {
+  for (const candidate of [data.downloadUrl, data.fileUrl, data.filePath]) {
+    if (typeof candidate === 'string' && /^https?:\/\//.test(candidate)) {
+      return candidate
+    }
+  }
+  return null
+}
+
+function toUploadResult(data: UploadResponseData, url: string): UploadResultData {
+  return {
+    fileId: data.fileId ?? '',
+    fileName: data.fileName ?? url.split('/').pop() ?? 'file',
+    originalName: data.originalName,
+    fileSize: data.fileSize ?? 0,
+    mimeType: data.mimeType ?? 'application/octet-stream',
+    uploadPath: data.uploadPath,
+    fileUrl: url,
+    downloadUrl: data.downloadUrl,
+    uploadTime: data.uploadTime ?? data.uploadedAt,
+    expiresAt: data.expiresAt,
+  }
+}
+
+/**
+ * Post an upload to the first host that answers.
+ *
+ * A 404 or 405 means the endpoint has moved rather than that the upload was
+ * bad, so the next host is tried. Any other failure is reported as-is: a 401
+ * or a size rejection would give the same answer everywhere.
+ */
+async function uploadRequest(
+  path: string,
+  build: () => { body: BodyInit; headers: Record<string, string> },
 ): Promise<UploadResultData> {
-  const res = await fetch(`${UPLOAD_BASE}/api/file-url-upload`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${await apiKey()}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ fileUrl, uploadPath }),
-    cache: 'no-store',
+  const key = await apiKey()
+  let lastError: KieError | null = null
+
+  for (const host of UPLOAD_HOSTS) {
+    const { body, headers } = build()
+
+    let res: Response
+    try {
+      res = await fetch(`${host}${path}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${key}`, ...headers },
+        body,
+        cache: 'no-store',
+      })
+    } catch (err) {
+      lastError = new KieError(
+        `Could not reach ${host}: ${err instanceof Error ? err.message : 'network error'}`,
+        KIE_CODE.SERVER_ERROR,
+        502,
+      )
+      continue
+    }
+
+    if (res.status === 404 || res.status === 405) {
+      lastError = new KieError(
+        `Upload endpoint not found at ${host} (HTTP ${res.status}).`,
+        res.status,
+        res.status,
+      )
+      continue
+    }
+
+    const text = await res.text()
+    let payload: { code?: number; msg?: string; data?: UploadResponseData }
+
+    try {
+      payload = text ? JSON.parse(text) : {}
+    } catch {
+      throw new KieError(
+        `Upload failed: ${host} returned a non-JSON response (HTTP ${res.status}).`,
+        res.status,
+        res.status,
+      )
+    }
+
+    const code = payload.code ?? res.status
+    if (!res.ok || code !== KIE_CODE.SUCCESS) {
+      throw new KieError(
+        payload.msg || `Upload failed (HTTP ${res.status}).`,
+        code,
+        res.status,
+      )
+    }
+
+    const url = payload.data ? publicUrlFrom(payload.data) : null
+    if (!url) {
+      // Succeeded but gave us nothing usable. Surface the keys we did get,
+      // because this is exactly the case that is impossible to diagnose from
+      // a generic "upload failed".
+      throw new KieError(
+        `Upload succeeded but returned no usable URL. Fields: ${Object.keys(payload.data ?? {}).join(', ') || 'none'}`,
+        KIE_CODE.SERVER_ERROR,
+        502,
+      )
+    }
+
+    return toUploadResult(payload.data!, url)
+  }
+
+  throw (
+    lastError ??
+    new KieError('No upload host could be reached.', KIE_CODE.SERVER_ERROR, 502)
+  )
+}
+
+/**
+ * Where an upload lands.
+ *
+ * Scoped per user so two accounts sharing this deployment's fallback key do
+ * not write into the same directory.
+ */
+function uploadPathFor(userId?: string): string {
+  const safe = (userId ?? 'shared').replace(/[^\w-]/g, '').slice(0, 40) || 'shared'
+  return `highfield/${safe}`
+}
+
+/**
+ * A name that cannot collide.
+ *
+ * Kie overwrites any existing file with a matching name, so sending the
+ * user's own filename means uploading two different images both called
+ * `photo.jpg` silently replaces the first. A generation already referencing
+ * that URL would then pick up the wrong image.
+ */
+function uniqueFileName(original: string): string {
+  const cleaned = original.replace(/[^\w.-]/g, '_').slice(-60)
+  const dot = cleaned.lastIndexOf('.')
+  const stem = dot > 0 ? cleaned.slice(0, dot) : cleaned
+  const ext = dot > 0 ? cleaned.slice(dot) : ''
+  return `${Date.now().toString(36)}-${randomBytes(4).toString('hex')}-${stem || 'file'}${ext}`
+}
+
+/**
+ * Upload a file so a model can consume it as a URL.
+ *
+ * Uses the stream endpoint, which avoids the ~33% size penalty of base64.
+ */
+export function uploadFile(file: File, userId?: string): Promise<UploadResultData> {
+  const fileName = uniqueFileName(file.name)
+  const uploadPath = uploadPathFor(userId)
+
+  // Rebuilt per attempt: a FormData body is a stream and cannot be replayed
+  // against a second host once consumed.
+  return uploadRequest('/api/file-stream-upload', () => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('uploadPath', uploadPath)
+    form.append('fileName', fileName)
+    // Content-Type is deliberately unset: fetch adds it with the multipart
+    // boundary, and setting it by hand corrupts the request.
+    return { body: form, headers: {} }
+  })
+}
+
+/**
+ * Upload from a remote URL, letting Kie fetch it server-side.
+ *
+ * This is also how a generated result becomes an input: Kie pulls the asset
+ * directly, so nothing has to travel down to the browser and back up.
+ */
+export function uploadFromUrl(
+  fileUrl: string,
+  userId?: string,
+  suggestedName?: string,
+): Promise<UploadResultData> {
+  const body = JSON.stringify({
+    fileUrl,
+    uploadPath: uploadPathFor(userId),
+    fileName: uniqueFileName(suggestedName || fileUrl.split('/').pop() || 'import'),
   })
 
-  const payload = (await res.json().catch(() => ({}))) as {
-    code?: number
-    msg?: string
-    data?: UploadResultData
-  }
-
-  const code = payload.code ?? res.status
-  if (!res.ok || code !== KIE_CODE.SUCCESS || !payload.data?.fileUrl) {
-    throw new KieError(payload.msg || 'Remote upload failed.', code, res.status)
-  }
-
-  return payload.data
+  return uploadRequest('/api/file-url-upload', () => ({
+    body,
+    headers: { 'Content-Type': 'application/json' },
+  }))
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

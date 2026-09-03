@@ -35,7 +35,7 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
   const max = multiple ? (field.maxItems ?? 10) : 1
   const full = urls.length >= max
 
-  const { upload, uploadUrl, uploading } = useUpload()
+  const { upload, uploadUrl, uploading, progress } = useUpload()
   const [dragging, setDragging] = useState(false)
   const [urlMode, setUrlMode] = useState(false)
   const [urlDraft, setUrlDraft] = useState('')
@@ -56,18 +56,8 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
 
       const list = Array.from(files).slice(0, room)
 
-      // Reject oversize files before the round-trip rather than after.
-      const limit = (field.maxSizeMb ?? 100) * 1024 * 1024
-      const valid = list.filter((f) => {
-        if (f.size > limit) {
-          toast.error(`${f.name} exceeds ${field.maxSizeMb}MB.`)
-          return false
-        }
-        return true
-      })
-      if (!valid.length) return
-
-      const uploaded = await upload(valid)
+      // Size checks live in the hook, which knows how to report them.
+      const uploaded = await upload(list, { maxSizeMb: field.maxSizeMb })
       if (uploaded.length) commit([...urls, ...uploaded.map((u) => u.url)])
     },
     [commit, field.maxSizeMb, max, upload, urls],
@@ -196,7 +186,7 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
               onDragLeave={() => setDragging(false)}
               onDrop={onDrop}
               className={cn(
-                'flex items-center justify-between gap-3 rounded-xl border border-dashed px-3 py-3 transition-colors',
+                'relative flex items-center justify-between gap-3 rounded-xl border border-dashed px-3 py-3 transition-colors',
                 dragging
                   ? 'border-accent bg-accent-glow'
                   : 'border-line bg-raised/50 hover:border-line-bright',
@@ -217,9 +207,13 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
                   {uploading ? 'Uploading…' : 'Upload'}
                 </button>
                 <p className="mt-0.5 truncate text-[11px] text-ink-faint">
-                  {field.accepts ?? 'Any file'}
-                  {field.maxSizeMb ? ` · ${field.maxSizeMb}MB max` : ''}
-                  {multiple ? ` · ${urls.length}/${max}` : ''}
+                  {uploading && progress.total > 0
+                    ? `${progress.percent}%${
+                        progress.total > 1 ? ` · ${progress.done}/${progress.total} files` : ''
+                      }${progress.currentName ? ` · ${progress.currentName}` : ''}`
+                    : `${field.accepts ?? 'Any file'}${
+                        field.maxSizeMb ? ` · ${field.maxSizeMb}MB max` : ''
+                      }${multiple ? ` · ${urls.length}/${max}` : ''}`}
                 </p>
               </div>
 
@@ -231,6 +225,15 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
                 <Link2 className="size-3.5" />
                 URL
               </button>
+
+              {uploading && progress.total > 0 && (
+                <span className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden rounded-b-xl bg-line">
+                  <span
+                    className="block h-full bg-accent transition-[width] duration-200 ease-out"
+                    style={{ width: `${progress.percent}%` }}
+                  />
+                </span>
+              )}
             </div>
           )}
 
