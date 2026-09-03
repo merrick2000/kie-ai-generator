@@ -1,0 +1,39 @@
+{
+  "name": "highfield",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Highfield \u2014 a complete AI generation studio powered by the Kie.ai API",
+  "scripts": {
+    "dev": "next dev -p 3400",
+    "build": "next build",
+    "start": "next start -p 3400",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "bun --preload ./scripts/preload.ts scripts/test-auth.mts && bun --preload ./scripts/preload.ts scripts/test-session-crypto.mts && bun --preload ./scripts/preload.ts scripts/test-webhook.mts && bun --preload ./scripts/preload.ts scripts/test-db.mts"
+  },
+  "dependencies": {
+    "clsx": "2.1.1",
+    "idb-keyval": "6.2.2",
+    "lucide-react": "0.544.0",
+    "next": "15.5.4",
+    "pg": "^8.23.0",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "sanitize-html": "^2.17.7",
+    "server-only": "^0.0.1",
+    "sonner": "2.0.7",
+    "tailwind-merge": "3.3.1",
+    "zustand": "5.0.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.1.13",
+    "@types/node": "22.18.1",
+    "@types/pg": "^8.23.1",
+    "@types/react": "19.1.13",
+    "@types/react-dom": "19.1.9",
+    "@types/sanitize-html": "^2.16.1",
+    "postcss": "8.5.6",
+    "tailwindcss": "4.1.13",
+    "typescript": "5.9.2"
+  }
+}

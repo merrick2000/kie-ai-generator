@@ -1,0 +1,63 @@
+# Production-shaped stack: the app plus Postgres.
+#
+#   cp .env.example .env    then fill APP_SECRET and POSTGRES_PASSWORD
+#   docker compose up -d
+#
+# The app container holds no state, so it can be scaled or replaced freely.
+# Everything durable lives in the postgres volume.
+
+services:
+  app:
+    build:
+      context: .
+      args:
+        GIT_HASH: ${GIT_HASH:-local}
+    image: ghcr.io/${GITHUB_OWNER:-texfoxt}/highfield:${TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - '${PORT:-3400}:3000'
+    environment:
+      DATABASE_URL: 'postgres://postgres:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/highfield'
+      # Required. Without it a secret is generated per deployment and every
+      # stored Kie.ai key becomes unreadable after a rebuild.
+      APP_SECRET: '${APP_SECRET:?generate one with openssl rand -base64 32}'
+      KIE_API_KEY: ${KIE_API_KEY:-}
+      KIE_WEBHOOK_HMAC_KEY: ${KIE_WEBHOOK_HMAC_KEY:-}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+      # Signing secret shared with the article publisher.
+      ARTICLE_WEBHOOK_SECRET: ${ARTICLE_WEBHOOK_SECRET:-}
+      ARTICLE_WEBHOOK_TOKEN: ${ARTICLE_WEBHOOK_TOKEN:-}
+      SIGNUPS_ENABLED: ${SIGNUPS_ENABLED:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "require('http').get('http://127.0.0.1:3000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: '${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}'
+      POSTGRES_DB: highfield
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # The app only starts once Postgres actually accepts connections, so the
+      # first migration cannot race the database coming up.
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d highfield']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres-data:

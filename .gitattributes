@@ -1,0 +1,25 @@
+# Normalise line endings so a Windows checkout does not rewrite every file.
+* text=auto eol=lf
+
+# Shell scripts and Docker entrypoints break with CRLF.
+*.sh text eol=lf
+Dockerfile text eol=lf
+
+# Generated: collapsed in diffs and excluded from language statistics, but
+# still versioned and still reviewable when needed.
+package-lock.json linguist-generated=true -diff
+*.tsbuildinfo linguist-generated=true
+
+# Binary assets, so git does not attempt a textual merge.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.mp4 binary
+*.webm binary
+*.mp3 binary
+*.pdf binary

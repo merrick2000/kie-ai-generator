@@ -1,0 +1,44 @@
+# Dependencies and build output are produced inside the image.
+node_modules
+.next
+out
+dist
+build
+*.tsbuildinfo
+
+# Secrets never enter the build context. Note that .env.example is excluded
+# too: the image reads configuration from the runtime environment only.
+.env
+.env.*
+
+# Leftover local state from earlier builds.
+.data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Version control and CI definitions have no bearing on the runtime.
+.git
+.gitignore
+.gitattributes
+.github
+
+# Editor and tooling noise.
+.vscode
+.idea
+.playwright-mcp
+playwright-report
+test-results
+coverage
+*.log
+.DS_Store
+
+# Tests and compose files are not part of the running image.
+scripts
+docker-compose*.yml
+Dockerfile
+.dockerignore
+
+# Documentation does not affect the runtime image.
+*.md

@@ -1,0 +1,77 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/releases
+!.yarn/plugins
+
+# Two lockfiles that drift produce the classic "works locally, fails in CI".
+# package-lock.json is the source of truth: CI and the Docker build install
+# from it. Bun stays usable locally, its lockfile just is not shared.
+bun.lock
+bun.lockb
+yarn.lock
+pnpm-lock.yaml
+
+# ── Build output ──────────────────────────────────────────────────────────────
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Secrets and local state ───────────────────────────────────────────────────
+# .env.example is committed on purpose; nothing else here ever is.
+.env
+.env.*
+!.env.example
+
+# Encrypted API keys and password hashes from the pre-Postgres builds. Kept
+# ignored so an old working copy cannot leak one.
+.data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Keys and certificates should never reach a repository.
+*.pem
+*.key
+!public/**/*.key
+
+# ── Tooling and editors ───────────────────────────────────────────────────────
+.vercel/
+.playwright-mcp/
+playwright-report/
+test-results/
+coverage/
+.nyc_output/
+.eslintcache
+.turbo/
+
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# ── OS noise ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+.*.swp
+
+# ── Logs and temporary files ──────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pid
+*.pid
+*.seed
+tmp/
+temp/
