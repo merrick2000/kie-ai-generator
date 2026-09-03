@@ -80,6 +80,88 @@ await check('rejects a short signature without crashing', () => {
   assert.equal(verifyWebhook('{}', { signature: 'sha256=ab', timestamp: ts }, SECRET).ok, false)
 })
 
+console.log('\nfailure reporting')
+
+await check('every rejection carries a code, a hint and a retry verdict', () => {
+  const ts = now()
+  const cases = [
+    verifyWebhook('{}', { signature: null, timestamp: ts }, SECRET),
+    verifyWebhook('{}', { signature: 'sha256=x', timestamp: null }, SECRET),
+    verifyWebhook('{}', { signature: 'sha256=x', timestamp: 'soon' }, SECRET),
+    verifyWebhook('{}', { signature: sign('{}', ts, 'wrong'), timestamp: ts }, SECRET),
+  ]
+
+  for (const result of cases) {
+    assert.equal(result.ok, false)
+    if (result.ok) continue
+    assert.ok(result.code, 'a machine-readable code')
+    assert.ok(result.hint.length > 20, 'a hint that says what to do')
+    assert.equal(typeof result.retryable, 'boolean')
+    // The message must not just restate the code.
+    assert.notEqual(result.error, result.code)
+  }
+})
+
+await check('names the specific code for each failure', () => {
+  const ts = now()
+  const codeOf = (r: ReturnType<typeof verifyWebhook>) => (r.ok ? 'ok' : r.code)
+
+  assert.equal(codeOf(verifyWebhook('{}', { signature: null, timestamp: ts }, SECRET)), 'missing_signature')
+  assert.equal(codeOf(verifyWebhook('{}', { signature: 'sha256=x', timestamp: null }, SECRET)), 'missing_timestamp')
+  assert.equal(codeOf(verifyWebhook('{}', { signature: 'sha256=x', timestamp: 'nope' }, SECRET)), 'malformed_timestamp')
+  assert.equal(
+    codeOf(verifyWebhook('{}', { signature: sign('{}', ts, 'wrong'), timestamp: ts }, SECRET)),
+    'invalid_signature',
+  )
+})
+
+await check('a stale timestamp is retryable and says which way the clock drifted', () => {
+  const stale = (Math.floor(Date.now() / 1000) - 600).toString()
+  const behind = verifyWebhook('{}', { signature: sign('{}', stale), timestamp: stale }, SECRET)
+  assert.ok(!behind.ok)
+  if (behind.ok) return
+  assert.equal(behind.code, 'timestamp_out_of_window')
+  assert.match(behind.error, /behind/)
+  // Worth retrying: a fresh timestamp fixes it, unlike a bad secret.
+  assert.equal(behind.retryable, true)
+
+  const future = (Math.floor(Date.now() / 1000) + 600).toString()
+  const ahead = verifyWebhook('{}', { signature: sign('{}', future), timestamp: future }, SECRET)
+  assert.ok(!ahead.ok && /ahead of/.test(ahead.error))
+})
+
+await check('a bad signature is not retryable', () => {
+  const ts = now()
+  const r = verifyWebhook('{}', { signature: sign('{}', ts, 'wrong'), timestamp: ts }, SECRET)
+  assert.ok(!r.ok && r.retryable === false)
+})
+
+await check('payload problems name the field at fault', () => {
+  const codeOf = (payload: object) => {
+    const r = parseArticle(payload)
+    return r.ok ? 'ok' : r.code
+  }
+
+  assert.equal(codeOf({}), 'missing_article')
+  assert.equal(codeOf({ article: {} }), 'missing_id')
+  assert.equal(codeOf({ article: { id: 'a' } }), 'missing_title')
+  assert.equal(codeOf({ article: { id: 'a', title: 'T' } }), 'missing_body')
+  assert.equal(
+    codeOf({ article: { id: 'a', title: 'T', htmlContent: '<script>x</script>' } }),
+    'empty_body',
+  )
+})
+
+await check('explains why a non-empty body can arrive empty', () => {
+  const r = parseArticle({
+    article: { id: 'a', title: 'T', htmlContent: '<script>alert(1)</script>' },
+  })
+  assert.ok(!r.ok)
+  if (r.ok) return
+  // The sender sent something, so the hint has to explain the sanitiser.
+  assert.match(r.hint, /allowlist|filtered/i)
+})
+
 console.log('\nsanitisation')
 
 await check('strips script tags and their contents', () => {

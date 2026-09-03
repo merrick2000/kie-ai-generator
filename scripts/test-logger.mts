@@ -59,6 +59,19 @@ check('redacts a secret value anywhere in the object', () => {
   assert.ok(!serialised.includes('hunter2'))
 })
 
+check('keeps booleans readable even under a secret-sounding name', () => {
+  // `hasSignature: true` is exactly the field worth logging on a webhook, and
+  // redacting it would leave the line saying nothing.
+  const out = redact({ hasSignature: true, tokenPresent: false }) as Record<string, unknown>
+  assert.equal(out.hasSignature, true)
+  assert.equal(out.tokenPresent, false)
+
+  // The string forms are still redacted.
+  const strings = redact({ signature: 'sha256=abc', token: 'tok_live' }) as Record<string, unknown>
+  assert.equal(strings.signature, '[redacted]')
+  assert.equal(strings.token, '[redacted]')
+})
+
 check('truncates long strings so one prompt cannot flood a log', () => {
   const out = redact({ prompt: 'x'.repeat(5000) }) as Record<string, string>
   assert.ok(out.prompt.length < 400, `got ${out.prompt.length} chars`)

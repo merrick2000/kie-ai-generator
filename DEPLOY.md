@@ -188,10 +188,50 @@ Until `ARTICLE_WEBHOOK_SECRET` is set the endpoint answers `503` and stores
 nothing, rather than accepting unsigned HTML that would be served to every
 visitor.
 
-Responses tell the sender what to do: `4xx` means the delivery was wrong and
-should not be retried, `5xx` means a transient failure on our side and a retry
-is welcome. A successful response carries `{ "url": "…" }` pointing at the
-published article.
+### What the sender gets back
+
+Every reply carries a `deliveryId`. It appears in every server log line for
+that delivery, so a report of "article 14 never arrived" can be traced without
+guessing.
+
+A failure looks like this, and `retryable` is the field to branch on:
+
+```json
+{
+  "ok": false,
+  "deliveryId": "94d47bdc",
+  "code": "timestamp_out_of_window",
+  "error": "Timestamp is 601s behind this server, outside the 300s window.",
+  "hint": "Sign and send in one step rather than reusing an older timestamp, and check the sender clock.",
+  "retryable": true
+}
+```
+
+| Code | Status | Retry | Cause |
+|---|---|---|---|
+| `webhook_not_configured` | 503 | yes | `ARTICLE_WEBHOOK_SECRET` unset on the server |
+| `missing_signature` | 401 | no | No `X-Webhook-Signature` header |
+| `missing_timestamp` | 401 | no | No `X-Webhook-Timestamp` header |
+| `malformed_timestamp` | 401 | no | Timestamp is not a number |
+| `timestamp_out_of_window` | 401 | yes | Clock drift or a reused timestamp |
+| `invalid_signature` | 401 | no | Wrong secret, or the body was re-serialised |
+| `invalid_token` | 401 | no | Bearer token missing or wrong |
+| `invalid_json` | 400 | no | Body is not a JSON object |
+| `missing_article` | 422 | no | No `article` in the payload |
+| `missing_id` | 422 | no | Article has no `id` |
+| `missing_title` | 422 | no | Article has no `title` |
+| `missing_body` | 422 | no | Neither `htmlContent` nor `content` |
+| `empty_body` | 422 | no | Nothing survived sanitisation |
+| `storage_failed` | 500 | yes | Database problem on our side |
+
+`empty_body` is the one worth explaining to whoever writes the sender:
+incoming HTML is filtered to an allowlist, so a body made only of scripts,
+styles or empty tags leaves nothing to publish even though the payload was not
+empty.
+
+A success carries `{ "ok": true, "created": true, "slug": "...", "url": "..." }`,
+with `201` for a new article and `200` when an existing `id` was updated in
+place.
 
 ## 8. Access control
 

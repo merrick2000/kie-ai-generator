@@ -81,7 +81,10 @@ function redact(value: unknown, depth = 0): unknown {
   if (typeof value === 'object') {
     const out: Record<string, unknown> = {}
     for (const [key, nested] of Object.entries(value)) {
-      out[key] = isSecret(key) ? '[redacted]' : redact(nested, depth + 1)
+      // A boolean cannot carry a secret, and redacting one destroys the field
+      // that was worth logging: `hasSignature=[redacted]` says nothing.
+      const secret = isSecret(key) && typeof nested !== 'boolean'
+      out[key] = secret ? '[redacted]' : redact(nested, depth + 1)
     }
     return out
   }
