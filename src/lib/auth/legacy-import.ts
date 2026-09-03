@@ -14,6 +14,7 @@ import { readFile, rename } from 'node:fs/promises'
 import { join } from 'node:path'
 
 import type { DatabaseClient } from '@/lib/db'
+import { createLogger } from '@/lib/logger'
 
 interface LegacyUser {
   id?: string
@@ -32,6 +33,8 @@ function legacyPath(): string {
   const dir = process.env.HIGHFIELD_DATA_DIR?.trim() || join(process.cwd(), '.data')
   return join(dir, 'highfield.json')
 }
+
+const log = createLogger('auth')
 
 /** Import runs at most once per process, and is a no-op without a file. */
 let done = false
@@ -86,7 +89,5 @@ export async function importLegacyJson(db: DatabaseClient): Promise<void> {
   // and everyone signing in again is the safer outcome of a storage change.
   await rename(path, `${path}.imported`).catch(() => {})
 
-  console.log(
-    `[auth] imported ${users.length} account(s) from the legacy JSON store`,
-  )
+  log.info('imported accounts from the legacy JSON store', { count: users.length })
 }

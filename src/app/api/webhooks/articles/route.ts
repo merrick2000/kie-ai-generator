@@ -3,9 +3,13 @@ import { revalidatePath } from 'next/cache'
 
 import { parseArticle, verifyWebhook, WEBHOOK_HEADERS, type WebhookPayload } from '@/lib/blog/webhook'
 import { upsertArticle } from '@/lib/blog/store'
+import { createLogger, since } from '@/lib/logger'
+import { withLogging } from '@/lib/api-logging'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+const log = createLogger('webhook')
 
 /**
  * POST /api/webhooks/articles
@@ -17,13 +21,14 @@ export const dynamic = 'force-dynamic'
  * the JSON is parsed, and the body is sanitised before it is stored. Neither
  * step can be skipped by a later code path.
  */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
+  const startedAt = Date.now()
   const secret = process.env.ARTICLE_WEBHOOK_SECRET?.trim()
 
   if (!secret) {
     // Refusing is safer than accepting unsigned articles: this endpoint writes
     // HTML that is served to every visitor.
-    console.error('[webhook] ARTICLE_WEBHOOK_SECRET is not configured')
+    log.error('rejected: ARTICLE_WEBHOOK_SECRET is not configured')
     return NextResponse.json(
       { error: 'Webhook is not configured on this instance.' },
       { status: 503 },
@@ -44,7 +49,12 @@ export async function POST(req: Request) {
   )
 
   if (!verification.ok) {
-    console.warn('[webhook] rejected delivery:', verification.error)
+    log.warn('rejected delivery', {
+      reason: verification.error,
+      // Useful for spotting a clock drift or a stale secret on the sender.
+      timestamp: req.headers.get(WEBHOOK_HEADERS.TIMESTAMP),
+      bytes: rawBody.length,
+    })
     return NextResponse.json({ error: verification.error }, { status: verification.status })
   }
 
@@ -69,11 +79,13 @@ export async function POST(req: Request) {
   if (event && event !== 'article.published') {
     // Acknowledged rather than refused: an unknown event is not a failure the
     // sender should retry.
+    log.info('ignored unknown event', { event })
     return NextResponse.json({ ok: true, ignored: event })
   }
 
   const parsed = parseArticle(payload)
   if (!parsed.ok) {
+    log.warn('unusable payload', { reason: parsed.error, articleId: payload.article?.id })
     return NextResponse.json({ error: parsed.error }, { status: 422 })
   }
 
@@ -86,9 +98,12 @@ export async function POST(req: Request) {
 
     const url = publicUrl(`/blog/${article.slug}`)
 
-    console.log(
-      `[webhook] ${created ? 'published' : 'updated'} "${article.title}" (${article.slug})`,
-    )
+    log.info(created ? 'article published' : 'article updated', {
+      slug: article.slug,
+      title: article.title,
+      project: article.projectName,
+      ms: since(startedAt),
+    })
 
     // The publisher stores this to link back to the live article.
     return NextResponse.json(
@@ -96,7 +111,7 @@ export async function POST(req: Request) {
       { status: created ? 201 : 200 },
     )
   } catch (err) {
-    console.error('[webhook] failed to store article:', err)
+    log.error('could not store article', { error: err, ms: since(startedAt) })
     // A 5xx tells the sender to retry, which is correct for a transient
     // database problem.
     return NextResponse.json({ error: 'Could not store the article.' }, { status: 500 })
@@ -107,3 +122,5 @@ function publicUrl(path: string): string {
   const origin = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, '')
   return origin ? `${origin}${path}` : path
 }
+
+export const POST = withLogging(handlePOST)

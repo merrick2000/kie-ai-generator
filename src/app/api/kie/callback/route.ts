@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 
 import { WEBHOOK_HEADERS, type KieCallbackPayload } from '@/lib/kie/types'
 import { recordCallback } from '@/lib/kie/callback-store'
+import { withLogging } from '@/lib/api-logging'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -20,7 +21,7 @@ const MAX_SKEW_SECONDS = 5 * 60
  * The studio polls regardless, so this endpoint is an optimisation: it lets a
  * result land the instant it is ready instead of on the next poll tick.
  */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const raw = await req.text()
 
   let payload: KieCallbackPayload
@@ -69,3 +70,5 @@ export async function POST(req: Request) {
   // Always 200 on an accepted callback: a non-2xx makes Kie retry.
   return NextResponse.json({ received: true })
 }
+
+export const POST = withLogging(handlePOST)

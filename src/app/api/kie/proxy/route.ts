@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { withLogging } from '@/lib/api-logging'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -49,7 +50,7 @@ function isAllowed(hostname: string): boolean {
   )
 }
 
-export async function GET(req: Request) {
+async function handleGET(req: Request) {
   const raw = new URL(req.url).searchParams.get('url')
   const download = new URL(req.url).searchParams.get('download') === '1'
   const filename = new URL(req.url).searchParams.get('filename')
@@ -103,3 +104,5 @@ export async function GET(req: Request) {
 
   return new NextResponse(upstream.body, { status: 200, headers })
 }
+
+export const GET = withLogging(handleGET)

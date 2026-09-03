@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 
 import { changePassword } from '@/lib/auth'
+import { withLogging } from '@/lib/api-logging'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   let body: { currentPassword?: string; newPassword?: string }
 
   try {
@@ -25,3 +26,5 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withLogging(handlePOST)

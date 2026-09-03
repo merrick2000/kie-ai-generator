@@ -5,12 +5,13 @@ import { secretFromEnv } from '@/lib/auth/store'
 import { keySource, verifyKey } from '@/lib/kie/client'
 import { maskKey } from '@/lib/kie/session-crypto'
 import { currentApiKey } from '@/lib/auth'
+import { withLogging } from '@/lib/api-logging'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /** GET, the signed-in user's key status. Never returns the key itself. */
-export async function GET() {
+async function handleGET() {
   const user = await currentUser()
   if (!user) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 })
@@ -33,7 +34,7 @@ export async function GET() {
  * Validating before storing means a typo surfaces here rather than on the
  * user's first generation.
  */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   const user = await currentUser()
   if (!user) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 })
@@ -66,7 +67,7 @@ export async function POST(req: Request) {
 }
 
 /** DELETE, detach the key from the account. */
-export async function DELETE() {
+async function handleDELETE() {
   const user = await currentUser()
   if (!user) {
     return NextResponse.json({ error: 'Not signed in.' }, { status: 401 })
@@ -75,3 +76,7 @@ export async function DELETE() {
   await clearApiKey()
   return NextResponse.json({ ok: true, source: await keySource() })
 }
+
+export const GET = withLogging(handleGET)
+export const POST = withLogging(handlePOST)
+export const DELETE = withLogging(handleDELETE)

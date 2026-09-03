@@ -11,6 +11,7 @@ import 'server-only'
 import { randomBytes } from 'node:crypto'
 
 import { currentApiKey } from '@/lib/auth'
+import { createLogger, since } from '@/lib/logger'
 
 import {
   KIE_CODE,
@@ -25,6 +26,8 @@ import {
   type VeoGenerateRequest,
   type VeoRecordInfoData,
 } from './types'
+
+const log = createLogger('kie')
 
 const API_BASE = 'https://api.kie.ai'
 /**
@@ -175,6 +178,7 @@ async function request<T>(
   let lastError: unknown
 
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const startedAt = Date.now()
     try {
       const res = await fetch(url, {
         method,
@@ -205,6 +209,14 @@ async function request<T>(
       // HTTP status, check both.
       const code = payload?.code ?? res.status
       if (!res.ok || code !== KIE_CODE.SUCCESS) {
+        log.warn('upstream rejected request', {
+          path,
+          status: res.status,
+          code,
+          msg: payload?.msg,
+          attempt: attempt + 1,
+          ms: since(startedAt),
+        })
         throw new KieError(
           payload?.msg || `Kie request failed (HTTP ${res.status}).`,
           code,
@@ -212,6 +224,7 @@ async function request<T>(
         )
       }
 
+      log.debug('upstream ok', { path, ms: since(startedAt) })
       return payload.data
     } catch (err) {
       lastError = err
@@ -221,7 +234,9 @@ async function request<T>(
           ? err.code === KIE_CODE.SERVER_ERROR || err.code === KIE_CODE.RATE_LIMITED
           : true
       if (!retryable || attempt === retries) break
-      await new Promise((r) => setTimeout(r, 400 * 2 ** attempt))
+      const backoff = 400 * 2 ** attempt
+      log.info('retrying upstream call', { path, attempt: attempt + 1, backoff })
+      await new Promise((r) => setTimeout(r, backoff))
     }
   }
 
@@ -399,6 +414,7 @@ async function uploadRequest(
     }
 
     if (res.status === 404 || res.status === 405) {
+      log.warn('upload endpoint missing, trying next host', { host, status: res.status })
       lastError = new KieError(
         `Upload endpoint not found at ${host} (HTTP ${res.status}).`,
         res.status,
@@ -441,6 +457,7 @@ async function uploadRequest(
       )
     }
 
+    log.info('uploaded', { host, bytes: payload.data?.fileSize, type: payload.data?.mimeType })
     return toUploadResult(payload.data!, url)
   }
 

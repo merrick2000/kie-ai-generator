@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server'
 
+import { createLogger } from '@/lib/logger'
+import { withLogging } from '@/lib/api-logging'
+
 export const runtime = 'nodejs'
 
 /**
@@ -13,6 +16,8 @@ export const runtime = 'nodejs'
  * is not something that needs to be seen within the minute.
  */
 export const revalidate = 3600
+
+const log = createLogger('pricing')
 
 const KIE_PRICING_URL = 'https://api.kie.ai/client/v1/model-pricing/page'
 const PAGE_SIZE = 100
@@ -39,7 +44,7 @@ interface KieRecord {
   usdPrice?: string
 }
 
-export async function GET() {
+async function handleGET() {
   try {
     const rows: PriceRow[] = []
 
@@ -89,7 +94,9 @@ export async function GET() {
 
     return NextResponse.json({ rows, fetchedAt: Date.now() })
   } catch (err) {
-    console.error('[pricing] could not load Kie pricing:', err)
+    log.error('could not load Kie pricing', { error: err })
     return NextResponse.json({ error: 'Pricing is unavailable.' }, { status: 502 })
   }
 }
+
+export const GET = withLogging(handleGET)

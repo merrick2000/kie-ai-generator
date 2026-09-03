@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import type { ModelApi } from '@/lib/kie/catalog'
 import { KieError } from '@/lib/kie/client'
 import { pollTask } from '@/lib/kie/tasks'
+import { withLogging } from '@/lib/api-logging'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -10,7 +11,7 @@ export const dynamic = 'force-dynamic'
 const VALID_APIS: ModelApi[] = ['market', 'veo', 'suno']
 
 /** GET /api/kie/status?taskId=…&api=market&modelId=… */
-export async function GET(req: Request) {
+async function handleGET(req: Request) {
   const url = new URL(req.url)
   const taskId = url.searchParams.get('taskId')
   const api = (url.searchParams.get('api') ?? 'market') as ModelApi
@@ -39,3 +40,5 @@ export async function GET(req: Request) {
     )
   }
 }
+
+export const GET = withLogging(handleGET)

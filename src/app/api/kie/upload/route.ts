@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { currentUser } from '@/lib/auth'
 import { KieError, uploadFile, uploadFromUrl } from '@/lib/kie/client'
+import { withLogging } from '@/lib/api-logging'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -19,7 +20,7 @@ const MAX_BYTES = 100 * 1024 * 1024
  * generation: Kie fetches the asset server-side, so it never travels down to
  * the browser and back up.
  */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   // Uploads spend the user's own Kie quota and land in their own directory,
   // so an anonymous caller has no business here.
   const user = await currentUser()
@@ -86,3 +87,5 @@ export async function POST(req: Request) {
     )
   }
 }
+
+export const POST = withLogging(handlePOST)

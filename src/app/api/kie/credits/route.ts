@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 
 import { KieError, getCredits, hasApiKey } from '@/lib/kie/client'
+import { withLogging } from '@/lib/api-logging'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 /** GET /api/kie/credits, balance plus whether the server is configured. */
-export async function GET() {
+async function handleGET() {
   if (!(await hasApiKey())) {
     return NextResponse.json({ configured: false, credits: null })
   }
@@ -27,3 +28,5 @@ export async function GET() {
     )
   }
 }
+
+export const GET = withLogging(handleGET)

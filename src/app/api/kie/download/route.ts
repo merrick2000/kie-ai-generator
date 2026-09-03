@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { KieError, getDownloadUrl } from '@/lib/kie/client'
+import { withLogging } from '@/lib/api-logging'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -12,7 +13,7 @@ export const dynamic = 'force-dynamic'
  * for assets whose direct URL has expired; fresh results stream fine through
  * /api/kie/proxy.
  */
-export async function POST(req: Request) {
+async function handlePOST(req: Request) {
   let url: string | undefined
   try {
     ;({ url } = (await req.json()) as { url?: string })
@@ -33,3 +34,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Could not sign download URL.' }, { status: 500 })
   }
 }
+
+export const POST = withLogging(handlePOST)

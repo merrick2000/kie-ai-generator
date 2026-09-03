@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 
 import { getDb } from '@/lib/db'
+import { createLogger } from '@/lib/logger'
+import { withLogging } from '@/lib/api-logging'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+const log = createLogger('health')
 
 /**
  * GET /api/health
@@ -14,7 +18,7 @@ export const dynamic = 'force-dynamic'
  * cannot reach Postgres can still serve HTML, but it cannot sign anyone in, so
  * reporting it as healthy would send traffic to a broken replica.
  */
-export async function GET() {
+async function handleGET() {
   const startedAt = Date.now()
 
   try {
@@ -29,7 +33,7 @@ export async function GET() {
     })
   } catch (err) {
     // The message can name a host or a user, so it goes to the logs only.
-    console.error('[health] database check failed:', err)
+    log.error('database unreachable', { error: err, ms: Date.now() - startedAt })
 
     return NextResponse.json(
       {
@@ -42,3 +46,5 @@ export async function GET() {
     )
   }
 }
+
+export const GET = withLogging(handleGET)

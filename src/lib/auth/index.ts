@@ -13,6 +13,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { cookies } from 'next/headers'
 
 import { decryptValue, deriveKey, encryptValue } from '@/lib/kie/session-crypto'
+import { createLogger } from '@/lib/logger'
 import {
   hashPassword,
   normalizeEmail,
@@ -34,6 +35,8 @@ import {
   updatePasswordHash,
   type UserRecord,
 } from './store'
+
+const log = createLogger('auth')
 
 const COOKIE_NAME = 'hf_session'
 const SESSION_DAYS = 30
@@ -162,6 +165,7 @@ export async function signUp(
   })
 
   if (!created.ok) {
+    log.info('signup rejected, email already registered', { email })
     return {
       ok: false,
       error: 'An account already exists for this email. Sign in instead.',
@@ -170,6 +174,7 @@ export async function signUp(
   }
 
   await issueSession(created.user.id)
+  log.info('account created', { userId: created.user.id, email })
   return { ok: true, user: publicUser(created.user) }
 }
 
@@ -187,11 +192,14 @@ export async function signIn(
     : await verifyPassword(password, 'scrypt$65536$8$1$aaaa$bbbb')
 
   if (!user || !valid) {
+    // Logged at warn: a burst of these is the signal for credential stuffing.
+    log.warn('failed sign-in', { email, reason: user ? 'bad password' : 'unknown email' })
     return { ok: false, error: 'Incorrect email or password.' }
   }
 
   await touchLastLogin(user.id)
   await issueSession(user.id)
+  log.info('signed in', { userId: user.id, email })
   return { ok: true, user: publicUser(user) }
 }
 
@@ -214,6 +222,8 @@ export async function setApiKey(value: string): Promise<boolean> {
 
   const sealed = encryptValue(value.trim(), deriveKey(await encryptionSecret()))
   await updateApiKey(user.id, sealed)
+  // The key itself is never logged, only that one was set.
+  log.info('api key set', { userId: user.id })
   return true
 }
 
@@ -222,6 +232,7 @@ export async function clearApiKey(): Promise<boolean> {
   if (!user) return false
 
   await updateApiKey(user.id, null)
+  log.info('api key removed', { userId: user.id })
   return true
 }
 

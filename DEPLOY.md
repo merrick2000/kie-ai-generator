@@ -131,7 +131,35 @@ first migration cannot race the database coming up.
 Set `DATABASE_URL` to a managed Postgres such as Neon or Supabase, plus
 `APP_SECRET`. The Dockerfile is not involved on this path.
 
-## 5. Health and rollback
+## 5. Logs
+
+Production emits one JSON line per event on stdout, which is what `docker
+logs` collects and what any aggregator can index:
+
+```json
+{"ts":"2026-09-03T14:59:47.821Z","level":"info","scope":"kie","msg":"submitted","taskId":"t_123","model":"z-image","userId":"u1","ms":412}
+```
+
+Development prints the same events as aligned, coloured text instead.
+
+`LOG_LEVEL` accepts `debug`, `info`, `warn` or `error`, defaulting to `info` in
+production. Scopes are `http`, `auth`, `kie`, `generate`, `webhook`, `db`,
+`health` and `pricing`, so a single area can be followed with a grep.
+
+Errors and warnings go to stderr, everything else to stdout.
+
+### Secrets never reach a log line
+
+Every logged value is filtered by key name before it is written, so anything
+whose key contains `password`, `token`, `secret`, `apikey`, `authorization`,
+`cookie`, `signature` or `hash` is replaced with `[redacted]`. Long strings
+are truncated and deep objects are cut off, so a 20k prompt cannot flood a
+log. This is asserted by the test suite rather than assumed.
+
+Query strings are omitted from request lines: they carry task ids, asset URLs
+and signed download links.
+
+## 6. Health and rollback
 
 `GET /api/health` returns `200` with the active engine and the deployed commit,
 and `503` when the database is unreachable. It queries the database rather than
@@ -145,7 +173,7 @@ is reported as unhealthy and taken out of rotation.
 Every build is also tagged with its commit SHA, so a rollback is a redeploy of
 `ghcr.io/<owner>/highfield:<previous-sha>`.
 
-## 6. Blog webhook
+## 7. Blog webhook
 
 The publisher posts articles to `POST /api/webhooks/articles`. Give it:
 
@@ -165,7 +193,7 @@ should not be retried, `5xx` means a transient failure on our side and a retry
 is welcome. A successful response carries `{ "url": "…" }` pointing at the
 published article.
 
-## 7. Access control
+## 8. Access control
 
 A deployed instance is reachable by anyone who knows its URL, and registration
 is open by default. Set `SIGNUPS_ENABLED=false` before exposing it.
@@ -175,7 +203,7 @@ closed instance: deploy, visit it, register, and every subsequent attempt is
 refused. Existing users keep signing in normally, and the sign-up form is
 hidden rather than left to fail on submit.
 
-## 8. Before the first deploy
+## 9. Before the first deploy
 
 - [ ] `APP_SECRET` generated and stored on the host
 - [ ] `DATABASE_URL` points at a Postgres you control and back up

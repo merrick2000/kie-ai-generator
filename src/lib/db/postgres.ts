@@ -2,6 +2,8 @@ import 'server-only'
 
 import { Pool, type PoolClient } from 'pg'
 
+import { createLogger } from '@/lib/logger'
+
 import type { DatabaseClient, SqlValue } from './types'
 
 /**
@@ -65,6 +67,8 @@ function readSslMode(connectionString: string): string | null {
   }
 }
 
+const log = createLogger('db')
+
 export function createPostgresClient(connectionString: string): DatabaseClient {
   const pool = new Pool({
     connectionString,
@@ -77,7 +81,7 @@ export function createPostgresClient(connectionString: string): DatabaseClient {
 
   // A broken idle connection must not take the process down.
   pool.on('error', (err) => {
-    console.error('[db] idle postgres client error:', err.message)
+    log.error('idle client error', { error: err })
   })
 
   /** `client` is set inside a transaction so every statement shares it. */
