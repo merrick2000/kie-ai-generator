@@ -19,13 +19,20 @@ import { useStudio } from '@/store/studio'
 import { FieldRenderer } from './FieldRenderer'
 import { ModelPicker } from './ModelPicker'
 
+const EMPTY_VALUES: Record<string, unknown> = {}
+
 /** The left rail: pick a model, fill its schema, submit. */
 export function Composer() {
   const modelId = useStudio((s) => s.modelId)
   const selectModel = useStudio((s) => s.selectModel)
   const setValue = useStudio((s) => s.setValue)
   const resetForm = useStudio((s) => s.resetForm)
-  const values = useStudio((s) => s.formsByModel[s.modelId] ?? {})
+  // A shared constant, not a fresh `{}`. Returning a new object from a
+  // selector gives Zustand a different snapshot on every render, which React
+  // reports as "Maximum update depth exceeded" and the app stops responding.
+  // It only shows up when the current model has no form entry yet, which is
+  // why it survived until a model was selected without one.
+  const values = useStudio((s) => s.formsByModel[s.modelId] ?? EMPTY_VALUES)
   const activeCount = useStudio(
     (s) => s.jobs.filter((j) => j.state !== 'success' && j.state !== 'fail').length,
   )

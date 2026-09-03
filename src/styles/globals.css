@@ -155,8 +155,15 @@
     background: var(--color-ink);
   }
 
+  /*
+   * Deliberately not `field-sizing: content`.
+   *
+   * Auto-growing to the content overrides `rows` and fights both the manual
+   * resize handle and the expand toggle, so the height stays under the
+   * writer's control instead.
+   */
   textarea {
-    field-sizing: content;
+    field-sizing: fixed;
   }
 }
 

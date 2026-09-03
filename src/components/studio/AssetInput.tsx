@@ -1,11 +1,13 @@
 'use client'
 
-import { Link2, Loader2, Plus, X } from 'lucide-react'
+import { Images, Link2, Loader2, Plus, X } from 'lucide-react'
 import { useCallback, useRef, useState, type DragEvent } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/Button'
 import { useUpload } from '@/hooks/useUpload'
+import { useStudio } from '@/store/studio'
+import { MediaLibraryPicker } from './MediaLibraryPicker'
 import type { AssetField } from '@/lib/kie/fields'
 import { cn, proxied } from '@/lib/utils'
 
@@ -38,7 +40,22 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
   const { upload, uploadUrl, uploading, progress } = useUpload()
   const [dragging, setDragging] = useState(false)
   const [urlMode, setUrlMode] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [urlDraft, setUrlDraft] = useState('')
+
+  // Only offer the library when there is actually something in it that this
+  // field could take, otherwise the button leads to an empty dialog.
+  const libraryCount = useStudio((s) => {
+    const wanted =
+      field.kind === 'audio' ? 'audio' : field.kind.startsWith('video') ? 'video' : 'image'
+    return s.jobs.reduce(
+      (total, job) =>
+        job.state === 'success'
+          ? total + job.assets.filter((a) => a.kind === wanted).length
+          : total,
+      0,
+    )
+  })
   const inputRef = useRef<HTMLInputElement>(null)
 
   const commit = useCallback(
@@ -217,14 +234,30 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setUrlMode(true)}
-                className="flex shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] text-ink-faint transition-colors hover:bg-overlay hover:text-ink"
-              >
-                <Link2 className="size-3.5" />
-                URL
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                {libraryCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setLibraryOpen(true)}
+                    disabled={uploading}
+                    title="Reuse something you already generated"
+                    className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] text-ink-faint transition-colors hover:bg-overlay hover:text-ink disabled:opacity-50"
+                  >
+                    <Images className="size-3.5" />
+                    Library
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setUrlMode(true)}
+                  disabled={uploading}
+                  className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] text-ink-faint transition-colors hover:bg-overlay hover:text-ink disabled:opacity-50"
+                >
+                  <Link2 className="size-3.5" />
+                  URL
+                </button>
+              </div>
 
               {uploading && progress.total > 0 && (
                 <span className="absolute inset-x-0 bottom-0 h-0.5 overflow-hidden rounded-b-xl bg-line">
@@ -235,6 +268,18 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
                 </span>
               )}
             </div>
+          )}
+
+          {libraryOpen && (
+            <MediaLibraryPicker
+              field={field}
+              room={max - urls.length}
+              onCancel={() => setLibraryOpen(false)}
+              onPick={(picked) => {
+                commit([...urls, ...picked])
+                setLibraryOpen(false)
+              }}
+            />
           )}
 
           <input

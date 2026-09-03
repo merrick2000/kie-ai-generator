@@ -203,13 +203,23 @@ export const useStudio = create<StudioState>()(
   ),
 )
 
-/** Selector helpers, kept out of components to avoid re-render churn. */
-export const selectActiveJobs = (s: StudioState) =>
-  s.jobs.filter((j) => j.state !== 'success' && j.state !== 'fail')
-
+/**
+ * Selector helpers, kept out of components to avoid re-render churn.
+ *
+ * Each returns a stored reference or a primitive. A selector that builds a
+ * new array or object per call hands Zustand a different snapshot every
+ * render, which React reports as "Maximum update depth exceeded".
+ */
 export const selectFocusedJob = (s: StudioState) =>
   s.focusedJobId ? (s.jobs.find((j) => j.id === s.focusedJobId) ?? null) : null
 
 /** Credits charged across every completed job still in history. */
 export const selectSpentCredits = (s: StudioState) =>
   s.jobs.reduce((total, job) => total + (job.creditsConsumed ?? 0), 0)
+
+/** How many generations are still in flight. A count, not the list. */
+export const selectActiveCount = (s: StudioState) =>
+  s.jobs.reduce(
+    (total, job) => (job.state !== 'success' && job.state !== 'fail' ? total + 1 : total),
+    0,
+  )

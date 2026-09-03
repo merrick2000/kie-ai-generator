@@ -1,7 +1,7 @@
 'use client'
 
-import { Dices } from 'lucide-react'
-import { useId } from 'react'
+import { Dices, Maximize2, Minimize2 } from 'lucide-react'
+import { useId, useState } from 'react'
 
 import { FieldShell, inputClass } from '@/components/ui/Field'
 import { Segmented } from '@/components/ui/Segmented'
@@ -29,12 +29,15 @@ const SEGMENTED_MAX_OPTIONS = 4
 
 export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
   const id = useId()
+  const [expanded, setExpanded] = useState(false)
 
   switch (field.kind) {
     case 'prompt':
     case 'textarea': {
       const f = field as PromptField
       const text = (value as string) ?? ''
+      const isPrompt = f.kind === 'prompt'
+
       return (
         <FieldShell
           label={f.label}
@@ -42,20 +45,46 @@ export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
           description={f.description}
           required={f.required}
           aside={
-            f.maxLength ? (
-              <span className={cn(text.length > f.maxLength && 'text-danger')}>
-                {text.length.toLocaleString()}/{f.maxLength.toLocaleString()}
-              </span>
-            ) : undefined
+            <span className="flex items-center gap-2">
+              {f.maxLength && (
+                <span className={cn(text.length > f.maxLength && 'text-danger')}>
+                  {text.length.toLocaleString()}/{f.maxLength.toLocaleString()}
+                </span>
+              )}
+              {isPrompt && (
+                <button
+                  type="button"
+                  onClick={() => setExpanded((v) => !v)}
+                  title={expanded ? 'Shrink' : 'Expand'}
+                  aria-label={expanded ? 'Shrink the prompt field' : 'Expand the prompt field'}
+                  className="grid size-5 place-items-center rounded text-ink-faint transition-colors hover:bg-overlay hover:text-ink"
+                >
+                  {expanded ? (
+                    <Minimize2 className="size-3" />
+                  ) : (
+                    <Maximize2 className="size-3" />
+                  )}
+                </button>
+              )}
+            </span>
           }
         >
+          {/*
+            Resizable by drag as well as by the toggle: a long prompt is hard
+            to edit through a four-line window, and how much room it deserves
+            is the writer's call, not ours.
+          */}
           <textarea
             id={id}
             value={text}
             onChange={(e) => onChange(e.target.value)}
             placeholder={f.placeholder}
-            rows={f.kind === 'prompt' ? 4 : 2}
-            className={cn(inputClass, 'resize-none leading-relaxed')}
+            rows={isPrompt ? (expanded ? 16 : 4) : 2}
+            className={cn(
+              inputClass,
+              'resize-y leading-relaxed',
+              isPrompt && 'min-h-[92px]',
+            )}
           />
         </FieldShell>
       )
