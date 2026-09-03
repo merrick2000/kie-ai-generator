@@ -243,22 +243,19 @@ export function AuthScreen({
                   {reveal ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
               </div>
-              {mode === 'signup' && password.length > 0 && (
-                <p
-                  className={cn(
-                    'mt-1.5 text-[11px]',
-                    password.length >= MIN_PASSWORD_LENGTH
-                      ? 'text-ok'
-                      : 'text-ink-faint',
-                  )}
-                >
-                  {password.length >= MIN_PASSWORD_LENGTH
-                    ? 'Long enough'
-                    : `${MIN_PASSWORD_LENGTH - password.length} more character${
-                        MIN_PASSWORD_LENGTH - password.length === 1 ? '' : 's'
-                      }`}
-                </p>
-              )}
+              {/*
+                Only shown while the password is still too short. Confirming
+                that a valid password is valid adds a line of coloured text
+                that says nothing the enabled button does not already say.
+              */}
+              {mode === 'signup' &&
+                password.length > 0 &&
+                password.length < MIN_PASSWORD_LENGTH && (
+                  <p className="mt-1.5 text-[11px] text-ink-faint">
+                    {MIN_PASSWORD_LENGTH - password.length} more character
+                    {MIN_PASSWORD_LENGTH - password.length === 1 ? '' : 's'}
+                  </p>
+                )}
             </div>
 
             {error && (
