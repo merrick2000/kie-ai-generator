@@ -102,6 +102,58 @@ check('passes through null and undefined untouched', () => {
   assert.equal(redact(undefined), undefined)
 })
 
+console.log('\nformat')
+
+check('defaults to readable text, even in production', () => {
+  const previousEnv = process.env.NODE_ENV
+  const previousFormat = process.env.LOG_FORMAT
+  const captured: string[] = []
+  const realOut = process.stdout.write.bind(process.stdout)
+
+  // @ts-expect-error NODE_ENV is readonly in the types, writable at runtime.
+  process.env.NODE_ENV = 'production'
+  delete process.env.LOG_FORMAT
+  process.stdout.write = ((s: string) => (captured.push(s), true)) as typeof process.stdout.write
+
+  try {
+    createLogger('http').info('request', { method: 'GET', path: '/x', status: 200, ms: 5 })
+  } finally {
+    process.stdout.write = realOut
+    // @ts-expect-error restoring the runtime value
+    process.env.NODE_ENV = previousEnv
+    if (previousFormat) process.env.LOG_FORMAT = previousFormat
+  }
+
+  // JSON is unreadable in a plain-text log panel, which is what most
+  // self-hosted deployments give you.
+  assert.ok(!captured[0].trim().startsWith('{'), 'must not default to JSON')
+  assert.ok(captured[0].includes('/x'))
+})
+
+check('emits JSON when asked for it', () => {
+  const previous = process.env.LOG_FORMAT
+  const captured: string[] = []
+  const realOut = process.stdout.write.bind(process.stdout)
+
+  process.env.LOG_FORMAT = 'json'
+  process.stdout.write = ((s: string) => (captured.push(s), true)) as typeof process.stdout.write
+
+  try {
+    createLogger('kie').info('submitted', { taskId: 't_1' })
+  } finally {
+    process.stdout.write = realOut
+    if (previous) process.env.LOG_FORMAT = previous
+    else delete process.env.LOG_FORMAT
+  }
+
+  const parsed = JSON.parse(captured[0])
+  assert.equal(parsed.scope, 'kie')
+  assert.equal(parsed.msg, 'submitted')
+  assert.equal(parsed.taskId, 't_1')
+  // No ANSI in structured output, or the collector chokes on it.
+  assert.ok(!captured[0].includes('\x1b'))
+})
+
 console.log('\noutput')
 
 check('writes to stdout for info and stderr for errors', () => {

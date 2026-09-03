@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getDb } from '@/lib/db'
+import { verifySchema } from '@/lib/db/schema'
 import { createLogger } from '@/lib/logger'
 import { withLogging } from '@/lib/api-logging'
 
@@ -25,12 +26,26 @@ async function handleGET() {
     const db = await getDb()
     await db.get('SELECT 1 AS ok')
 
-    return NextResponse.json({
-      status: 'ok',
+    // Reachable is not the same as usable: a database missing a table answers
+    // SELECT 1 happily and then fails every real query.
+    const schema = await verifySchema(db)
+
+    const body = {
+      status: schema.ok ? 'ok' : 'degraded',
       database: 'postgres',
+      schema: schema.ok
+        ? 'ok'
+        : {
+            missingTables: schema.missingTables,
+            missingColumns: schema.missingColumns,
+          },
       latencyMs: Date.now() - startedAt,
       version: process.env.GIT_HASH?.slice(0, 7) ?? 'dev',
-    })
+    }
+
+    // 503 on a bad schema, so a load balancer takes the instance out rather
+    // than sending it traffic it cannot serve.
+    return NextResponse.json(body, { status: schema.ok ? 200 : 503 })
   } catch (err) {
     // The message can name a host or a user, so it goes to the logs only.
     log.error('database unreachable', { error: err, ms: Date.now() - startedAt })

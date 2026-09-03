@@ -126,4 +126,90 @@ export async function migrate(db: DatabaseClient): Promise<void> {
 
     log.info('migration applied', { version: migration.version, name: migration.name })
   }
+
+  const report = await verifySchema(db)
+
+  if (report.ok) {
+    log.info('schema verified', { tables: report.tables })
+  } else {
+    // Loud, because every affected request will fail later with a much less
+    // helpful message.
+    log.error('SCHEMA MISMATCH: the database is missing what this build needs', {
+      missingTables: report.missingTables.join(',') || undefined,
+      missingColumns: report.missingColumns.join(',') || undefined,
+      hint: 'Restore a current dump, or drop schema_migrations to force a rebuild on an empty database.',
+    })
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Verification
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+/**
+ * What the running code needs to exist.
+ *
+ * The migration table records intent; this checks reality. They diverge when a
+ * migration is marked applied but partially failed, when a database is
+ * restored from an older dump, or when someone edits the schema by hand. Each
+ * case surfaces later as a query failing mid-request, which is the worst place
+ * to discover it.
+ *
+ * Only columns the code actually reads or writes are listed, so adding an
+ * unrelated column upstream does not raise a false alarm.
+ */
+const REQUIRED: Record<string, string[]> = {
+  users: ['id', 'email', 'password_hash', 'api_key_enc', 'created_at', 'last_login_at'],
+  sessions: ['token_hash', 'user_id', 'created_at', 'expires_at'],
+  app_settings: ['name', 'value', 'created_at'],
+  articles: [
+    'id', 'slug', 'title', 'html', 'excerpt', 'cover_image_url', 'cover_image_alt',
+    'keyword', 'language', 'seo_title', 'seo_description', 'seo_keywords',
+    'project_id', 'project_name', 'reading_minutes', 'published_at',
+    'created_at', 'updated_at',
+  ],
+}
+
+export interface SchemaReport {
+  ok: boolean
+  /** Tables the code needs that are not there at all. */
+  missingTables: string[]
+  /** Columns missing from tables that do exist, as "table.column". */
+  missingColumns: string[]
+  tables: number
+}
+
+export async function verifySchema(db: DatabaseClient): Promise<SchemaReport> {
+  const rows = await db.all<{ table_name: string; column_name: string }>(
+    `SELECT table_name, column_name
+       FROM information_schema.columns
+      WHERE table_schema = 'public'`,
+  )
+
+  const present = new Map<string, Set<string>>()
+  for (const row of rows) {
+    if (!present.has(row.table_name)) present.set(row.table_name, new Set())
+    present.get(row.table_name)!.add(row.column_name)
+  }
+
+  const missingTables: string[] = []
+  const missingColumns: string[] = []
+
+  for (const [table, columns] of Object.entries(REQUIRED)) {
+    const found = present.get(table)
+    if (!found) {
+      missingTables.push(table)
+      continue
+    }
+    for (const column of columns) {
+      if (!found.has(column)) missingColumns.push(`${table}.${column}`)
+    }
+  }
+
+  return {
+    ok: missingTables.length === 0 && missingColumns.length === 0,
+    missingTables,
+    missingColumns,
+    tables: present.size,
+  }
 }

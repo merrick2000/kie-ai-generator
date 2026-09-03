@@ -27,6 +27,23 @@ function threshold(): number {
 const isProduction = () => process.env.NODE_ENV === 'production'
 
 /**
+ * Output format.
+ *
+ * JSON is for a collector that indexes fields. It is actively worse anywhere
+ * the logs are read as text, which is what Dokploy, `docker logs` and most
+ * self-hosted panels give you: the object wraps mid-key and nothing lines up.
+ *
+ * So the readable format is the default everywhere, and JSON is opt-in for
+ * deployments that actually ship logs to Loki, Datadog or similar.
+ */
+function useJson(): boolean {
+  const configured = process.env.LOG_FORMAT?.trim().toLowerCase()
+  if (configured === 'json') return true
+  if (configured === 'pretty' || configured === 'text') return false
+  return false
+}
+
+/**
  * Keys whose values are never written, matched case-insensitively as a
  * substring so `apiKey`, `kie_api_key` and `authorization` are all caught.
  */
@@ -129,9 +146,10 @@ const SCOPE_COLOUR: Record<string, string> = {
 function useColour(): boolean {
   if (process.env.NO_COLOR) return false
   if (process.env.FORCE_COLOR) return process.env.FORCE_COLOR !== '0'
-  if (isProduction()) return false
-  // Development defaults to colour even without a TTY, since the output is
-  // almost always being read by a person.
+  // Colour would corrupt structured output.
+  if (useJson()) return false
+  // On by default even without a TTY: checking `isTTY` loses the colour
+  // exactly where it is wanted, behind a file or a log panel.
   return true
 }
 
@@ -191,7 +209,7 @@ function write(level: LogLevel, scope: string, message: string, context?: LogCon
   const safe = context ? (redact(context) as LogContext) : undefined
   const stream = level === 'error' || level === 'warn' ? process.stderr : process.stdout
 
-  if (isProduction()) {
+  if (useJson()) {
     // One line of JSON, so a collector can index the fields.
     stream.write(
       `${JSON.stringify(
@@ -204,8 +222,9 @@ function write(level: LogLevel, scope: string, message: string, context?: LogCon
     return
   }
 
-  // Full date, not just the time: a server log read the next morning needs it.
-  const stamp = new Date().toISOString().replace('T', ' ').slice(0, 23)
+  // Month, day and time. The year is dropped because every log panel stamps
+  // its own date beside the line, and width is scarce in those views.
+  const stamp = new Date().toISOString().slice(5, 23).replace('T', ' ')
 
   // A stack crammed into the key=value tail as JSON is unreadable, so it is
   // lifted out and printed underneath instead.

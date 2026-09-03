@@ -133,41 +133,90 @@ Set `DATABASE_URL` to a managed Postgres such as Neon or Supabase, plus
 
 ## 5. Logs
 
-Production emits one JSON line per event on stdout, which is what `docker
-logs` collects and what any aggregator can index:
+Readable, aligned columns by default, in development and in production alike:
+
+```
+09-03 17:05:38.826 INFO  webhook  received deliveryId=eeb0502c bytes=67058 ip=5.78.146.185
+09-03 17:05:38.827 INFO  webhook  updated  deliveryId=eeb0502c slug=my-article ms=1212
+09-03 17:05:38.828 INFO  http     POST  200 /api/webhooks/articles 1213ms ip=5.78.146.185
+09-03 17:06:01.506 WARN  http     POST  401 /api/webhooks/articles 23ms
+```
+
+Month, day and time first, since every log panel stamps its own date beside
+the line. Then the level, then the scope in its own colour. Request lines read
+as an access log: method, status colour-coded by class, path, duration. A
+duration over a second is highlighted. Error stacks print as indented lines
+underneath rather than as JSON in the fields.
+
+`LOG_FORMAT=json` switches to one JSON object per line, for a collector that
+indexes fields:
 
 ```json
-{"ts":"2026-09-03T14:59:47.821Z","level":"info","scope":"kie","msg":"submitted","taskId":"t_123","model":"z-image","userId":"u1","ms":412}
+{"ts":"2026-09-03T17:06:01.361Z","level":"info","scope":"webhook","msg":"updated","slug":"a-slug","ms":1212}
 ```
 
-Development prints the same events as aligned, coloured columns:
-
-```
-2026-09-03 16:45:20.130  DEBUG  webhook   received deliveryId=02c703db bytes=371 hasSignature=true
-2026-09-03 16:45:20.132  INFO   webhook   published deliveryId=02c703db slug=choosing-a-video-model
-2026-09-03 16:45:20.135  DEBUG  http      POST    201  /api/webhooks/articles 160ms
-2026-09-03 16:45:21.412  WARN   http      POST    401  /api/kie/create 5ms
-```
-
-Date and time come first so a log read the next morning is unambiguous, then
-the level, then the scope in its own colour. Request lines read as an access
-log, with the method, the status colour-coded by class, the path and the
-duration, rather than burying those among trailing fields. A duration over a
-second is highlighted.
-
-Error stacks are printed as indented lines underneath rather than crammed into
-the fields as JSON.
-
-Colour follows the `NO_COLOR` and `FORCE_COLOR` conventions. It is on by
-default in development even without a TTY, since checking `isTTY` alone loses
-the colour exactly where it is wanted: behind a file, `docker logs` or a
-process manager.
+That is opt-in rather than the production default, because JSON is worse than
+useless in a plain-text panel: the object wraps mid-key and nothing lines up.
 
 `LOG_LEVEL` accepts `debug`, `info`, `warn` or `error`, defaulting to `info` in
-production. Scopes are `http`, `auth`, `kie`, `generate`, `webhook`, `db`,
-`health` and `pricing`, so a single area can be followed with a grep.
+production. Scopes are `boot`, `http`, `auth`, `kie`, `generate`, `webhook`,
+`db`, `health` and `pricing`, so one area can be followed with a grep.
+
+Colour follows `NO_COLOR` and `FORCE_COLOR`, and is on by default: checking
+`isTTY` alone loses it exactly where it is wanted, behind a file or a panel.
 
 Errors and warnings go to stderr, everything else to stdout.
+
+### Reading the boot line
+
+The first two lines after a start answer most configuration questions:
+
+```
+INFO boot  starting database=host:5432/highfield ssl=off articleWebhook=configured
+           webhookAuth="signature only" keyEncryption="from env" signups=open
+INFO db    schema applied=2 total=2
+```
+
+`articleWebhook=DISABLED` explains a webhook answering 503.
+`schema applied=1 total=2` explains a query failing on a table that was never
+created.
+
+### Is the database actually correct?
+
+The migration table records intent, not reality. The two diverge when a
+migration is marked applied but partially failed, when a database is restored
+from an older dump, or when the schema is edited by hand.
+
+So the tables and columns this build needs are checked against the database
+itself at boot, and reported:
+
+```
+INFO db  schema verified tables=5
+```
+
+If anything is missing it is announced loudly, naming exactly what:
+
+```
+ERROR db  SCHEMA MISMATCH: the database is missing what this build needs
+          missingTables=articles missingColumns=users.api_key_enc
+```
+
+`GET /api/health` reports the same thing and answers `503` rather than `200`,
+so a load balancer removes the instance instead of sending it traffic it
+cannot serve:
+
+```json
+{
+  "status": "degraded",
+  "schema": { "missingTables": ["articles"], "missingColumns": ["users.api_key_enc"] }
+}
+```
+
+That is the quickest way to confirm a deployment's database from outside:
+
+```bash
+curl -s https://your-host/api/health | jq
+```
 
 ### Secrets never reach a log line
 
