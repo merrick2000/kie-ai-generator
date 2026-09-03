@@ -163,6 +163,12 @@ const byKey = (
 
 const flat = (credits: number, unit: PriceUnit): PriceResolver => () => ({ credits, unit })
 
+/** True when the form carries a reference video, which Kie prices lower. */
+const hasVideoInput = (v: Record<string, unknown>): boolean => {
+  const refs = v.reference_video_urls
+  return Array.isArray(refs) && refs.filter(Boolean).length > 0
+}
+
 const PUBLISHED: Record<string, PriceResolver> = {
   // Images, per image.
   'nano-banana-2': byKey({ '1K': 8, '2K': 12, '4K': 18 }, 'resolution', 'image', '1K'),
@@ -212,10 +218,166 @@ const PUBLISHED: Record<string, PriceResolver> = {
     return credits === undefined ? null : { credits, unit: 'video' }
   },
 
+  'gpt-image-2-text-to-image': byKey(
+    { '1K': 6, '2K': 10, '4K': 16 },
+    'resolution',
+    'image',
+    '1K',
+  ),
+  'gpt-image-2-image-to-image': byKey(
+    { '1K': 6, '2K': 10, '4K': 16 },
+    'resolution',
+    'image',
+    '1K',
+  ),
+
+  // Qwen image 3.0 charges the same at 1K and 2K.
+  'qwen3/text-to-image': flat(4.8, 'image'),
+  'qwen3/image-to-image': flat(4.8, 'image'),
+
+  // Ideogram prices by rendering speed rather than resolution.
+  'ideogram/v3-text-to-image': byKey(
+    { TURBO: 3.5, BALANCED: 7, QUALITY: 10 },
+    'rendering_speed',
+    'image',
+    'BALANCED',
+  ),
+  'ideogram/character': byKey(
+    { TURBO: 12, BALANCED: 18, QUALITY: 24 },
+    'rendering_speed',
+    'image',
+    'BALANCED',
+  ),
+
+  'google/imagen4': flat(8, 'request'),
+  'google/imagen4-ultra': flat(12, 'image'),
+
+  // Video, per second.
+  //
+  // Seedance charges roughly 40% less when a reference video is supplied,
+  // so the presence of one is part of the price.
+  'bytedance/seedance-2': (v) => {
+    const res = str(v.resolution).toLowerCase() || '720p'
+    const withVideo = hasVideoInput(v)
+    const table: Record<string, [number, number]> = {
+      // [no video input, with video input]
+      '480p': [19, 11.5],
+      '720p': [41, 25],
+      '1080p': [102, 62],
+      '4k': [208, 128],
+    }
+    const pair = table[res]
+    return pair ? { credits: withVideo ? pair[1] : pair[0], unit: 'second' } : null
+  },
+  'bytedance/seedance-2-fast': (v) => {
+    const res = str(v.resolution).toLowerCase() || '720p'
+    const withVideo = hasVideoInput(v)
+    const table: Record<string, [number, number]> = {
+      '480p': [11.7, 6.8],
+      '720p': [24.8, 15],
+    }
+    const pair = table[res]
+    return pair ? { credits: withVideo ? pair[1] : pair[0], unit: 'second' } : null
+  },
+
+  // Motion control's `mode` maps to resolution: std is 720P, pro is 1080P.
+  'kling-3.0/motion-control': (v) => ({
+    credits: str(v.mode) === 'pro' ? 27 : 20,
+    unit: 'second',
+  }),
+
+  'wan/2-7-text-to-video': byKey(
+    { '720P': 16, '1080P': 24 },
+    'resolution',
+    'second',
+    '1080P',
+  ),
+  'wan/2-7-image-to-video': byKey(
+    { '720P': 16, '1080P': 24 },
+    'resolution',
+    'second',
+    '1080P',
+  ),
+  'wan/2-2-animate-replace': byKey(
+    { '480P': 6, '720P': 12.5 },
+    'resolution',
+    'second',
+    '720P',
+  ),
+
+  'minimax-h3/text-to-video': byKey(
+    { '768P': 8, '2K': 13 },
+    'resolution',
+    'second',
+    '2K',
+  ),
+  'minimax-h3/image-to-video': byKey(
+    { '768P': 8, '2K': 13 },
+    'resolution',
+    'second',
+    '2K',
+  ),
+
+  // Pixverse prices per second by resolution. The audio-bearing tiers cost
+  // more, but this model exposes no audio switch, so the quieter tier is used.
+  'pixverse/text-to-video': byKey(
+    { '360P': 4, '540P': 5.6, '720P': 7.2, '1080P': 14.4 },
+    'resolution',
+    'second',
+    '720P',
+  ),
+  'pixverse/image-to-video': byKey(
+    { '360P': 4, '540P': 5.6, '720P': 7.2, '1080P': 14.4 },
+    'resolution',
+    'second',
+    '720P',
+  ),
+
+  // Lip sync, billed per second of the audio track. Duration comes from the
+  // uploaded file, so no total can be quoted before the run.
+  'omnihuman-1-5': flat(27, 'second'),
+
+  // Video, per finished video. Hailuo prices duration and resolution
+  // together, and 10s at 1080p is not offered.
+  'hailuo/2-3-image-to-video-pro': (v) => {
+    const duration = str(v.duration) || '6'
+    const res = str(v.resolution).toUpperCase() || '768P'
+    const table: Record<string, number> = {
+      '6-768P': 45,
+      '6-1080P': 80,
+      '10-768P': 90,
+    }
+    const credits = table[`${duration}-${res}`]
+    return credits === undefined ? null : { credits, unit: 'video' }
+  },
+  'hailuo/02-text-to-video-pro': (v) => {
+    const duration = str(v.duration) || '6'
+    const res = str(v.resolution).toUpperCase() || '768P'
+    // Only the 6s 1080p Pro tier is published for this one.
+    return duration === '6' && res === '1080P'
+      ? { credits: 57, unit: 'video' }
+      : null
+  },
+
   // Audio.
   suno: flat(12, 'request'),
   'elevenlabs/text-to-speech-multilingual-v2': flat(12, 'thousand-chars'),
   'elevenlabs/text-to-speech-turbo-2-5': flat(6, 'thousand-chars'),
+
+  /*
+   * Deliberately absent, because Kie's table has no row that can be tied to
+   * them with confidence:
+   *
+   *   seedream 5 Lite and Seedream v4   only "seedream 4.5" is listed
+   *   gpt-image 1.5                     priced by high/medium, we expose 1K/2K
+   *   grok-imagine, image and video     no rows at all
+   *   Kling avatars and Kling 3 Omni    no rows at all
+   *   InfiniTalk, ElevenLabs isolation  no rows at all
+   *   Recraft, layer decomposition      no rows at all
+   *   Seedance 1 Pro image-to-video     only 1.5-pro rows, a different model
+   *
+   * These fall back to the cost measured from a real run.
+   */
 }
 
 export function hasPublishedPrice(modelId: string): boolean {
