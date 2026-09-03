@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { useGeneration } from '@/hooks/useGeneration'
 import { getModel } from '@/lib/kie/catalog'
 import { isVisible } from '@/lib/kie/fields'
+import { describeEstimate, estimateFromReference, formatUsd } from '@/lib/kie/pricing'
 import { presetsFor } from '@/lib/presets'
 import { cn } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
@@ -22,6 +23,13 @@ export function Composer() {
   const values = useStudio((s) => s.formsByModel[s.modelId] ?? {})
   const activeCount = useStudio(
     (s) => s.jobs.filter((j) => j.state !== 'success' && j.state !== 'fail').length,
+  )
+  // A measured charge is the truth. Failing that, Kie's published unit price
+  // applied to the settings actually chosen. Failing both, say nothing.
+  const knownCost = useStudio((s) => s.costByModel[s.modelId])
+  const reference = useMemo(
+    () => (knownCost ? null : estimateFromReference(modelId, values)),
+    [knownCost, modelId, values],
   )
 
   const [showAdvanced, setShowAdvanced] = useState(false)
@@ -151,6 +159,18 @@ export function Composer() {
           </Button>
         </div>
         <p className="mt-2 text-center text-[11px] text-ink-faint">
+          {knownCost ? (
+            describeEstimate(knownCost)
+          ) : reference ? (
+            <>
+              About {formatUsd(reference.usd)}
+              <span className="text-ink-faint/70"> · {reference.basis}</span>
+            </>
+          ) : (
+            'Cost appears here once this model has run once.'
+          )}
+        </p>
+        <p className="mt-1 text-center text-[11px] text-ink-faint">
           {activeCount > 0
             ? `${activeCount} generation${activeCount > 1 ? 's' : ''} running`
             : 'Runs asynchronously. You can queue several at once.'}

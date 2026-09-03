@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 
+import { formatCredits, creditsToUsd, formatUsd } from '@/lib/kie/pricing'
 import { cn, proxied, timeAgo, truncate } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
 import type { Job } from '@/store/types'
@@ -97,7 +98,9 @@ export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
           </p>
           <p className="mt-0.5 truncate text-[10px] text-ink-faint">
             {job.modelName} · {timeAgo(job.createdAt)}
-            {job.creditsConsumed ? ` · ${job.creditsConsumed} cr` : ''}
+            {job.creditsConsumed
+              ? ` · ${formatCredits(job.creditsConsumed)} cr ${formatUsd(creditsToUsd(job.creditsConsumed))}`
+              : ''}
           </p>
         </div>
 

@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  CornerUpRight,
   Download,
   Heart,
   RefreshCw,
@@ -15,6 +16,8 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/Button'
 import { getModel } from '@/lib/kie/catalog'
+import { useReuseAsset, modelsAccepting } from '@/hooks/useReuseAsset'
+import { formatCost } from '@/lib/kie/pricing'
 import { cn, formatDuration, proxied } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
 import type { Job } from '@/store/types'
@@ -31,6 +34,7 @@ export function Viewer({ job, onClose }: ViewerProps) {
   const toggleFavorite = useStudio((s) => s.toggleFavorite)
   const restoreJob = useStudio((s) => s.restoreJob)
   const removeJob = useStudio((s) => s.removeJob)
+  const { reuse, working: reusing } = useReuseAsset()
 
   const asset = job.assets[index]
   const model = getModel(job.modelId)
@@ -76,7 +80,7 @@ export function Viewer({ job, onClose }: ViewerProps) {
           <p className="truncate text-[11px] text-ink-faint">
             {model?.family}
             {job.costTimeMs ? ` · ${formatDuration(job.costTimeMs)}` : ''}
-            {job.creditsConsumed ? ` · ${job.creditsConsumed} credits` : ''}
+            {job.creditsConsumed ? ` · ${formatCost(job.creditsConsumed)}` : ''}
           </p>
         </div>
 
@@ -100,10 +104,30 @@ export function Viewer({ job, onClose }: ViewerProps) {
               restoreJob(job.id)
               onClose()
             }}
+            title="Load these settings back into the composer"
           >
             <RefreshCw className="size-4" />
-            Reuse
+            Settings
           </Button>
+
+          {/*
+            Chains this result into the next generation. Kie re-hosts it from
+            its own URL, so the file never travels through the browser.
+          */}
+          {asset && modelsAccepting(asset.kind).length > 0 && (
+            <Button
+              size="sm"
+              variant="ghost"
+              loading={reusing}
+              onClick={async () => {
+                if (await reuse(asset)) onClose()
+              }}
+              title="Use this result as a reference for a new generation"
+            >
+              {!reusing && <CornerUpRight className="size-4" />}
+              Use as input
+            </Button>
+          )}
           {asset && (
             <Button
               size="sm"

@@ -14,6 +14,7 @@ import { persist, createJSONStorage, type StateStorage } from 'zustand/middlewar
 
 import { DEFAULT_MODEL_ID, getModel } from '@/lib/kie/catalog'
 import { defaultsFor } from '@/lib/kie/fields'
+import { recordCost, type ModelCost } from '@/lib/kie/pricing'
 import type { NormalizedTask } from '@/lib/kie/tasks'
 import { uid } from '@/lib/utils'
 import { jobFromTask, type Job } from './types'
@@ -35,6 +36,14 @@ interface StudioState {
   /** Job currently open in the viewer, or null for the grid. */
   focusedJobId: string | null
   hydrated: boolean
+  /**
+   * What each model has actually charged, keyed by model id.
+   *
+   * Learned from completed jobs rather than hardcoded: Kie publishes no
+   * per-model price through the API, and a stale table would quote numbers
+   * that are quietly wrong.
+   */
+  costByModel: Record<string, ModelCost>
 
   selectModel: (modelId: string) => void
   setValue: (name: string, value: unknown) => void
@@ -68,6 +77,7 @@ export const useStudio = create<StudioState>()(
       jobs: [],
       focusedJobId: null,
       hydrated: false,
+      costByModel: {},
 
       selectModel: (modelId) =>
         setState((s) => ({
@@ -115,9 +125,24 @@ export const useStudio = create<StudioState>()(
         })),
 
       applyTask: (id, task) =>
-        setState((s) => ({
-          jobs: s.jobs.map((j) => (j.id === id ? jobFromTask(j, task) : j)),
-        })),
+        setState((s) => {
+          const jobs = s.jobs.map((j) => (j.id === id ? jobFromTask(j, task) : j))
+
+          // Only a successful run with a reported charge teaches us anything.
+          const job = jobs.find((j) => j.id === id)
+          const credits = task.creditsConsumed
+          if (!job || task.state !== 'success' || !credits || credits <= 0) {
+            return { jobs }
+          }
+
+          return {
+            jobs,
+            costByModel: {
+              ...s.costByModel,
+              [job.modelId]: recordCost(s.costByModel[job.modelId], credits),
+            },
+          }
+        }),
 
       failJob: (id, error) =>
         setState((s) => ({
@@ -161,6 +186,7 @@ export const useStudio = create<StudioState>()(
         modelId: s.modelId,
         formsByModel: s.formsByModel,
         jobs: s.jobs,
+        costByModel: s.costByModel,
       }),
       onRehydrateStorage: () => (state) => {
         if (!state) return
@@ -183,3 +209,7 @@ export const selectActiveJobs = (s: StudioState) =>
 
 export const selectFocusedJob = (s: StudioState) =>
   s.focusedJobId ? (s.jobs.find((j) => j.id === s.focusedJobId) ?? null) : null
+
+/** Credits charged across every completed job still in history. */
+export const selectSpentCredits = (s: StudioState) =>
+  s.jobs.reduce((total, job) => total + (job.creditsConsumed ?? 0), 0)

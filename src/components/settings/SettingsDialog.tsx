@@ -16,6 +16,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ApiKeyForm } from '@/components/onboarding/ApiKeyForm'
+import { BillingTab } from './BillingTab'
 import { Button } from '@/components/ui/Button'
 import { useCredits } from '@/hooks/useCredits'
 import { useSession } from '@/hooks/useSession'
@@ -28,11 +29,12 @@ interface SettingsDialogProps {
   onClose: () => void
 }
 
-type Tab = 'account' | 'key' | 'defaults' | 'data'
+type Tab = 'account' | 'key' | 'billing' | 'defaults' | 'data'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'account', label: 'Account' },
   { id: 'key', label: 'API key' },
+  { id: 'billing', label: 'Billing' },
   { id: 'defaults', label: 'Defaults' },
   { id: 'data', label: 'Data' },
 ]
@@ -98,6 +100,7 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
           {tab === 'account' && <AccountTab />}
           {tab === 'key' && <ApiKeyTab />}
+          {tab === 'billing' && <BillingTab />}
           {tab === 'defaults' && <DefaultsTab />}
           {tab === 'data' && <DataTab onClose={onClose} />}
         </div>
