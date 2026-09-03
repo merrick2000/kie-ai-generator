@@ -28,7 +28,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           rel="stylesheet"
         />
       </head>
-      <body className="h-dvh overflow-hidden antialiased">
+      {/*
+        No height or overflow constraint here: this layout is shared by the
+        studio, which fills the viewport and scrolls internally, and by the
+        blog, which is a normal document that has to scroll. Pinning the body
+        to the viewport froze every article page.
+      */}
+      <body className="antialiased">
         {children}
         <Toaster
           theme="dark"

@@ -13,6 +13,7 @@ import {
   type WebhookPayload,
 } from '@/lib/blog/webhook'
 import { createLogger, since } from '@/lib/logger'
+import { absoluteUrl } from '@/lib/public-url'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -207,7 +208,16 @@ async function handlePOST(req: Request) {
     revalidatePath('/blog')
     revalidatePath(`/blog/${article.slug}`)
 
-    const url = publicUrl(`/blog/${article.slug}`)
+    // The publisher stores this to link back, so it has to be absolute.
+    const link = absoluteUrl(`/blog/${article.slug}`, req)
+
+    if (link.source !== 'configured') {
+      // Worth saying once per delivery: the URL is a best guess from the
+      // proxy headers, and the canonical domain may differ.
+      delivery.warn('NEXT_PUBLIC_APP_URL is not set, article URL derived from request headers', {
+        url: link.url,
+      })
+    }
 
     delivery.info(created ? 'published' : 'updated', {
       articleId: article.id,
@@ -223,7 +233,7 @@ async function handlePOST(req: Request) {
     })
 
     return NextResponse.json(
-      { ok: true, created, slug: article.slug, url, deliveryId },
+      { ok: true, created, slug: article.slug, url: link.url, deliveryId },
       { status: created ? 201 : 200 },
     )
   } catch (err) {
@@ -242,11 +252,6 @@ async function handlePOST(req: Request) {
       retryable: true,
     })
   }
-}
-
-function publicUrl(path: string): string {
-  const origin = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, '')
-  return origin ? `${origin}${path}` : path
 }
 
 export const POST = withLogging(handlePOST)

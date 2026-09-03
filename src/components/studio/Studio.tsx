@@ -31,7 +31,9 @@ export function Studio() {
   }, [])
 
   return (
-    <div className="flex h-dvh flex-col bg-void">
+    // overflow-hidden belongs here rather than on the body: the studio is the
+    // pane that fills the viewport and scrolls internally.
+    <div className="flex h-dvh flex-col overflow-hidden bg-void">
       <TopBar />
 
       <div className="relative flex min-h-0 flex-1">

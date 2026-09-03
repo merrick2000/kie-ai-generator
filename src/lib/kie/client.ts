@@ -12,6 +12,7 @@ import { randomBytes } from 'node:crypto'
 
 import { currentApiKey } from '@/lib/auth'
 import { createLogger, since } from '@/lib/logger'
+import { configuredOrigin } from '@/lib/public-url'
 
 import {
   KIE_CODE,
@@ -150,7 +151,8 @@ export async function verifyKey(
  * publicly reachable, so this is optional, polling covers the rest.
  */
 export function callbackUrl(): string | undefined {
-  const origin = process.env.NEXT_PUBLIC_APP_URL?.trim().replace(/\/$/, '')
+  const origin = configuredOrigin()
+  // A callback only works if Kie can reach it, so a local origin is no origin.
   if (!origin || origin.includes('localhost') || origin.includes('127.0.0.1')) {
     return undefined
   }
