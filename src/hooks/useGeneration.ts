@@ -1,34 +1,42 @@
 'use client'
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 
 import { getModel } from '@/lib/kie/catalog'
+import { explainError, explainTaskFailure, type FriendlyError } from '@/lib/kie/errors'
 import { validate } from '@/lib/kie/fields'
+import { pollScheduler } from '@/lib/kie/poll-scheduler'
 import type { NormalizedTask } from '@/lib/kie/tasks'
 import { truncate } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
 import type { Job } from '@/store/types'
 
-/**
- * Polling cadence.
- *
- * Kie allows 20 requests / 10s per account, and generations run from ~10s to
- * several minutes. Polling starts tight so quick image jobs feel instant, then
- * backs off so a long video render does not burn the rate limit.
- */
-const POLL_START_MS = 1_500
-const POLL_MAX_MS = 8_000
-const POLL_GROWTH = 1.25
-const TIMEOUT_MS = 15 * 60 * 1000
-
-/** Consecutive network failures tolerated before a job is marked failed. */
-const MAX_CONSECUTIVE_ERRORS = 5
-
 interface SubmitResponse {
   taskId: string
   api: 'market' | 'veo' | 'suno'
   modelId: string
+}
+
+const TOP_UP_URL = 'https://kie.ai/billing'
+
+/** Surface a failure with its next step attached, so the toast is useful. */
+function reportError(title: string, error: FriendlyError): void {
+  const description = error.hint ? `${error.message} ${error.hint}` : error.message
+
+  if (error.action.kind === 'top-up') {
+    toast.error(title, {
+      description,
+      duration: 10_000,
+      action: {
+        label: 'Top up',
+        onClick: () => window.open(TOP_UP_URL, '_blank', 'noopener,noreferrer'),
+      },
+    })
+    return
+  }
+
+  toast.error(title, { description, duration: error.retryable ? 6_000 : 9_000 })
 }
 
 export function useGeneration() {
@@ -37,70 +45,70 @@ export function useGeneration() {
   const applyTask = useStudio((s) => s.applyTask)
   const failJob = useStudio((s) => s.failJob)
 
-  /** Timers keyed by job id, so unmount and cancel can clear them. */
-  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
-
-  const stopPolling = useCallback((jobId: string) => {
-    const timer = timers.current.get(jobId)
-    if (timer) clearTimeout(timer)
-    timers.current.delete(jobId)
-  }, [])
-
-  const poll = useCallback(
+  /**
+   * Hand a submitted job to the shared scheduler.
+   *
+   * The scheduler owns the timing and the request budget; this only says what
+   * a single poll does and how to interpret the outcome.
+   */
+  const track = useCallback(
     (job: Job, taskId: string, api: string, modelId: string) => {
-      const startedAt = Date.now()
-      let delay = POLL_START_MS
-      let errorStreak = 0
+      pollScheduler.add({
+        id: job.id,
+        startedAt: Date.now(),
 
-      const tick = async () => {
-        if (Date.now() - startedAt > TIMEOUT_MS) {
-          failJob(job.id, 'Timed out after 15 minutes. Check kie.ai/logs for the task.')
-          stopPolling(job.id)
-          return
-        }
-
-        try {
+        poll: async () => {
           const params = new URLSearchParams({ taskId, api, modelId })
           const res = await fetch(`/api/kie/status?${params}`, { cache: 'no-store' })
-          const data = (await res.json()) as NormalizedTask & { error?: string }
+          const data = (await res.json()) as NormalizedTask & {
+            error?: string
+            code?: number
+          }
 
-          if (!res.ok) throw new Error(data.error || `Status check failed (${res.status}).`)
+          if (!res.ok) {
+            const explained = explainError(res.status, data.code, data.error)
+            // A transient upstream problem should not end the job; the
+            // scheduler retries until the error streak runs out.
+            if (explained.retryable) throw new Error(explained.message)
 
-          errorStreak = 0
+            failJob(job.id, explained.message)
+            reportError('Generation failed', explained)
+            return true
+          }
+
           applyTask(job.id, data)
 
           if (data.state === 'success') {
-            stopPolling(job.id)
             toast.success('Generation complete', {
               description: truncate(job.promptPreview || job.modelName, 60),
             })
-            return
+            return true
           }
 
           if (data.state === 'fail') {
-            stopPolling(job.id)
-            toast.error('Generation failed', { description: data.error })
-            return
+            const explained = explainTaskFailure(data.error)
+            failJob(job.id, explained.message)
+            reportError('Generation failed', explained)
+            return true
           }
-        } catch (err) {
-          errorStreak += 1
-          if (errorStreak >= MAX_CONSECUTIVE_ERRORS) {
-            const message = err instanceof Error ? err.message : 'Lost contact with the task.'
-            failJob(job.id, message)
-            stopPolling(job.id)
-            toast.error('Generation failed', { description: message })
-            return
-          }
-          // Transient failure, fall through and retry on the next tick.
-        }
 
-        delay = Math.min(POLL_MAX_MS, delay * POLL_GROWTH)
-        timers.current.set(job.id, setTimeout(tick, delay))
-      }
+          return false
+        },
 
-      timers.current.set(job.id, setTimeout(tick, POLL_START_MS))
+        onTimeout: () => {
+          failJob(job.id, 'Timed out after 15 minutes. Check kie.ai/logs for the task.')
+          toast.error('Generation timed out', {
+            description: 'It may still finish on kie.ai. Check the logs there.',
+          })
+        },
+
+        onGiveUp: (error) => {
+          failJob(job.id, error.message)
+          toast.error('Lost contact with the generation', { description: error.message })
+        },
+      })
     },
-    [applyTask, failJob, stopPolling],
+    [applyTask, failJob],
   )
 
   const generate = useCallback(async (): Promise<Job | null> => {
@@ -116,7 +124,9 @@ export function useGeneration() {
     const errors = validate(model.fields, values)
 
     if (errors.length) {
-      toast.error('Check the form', { description: errors[0] })
+      toast.error('Check the form', {
+        description: errors.length > 1 ? `${errors[0]} (+${errors.length - 1} more)` : errors[0],
+      })
       return null
     }
 
@@ -143,41 +153,39 @@ export function useGeneration() {
         body: JSON.stringify({ modelId: model.id, values }),
       })
 
-      const data = (await res.json()) as SubmitResponse & { error?: string }
+      const data = (await res.json()) as SubmitResponse & { error?: string; code?: number }
 
       if (!res.ok || !data.taskId) {
-        throw new Error(data.error || `Submission failed (${res.status}).`)
+        const explained = explainError(res.status, data.code, data.error)
+        failJob(job.id, explained.message)
+        reportError('Could not start generation', explained)
+        return null
       }
 
       updateJob(job.id, { taskId: data.taskId, state: 'queuing', progress: 8 })
-      poll(job, data.taskId, data.api, model.id)
+      track(job, data.taskId, data.api, model.id)
       return job
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Submission failed.'
+    } catch {
+      const message = 'Could not reach the server. Check your connection.'
       failJob(job.id, message)
       toast.error('Could not start generation', { description: message })
       return null
     }
-  }, [addJob, failJob, poll, updateJob])
+  }, [addJob, failJob, track, updateJob])
 
   const cancel = useCallback(
     (jobId: string) => {
-      stopPolling(jobId)
+      pollScheduler.remove(jobId)
       // Kie has no cancel endpoint: this stops local tracking only, and the
-      // task still runs (and bills) upstream.
+      // task still runs, and still bills, upstream.
       failJob(jobId, 'Stopped tracking. The task may still complete on kie.ai.')
     },
-    [failJob, stopPolling],
+    [failJob],
   )
 
-  // Clear every pending timer when the hook's owner unmounts.
-  useEffect(() => {
-    const pending = timers.current
-    return () => {
-      for (const timer of pending.values()) clearTimeout(timer)
-      pending.clear()
-    }
-  }, [])
+  // The scheduler outlives any single component, so nothing is torn down here.
+  // Tasks remove themselves when they finish, time out, or are cancelled.
+  useEffect(() => undefined, [])
 
-  return { generate, cancel }
+  return { generate, cancel, activePolls: pollScheduler.size }
 }
