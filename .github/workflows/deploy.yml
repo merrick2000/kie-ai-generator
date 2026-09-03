@@ -26,6 +26,8 @@ jobs:
     env:
       DOKPLOY_WEBHOOK_URL: ${{ secrets.DOKPLOY_WEBHOOK_URL }}
       DOKPLOY_WEBHOOK_URL_DEV: ${{ secrets.DOKPLOY_WEBHOOK_URL_DEV }}
+      # The branch whose builds publish `:latest`. Change it here only.
+      RELEASE_BRANCH: master
 
     steps:
       - uses: actions/checkout@v4
@@ -34,11 +36,22 @@ jobs:
         id: image
         run: |
           # GHCR rejects uppercase in repository names.
-          echo "name=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/highfield" >> "$GITHUB_OUTPUT"
-          if [ "${{ github.ref_name }}" = "main" ]; then
+          owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          echo "name=ghcr.io/${owner}/highfield" >> "$GITHUB_OUTPUT"
+
+          branch='${{ github.ref_name }}'
+
+          if [ "$branch" = "$RELEASE_BRANCH" ]; then
+            # The release branch always publishes :latest, so deployments can
+            # pin to a stable tag instead of chasing a commit hash.
             echo "channel=latest" >> "$GITHUB_OUTPUT"
           else
-            echo "channel=dev" >> "$GITHUB_OUTPUT"
+            # Any other branch publishes under its own name. Slashes and
+            # anything outside [a-zA-Z0-9._-] are not valid in a Docker tag.
+            # printf, not echo: the trailing newline would otherwise be
+            # translated into a stray '-' at the end of the tag.
+            safe=$(printf '%s' "$branch" | tr '/' '-' | tr -c 'a-zA-Z0-9._-' '-' | cut -c1-100)
+            echo "channel=$safe" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Login to GHCR
@@ -67,8 +80,8 @@ jobs:
       # No secrets are baked into the image. Every value is read from the
       # environment the container is started with, so the same artefact is
       # promoted from dev to production unchanged.
-      - name: Trigger Dokploy deploy
-        if: success() && github.ref_name == 'main' && env.DOKPLOY_WEBHOOK_URL != ''
+      - name: Trigger Dokploy deploy (release)
+        if: success() && github.ref_name == env.RELEASE_BRANCH && env.DOKPLOY_WEBHOOK_URL != ''
         run: curl -sf -X POST "$DOKPLOY_WEBHOOK_URL"
 
       - name: Trigger Dokploy deploy (dev)

@@ -15,14 +15,54 @@ function toPositional(sql: string): string {
   return sql.replace(/\?/g, () => `$${++index}`)
 }
 
-/** Managed Postgres (Neon, Supabase, Heroku) requires TLS. */
+/**
+ * TLS settings, taken from the connection string.
+ *
+ * `sslmode` is the libpq convention every Postgres provider already documents,
+ * so it is read rather than guessed. An earlier version inferred TLS from the
+ * hostname, treating anything that was not localhost as a managed provider.
+ * That breaks the most common self-hosted setup: a Postgres container reached
+ * by its service name on a private Docker network speaks no TLS, and the
+ * connection failed with "The server does not support SSL connections".
+ *
+ * Default is off. A database on a private network does not need TLS, and a
+ * managed provider always hands you a URL that says `sslmode=require`.
+ *
+ * `DATABASE_SSL` overrides the URL when you cannot edit it.
+ */
 function sslConfig(connectionString: string) {
-  if (/\bsslmode=disable\b/.test(connectionString)) return undefined
-  const local = /@(localhost|127\.0\.0\.1)[:/]/.test(connectionString)
-  if (local && !/\bsslmode=require\b/.test(connectionString)) return undefined
-  // Managed providers commonly present a certificate the default trust store
-  // does not chain to; the connection is still encrypted.
-  return { rejectUnauthorized: false }
+  const override = process.env.DATABASE_SSL?.trim().toLowerCase()
+  const mode = override || readSslMode(connectionString) || 'disable'
+
+  switch (mode) {
+    // Encrypt, but accept a certificate the default trust store cannot chain
+    // to. This is what managed providers expect, and it is what `require`
+    // means in libpq: protect the traffic, do not verify the identity.
+    case 'require':
+    case 'no-verify':
+    case 'true':
+      return { rejectUnauthorized: false }
+
+    // Verify the certificate as well. Needs a CA the runtime already trusts.
+    case 'verify-ca':
+    case 'verify-full':
+      return { rejectUnauthorized: true }
+
+    // `prefer` means "TLS if available, plaintext otherwise". node-postgres
+    // cannot negotiate that, and silently downgrading would be worse than
+    // being predictable, so it is treated as off.
+    default:
+      return undefined
+  }
+}
+
+function readSslMode(connectionString: string): string | null {
+  try {
+    return new URL(connectionString).searchParams.get('sslmode')?.toLowerCase() ?? null
+  } catch {
+    // Fall back to a scan when the string is not a parseable URL.
+    return /[?&]sslmode=([a-z-]+)/i.exec(connectionString)?.[1]?.toLowerCase() ?? null
+  }
 }
 
 export function createPostgresClient(connectionString: string): DatabaseClient {

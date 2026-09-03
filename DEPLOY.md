@@ -1,16 +1,32 @@
 # Deploying Highfield
 
 The pipeline builds one Docker image per commit, publishes it to GHCR, and
-tells the host to pull it. The same artefact is promoted from `dev` to `main`
-unchanged, because no configuration is baked into the image.
+tells the host to pull it. The same artefact is promoted from `dev` to
+`master` unchanged, because no configuration is baked into the image.
 
 ```
-push to dev/main
+push to master (or dev)
    -> CI: typecheck, tests against a real Postgres, build
-   -> Docker image, tagged :dev or :latest and :<sha>
+   -> Docker image, tagged :latest on master, :dev on dev, plus :<sha>
    -> pushed to ghcr.io/<owner>/highfield
    -> webhook tells Dokploy to pull and restart
 ```
+
+### Tags
+
+`master` publishes **`:latest`**, so a host can pin a stable tag and never
+chase a commit hash. Every build also carries `:<sha>`, which is what makes a
+rollback a redeploy rather than a revert.
+
+The release branch is declared once, as `RELEASE_BRANCH` at the top of
+`.github/workflows/deploy.yml`. Any other branch publishes under its own name,
+with slashes and other characters Docker rejects replaced by `-`.
+
+| Branch | Tags published |
+|---|---|
+| `master` | `:latest` and `:<sha>` |
+| `dev` | `:dev` and `:<sha>` |
+| `feature/x` | `:feature-x` and `:<sha>` |
 
 ---
 
@@ -21,7 +37,7 @@ Set these in **Settings, Secrets and variables, Actions**.
 | Secret | Needed for | Notes |
 |---|---|---|
 | `GITHUB_TOKEN` | pushing to GHCR | provided automatically |
-| `DOKPLOY_WEBHOOK_URL` | production deploy | omit and the image is still published |
+| `DOKPLOY_WEBHOOK_URL` | deploy from `master` | omit and the image is still published |
 | `DOKPLOY_WEBHOOK_URL_DEV` | dev deploy | same |
 
 The deploy step is skipped when its webhook is absent, so the workflow is
@@ -65,6 +81,24 @@ failed migration leaves nothing half-applied.
 
 Any managed Postgres works: Neon, Supabase, Railway, RDS, or the `postgres`
 service in `docker-compose.yml`.
+
+### TLS
+
+TLS is decided by the `sslmode` in `DATABASE_URL`, following the libpq
+convention every provider documents. It is **off when `sslmode` is absent**.
+
+| Where Postgres runs | Connection string |
+|---|---|
+| Private network (Docker, Dokploy) | no `sslmode` needed |
+| Managed provider | `?sslmode=require` |
+| Managed, with a trusted CA | `?sslmode=verify-full` |
+
+A Postgres container speaks no TLS. Forcing it there fails with
+`The server does not support SSL connections`, which is what the health
+endpoint reports as a `503`.
+
+`DATABASE_SSL` overrides the URL (`require`, `verify-full`, `disable`) when the
+connection string is supplied by a platform and cannot be edited.
 
 ## 4. Deploying
 
