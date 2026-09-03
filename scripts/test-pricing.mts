@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 
 import {
   estimateFromReference,
-  referencePrice,
+  hasPublishedPrice,
   CREDIT_USD_RATE,
   creditsToUsd,
   describeEstimate,
@@ -87,44 +87,79 @@ check('quotes a single figure when it is stable', () => {
   assert.match(describeEstimate(c), /^About 80 credits/)
 })
 
-console.log('\nreference prices')
+console.log('\npublished prices')
 
-check('prices video by the second, so duration changes the cost', () => {
-  const short = estimateFromReference('kling/v3-turbo-text-to-video', { duration: 5 })
-  const long = estimateFromReference('kling/v3-turbo-text-to-video', { duration: 15 })
-  assert.ok(short && long)
-  assert.equal(short!.usd.toFixed(2), '0.35')
-  assert.equal(long!.usd.toFixed(2), '1.05')
-  // A flat per-model figure would have quoted the same number for both.
-  assert.ok(long!.usd > short!.usd * 2)
+check('prices Kling by the second and by resolution', () => {
+  // Verified against Kie's table: 18 cr/s at 720P, 22.5 cr/s at 1080P.
+  const short = estimateFromReference('kling/v3-turbo-text-to-video', {
+    duration: 5,
+    resolution: '720p',
+  })
+  const long = estimateFromReference('kling/v3-turbo-text-to-video', {
+    duration: 15,
+    resolution: '1080p',
+  })
+  assert.equal(short!.credits, 90)
+  assert.equal(long!.credits, 337.5)
+  // A flat per-model figure would have quoted the same for both.
+  assert.ok(long!.credits > short!.credits * 3)
 })
 
-check('prices images per image and multiplies by the variant count', () => {
-  const one = estimateFromReference('nano-banana-2', {})
-  const four = estimateFromReference('gpt-image-2-text-to-image', { num_images: '4' })
-  assert.equal(one!.usd.toFixed(2), '0.04')
-  assert.equal(four!.usd.toFixed(2), '0.12')
+check('prices Nano Banana 2 by resolution', () => {
+  assert.equal(estimateFromReference('nano-banana-2', { resolution: '1K' })!.credits, 8)
+  assert.equal(estimateFromReference('nano-banana-2', { resolution: '2K' })!.credits, 12)
+  assert.equal(estimateFromReference('nano-banana-2', { resolution: '4K' })!.credits, 18)
+})
+
+check('prices Seedream by its quality switch', () => {
+  // "basic" is 1K at 7 cr, "high" is 2K at 14 cr.
+  assert.equal(
+    estimateFromReference('seedream/5-pro-text-to-image', { quality: 'basic' })!.credits,
+    7,
+  )
+  assert.equal(
+    estimateFromReference('seedream/5-pro-text-to-image', { quality: 'high' })!.credits,
+    14,
+  )
+})
+
+check('prices Veo by tier and resolution together', () => {
+  const fast = estimateFromReference('veo3', { model: 'veo3_fast', resolution: '720p' })
+  const quality = estimateFromReference('veo3', { model: 'veo3', resolution: '4k' })
+  assert.equal(fast!.credits, 60)
+  assert.equal(quality!.credits, 380)
+})
+
+check('multiplies image count', () => {
+  const four = estimateFromReference('flux-2/pro-text-to-image', {
+    resolution: '1K',
+    num_images: '4',
+  })
+  assert.equal(four!.credits, 20)
 })
 
 check('prices speech by characters', () => {
   const est = estimateFromReference('elevenlabs/text-to-speech-multilingual-v2', {
     text: 'x'.repeat(2000),
   })
-  assert.equal(est!.usd.toFixed(3), '0.140')
+  assert.equal(est!.credits, 24)
 })
 
 check('returns nothing rather than guessing', () => {
-  // No published price for this model.
-  assert.equal(estimateFromReference('z-image', {}), null)
+  // No verified pairing for this model.
+  assert.equal(estimateFromReference('ideogram/character', {}), null)
   // Priced per second, but no duration chosen yet.
-  assert.equal(estimateFromReference('bytedance/seedance-2', {}), null)
+  assert.equal(estimateFromReference('kling/v3-turbo-text-to-video', { resolution: '720P' }), null)
   // Priced per 1K characters, but nothing typed.
   assert.equal(estimateFromReference('elevenlabs/text-to-speech-turbo-2-5', { text: '' }), null)
 })
 
-check('only lists models Kie actually publishes', () => {
-  assert.ok(referencePrice('veo3'))
-  assert.equal(referencePrice('made-up/model'), undefined)
+check('only claims models with a verified pairing', () => {
+  assert.ok(hasPublishedPrice('veo3'))
+  assert.ok(hasPublishedPrice('nano-banana-2'))
+  // Fuzzy matching wrongly paired these two, so neither is listed.
+  assert.equal(hasPublishedPrice('seedream/5-lite-text-to-image'), false)
+  assert.equal(hasPublishedPrice('made-up/model'), false)
 })
 
 console.log(`\n${passed} passed`)

@@ -107,95 +107,182 @@ export function describeEstimate(cost: ModelCost): string {
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
- * Reference prices
+ * Published prices
  * ──────────────────────────────────────────────────────────────────────────*/
 
 /**
- * Published prices, so a cost can be shown before a model has ever run.
+ * Prices as Kie publishes them, so a cost can be shown before a model has
+ * ever run.
  *
- * Taken from kie.ai's own pricing display. They are billed **per unit**, not
- * per generation: a video is priced by the second, so its cost moves with the
- * duration you pick. A single flat number per model would be wrong for most
- * of them.
+ * Transcribed from Kie's own pricing table (the same data /api/kie/pricing
+ * serves live). Two things make this a hand-written map rather than an
+ * automatic lookup:
  *
- * Only models Kie actually publishes a price for are listed. The rest show
- * nothing until a real charge is observed, which is more honest than a guess.
- * A measured cost always wins over anything here.
+ *   Their labels are prose, not slugs. "Google nano banana 2, 4K" has to be
+ *   tied to `nano-banana-2` by hand.
+ *
+ *   Fuzzy matching those labels produced confident wrong answers: it paired
+ *   `nano-banana-2` with the cheaper "nano-banana-2-lite" row, and
+ *   `seedream/5-lite` with "seedream 5 Pro". A wrong price is worse than no
+ *   price, so only verified pairings are listed.
+ *
+ * Prices vary by resolution and tier, so each entry is a function of the
+ * settings actually chosen. A measured charge always wins over anything here.
  */
-export type PriceUnit = 'second' | 'image' | 'request' | 'thousand-chars'
 
-export interface ReferencePrice {
-  usd: number
+export type PriceUnit =
+  | 'image'
+  | 'second'
+  | 'video'
+  | 'request'
+  | 'thousand-chars'
+
+export interface PricePoint {
+  credits: number
   unit: PriceUnit
 }
 
-const REFERENCE_PRICES: Record<string, ReferencePrice> = {
-  // Video, billed per second of output.
-  'bytedance/seedance-2': { usd: 0.057, unit: 'second' },
-  'bytedance/seedance-2-fast': { usd: 0.057, unit: 'second' },
-  'kling/v3-turbo-text-to-video': { usd: 0.07, unit: 'second' },
-  'kling/v3-turbo-image-to-video': { usd: 0.07, unit: 'second' },
-  'kling/v3-omni-text-to-video': { usd: 0.07, unit: 'second' },
+/** Reads the chosen settings and returns the unit price, or null if unknown. */
+type PriceResolver = (values: Record<string, unknown>) => PricePoint | null
 
-  // Video, billed per request.
-  veo3: { usd: 0.025, unit: 'request' },
+const str = (v: unknown): string => (typeof v === 'string' ? v : '')
 
-  // Images, billed per image.
-  'gpt-image-2-text-to-image': { usd: 0.03, unit: 'image' },
-  'gpt-image-2-image-to-image': { usd: 0.03, unit: 'image' },
-  'nano-banana-2': { usd: 0.04, unit: 'image' },
-
-  // Audio.
-  suno: { usd: 0.002, unit: 'request' },
-  'elevenlabs/text-to-speech-multilingual-v2': { usd: 0.07, unit: 'thousand-chars' },
-  'elevenlabs/text-to-speech-turbo-2-5': { usd: 0.07, unit: 'thousand-chars' },
+/** Picks a price from a resolution-keyed table. */
+const byKey = (
+  table: Record<string, number>,
+  key: string,
+  unit: PriceUnit,
+  fallbackKey?: string,
+): PriceResolver => {
+  return (values) => {
+    const chosen = str(values[key]).toUpperCase()
+    const credits = table[chosen] ?? (fallbackKey ? table[fallbackKey] : undefined)
+    return credits === undefined ? null : { credits, unit }
+  }
 }
 
-export function referencePrice(modelId: string): ReferencePrice | undefined {
-  return REFERENCE_PRICES[modelId]
+const flat = (credits: number, unit: PriceUnit): PriceResolver => () => ({ credits, unit })
+
+const PUBLISHED: Record<string, PriceResolver> = {
+  // Images, per image.
+  'nano-banana-2': byKey({ '1K': 8, '2K': 12, '4K': 18 }, 'resolution', 'image', '1K'),
+  'google/nano-banana': flat(4, 'image'),
+  'google/nano-banana-edit': flat(4, 'image'),
+  'seedream/5-pro-text-to-image': (v) => ({
+    // "basic" is 1K, "high" is 2K.
+    credits: str(v.quality) === 'high' ? 14 : 7,
+    unit: 'image',
+  }),
+  'seedream/5-pro-image-to-image': (v) => ({
+    credits: str(v.quality) === 'high' ? 14 : 7,
+    unit: 'image',
+  }),
+  'z-image': flat(0.8, 'image'),
+  'flux-2/pro-text-to-image': byKey({ '1K': 5, '2K': 7 }, 'resolution', 'image', '1K'),
+  'flux-2/pro-image-to-image': byKey({ '1K': 5, '2K': 7 }, 'resolution', 'image', '1K'),
+  'flux-2/flex-text-to-image': byKey({ '1K': 14, '2K': 24 }, 'resolution', 'image', '1K'),
+  'flux-2/flex-image-to-image': byKey({ '1K': 14, '2K': 24 }, 'resolution', 'image', '1K'),
+  'topaz/image-upscale': byKey({ '1': 10, '2': 20, '4': 40 }, 'upscale_factor', 'image', '2'),
+
+  // Video, per second of output.
+  'kling/v3-turbo-text-to-video': byKey(
+    { '720P': 18, '1080P': 22.5 },
+    'resolution',
+    'second',
+    '720P',
+  ),
+  'kling/v3-turbo-image-to-video': byKey(
+    { '720P': 18, '1080P': 22.5 },
+    'resolution',
+    'second',
+    '720P',
+  ),
+  'topaz/video-upscale': byKey({ '1': 8, '2': 8, '4': 14 }, 'upscale_factor', 'second', '2'),
+
+  // Video, per finished video. Veo prices by tier and resolution together.
+  veo3: (v) => {
+    const tier = str(v.model) || 'veo3_fast'
+    const res = str(v.resolution).toLowerCase() || '720p'
+    const table: Record<string, Record<string, number>> = {
+      veo3: { '720p': 250, '1080p': 255, '4k': 380 },
+      veo3_fast: { '720p': 60, '1080p': 65, '4k': 180 },
+      veo3_lite: { '720p': 30, '1080p': 35, '4k': 150 },
+    }
+    const credits = table[tier]?.[res]
+    return credits === undefined ? null : { credits, unit: 'video' }
+  },
+
+  // Audio.
+  suno: flat(12, 'request'),
+  'elevenlabs/text-to-speech-multilingual-v2': flat(12, 'thousand-chars'),
+  'elevenlabs/text-to-speech-turbo-2-5': flat(6, 'thousand-chars'),
+}
+
+export function hasPublishedPrice(modelId: string): boolean {
+  return modelId in PUBLISHED
 }
 
 /**
- * Estimate a run from its published unit price and the chosen settings.
+ * Estimate a run from the published price and the chosen settings.
  *
- * Returns null when the price is unknown, or when the driving quantity cannot
- * be read from the form: a number that ignores a 15s duration would be
- * misleading in exactly the case where cost matters most.
+ * Returns null when the price is unknown, or when the quantity that drives it
+ * cannot be read: a figure that ignored a 15s duration would mislead in
+ * exactly the case where cost matters most.
  */
 export function estimateFromReference(
   modelId: string,
   values: Record<string, unknown>,
-): { usd: number; basis: string } | null {
-  const price = referencePrice(modelId)
-  if (!price) return null
+): { credits: number; usd: number; basis: string } | null {
+  const resolver = PUBLISHED[modelId]
+  if (!resolver) return null
 
-  switch (price.unit) {
+  const point = resolver(values)
+  if (!point) return null
+
+  const perUnit = point.credits
+
+  switch (point.unit) {
     case 'second': {
       const seconds = Number(values.duration)
       if (!Number.isFinite(seconds) || seconds <= 0) return null
-      return { usd: price.usd * seconds, basis: `${seconds}s at ${formatUsd(price.usd)}/s` }
+      const credits = perUnit * seconds
+      return {
+        credits,
+        usd: creditsToUsd(credits),
+        basis: `${seconds}s at ${formatCredits(perUnit)} cr/s`,
+      }
     }
 
     case 'image': {
-      const count =
-        Number(values.max_images) || Number(values.num_images) || 1
+      const count = Number(values.max_images) || Number(values.num_images) || 1
+      const credits = perUnit * count
       return {
-        usd: price.usd * count,
-        basis: count > 1 ? `${count} images at ${formatUsd(price.usd)} each` : `${formatUsd(price.usd)} per image`,
+        credits,
+        usd: creditsToUsd(credits),
+        basis:
+          count > 1
+            ? `${count} images at ${formatCredits(perUnit)} cr each`
+            : `${formatCredits(perUnit)} cr per image`,
       }
     }
 
     case 'thousand-chars': {
-      const text = typeof values.text === 'string' ? values.text : ''
+      const text = str(values.text)
       if (!text.length) return null
-      const thousands = text.length / 1000
+      const credits = perUnit * (text.length / 1000)
       return {
-        usd: price.usd * thousands,
-        basis: `${text.length} characters at ${formatUsd(price.usd)}/1K`,
+        credits,
+        usd: creditsToUsd(credits),
+        basis: `${text.length} characters at ${formatCredits(perUnit)} cr/1K`,
       }
     }
 
+    case 'video':
     case 'request':
-      return { usd: price.usd, basis: 'per request' }
+      return {
+        credits: perUnit,
+        usd: creditsToUsd(perUnit),
+        basis: point.unit === 'video' ? 'per video' : 'per request',
+      }
   }
 }

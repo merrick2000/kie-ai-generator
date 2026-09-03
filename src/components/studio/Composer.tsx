@@ -7,7 +7,12 @@ import { Button } from '@/components/ui/Button'
 import { useGeneration } from '@/hooks/useGeneration'
 import { getModel } from '@/lib/kie/catalog'
 import { isVisible } from '@/lib/kie/fields'
-import { describeEstimate, estimateFromReference, formatUsd } from '@/lib/kie/pricing'
+import {
+  describeEstimate,
+  estimateFromReference,
+  formatCredits,
+  formatUsd,
+} from '@/lib/kie/pricing'
 import { presetsFor } from '@/lib/presets'
 import { cn } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
@@ -163,7 +168,7 @@ export function Composer() {
             describeEstimate(knownCost)
           ) : reference ? (
             <>
-              About {formatUsd(reference.usd)}
+              {formatCredits(reference.credits)} cr {formatUsd(reference.usd)}
               <span className="text-ink-faint/70"> · {reference.basis}</span>
             </>
           ) : (

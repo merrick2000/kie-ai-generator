@@ -12,6 +12,7 @@ import {
   formatUsd,
 } from '@/lib/kie/pricing'
 import { useStudio } from '@/store/studio'
+import { PriceTable } from './PriceTable'
 
 const TOP_UP_URL = 'https://kie.ai/billing'
 
@@ -131,6 +132,13 @@ export function BillingTab() {
           Top up on kie.ai
           <ExternalLink className="size-3.5" />
         </Button>
+      </section>
+
+      <section>
+        <h3 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-muted">
+          Kie.ai price list
+        </h3>
+        <PriceTable />
       </section>
 
       <p className="flex items-start gap-2 text-[11px] leading-relaxed text-ink-faint">
