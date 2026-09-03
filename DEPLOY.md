@@ -140,7 +140,28 @@ logs` collects and what any aggregator can index:
 {"ts":"2026-09-03T14:59:47.821Z","level":"info","scope":"kie","msg":"submitted","taskId":"t_123","model":"z-image","userId":"u1","ms":412}
 ```
 
-Development prints the same events as aligned, coloured text instead.
+Development prints the same events as aligned, coloured columns:
+
+```
+2026-09-03 16:45:20.130  DEBUG  webhook   received deliveryId=02c703db bytes=371 hasSignature=true
+2026-09-03 16:45:20.132  INFO   webhook   published deliveryId=02c703db slug=choosing-a-video-model
+2026-09-03 16:45:20.135  DEBUG  http      POST    201  /api/webhooks/articles 160ms
+2026-09-03 16:45:21.412  WARN   http      POST    401  /api/kie/create 5ms
+```
+
+Date and time come first so a log read the next morning is unambiguous, then
+the level, then the scope in its own colour. Request lines read as an access
+log, with the method, the status colour-coded by class, the path and the
+duration, rather than burying those among trailing fields. A duration over a
+second is highlighted.
+
+Error stacks are printed as indented lines underneath rather than crammed into
+the fields as JSON.
+
+Colour follows the `NO_COLOR` and `FORCE_COLOR` conventions. It is on by
+default in development even without a TTY, since checking `isTTY` alone loses
+the colour exactly where it is wanted: behind a file, `docker logs` or a
+process manager.
 
 `LOG_LEVEL` accepts `debug`, `info`, `warn` or `error`, defaulting to `info` in
 production. Scopes are `http`, `auth`, `kie`, `generate`, `webhook`, `db`,

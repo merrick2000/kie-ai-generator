@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { createLogger } from '@/lib/logger'
 import type { DatabaseClient } from './types'
 
 /**
@@ -12,6 +13,8 @@ import type { DatabaseClient } from './types'
  * `timestamptz`: the app already thinks in `Date.now()`, and this avoids a
  * conversion layer whose only job would be to reintroduce timezone questions.
  */
+
+const log = createLogger('db')
 
 interface Migration {
   version: number
@@ -99,9 +102,18 @@ export async function migrate(db: DatabaseClient): Promise<void> {
   )
   const done = new Set(applied.map((row) => Number(row.version)))
 
-  for (const migration of MIGRATIONS) {
-    if (done.has(migration.version)) continue
+  const pending = MIGRATIONS.filter((m) => !done.has(m.version))
 
+  // Says at a glance whether the schema this build expects is actually
+  // present. A missing table is otherwise only discovered when a request
+  // fails, which is the worst moment to learn it.
+  log.info('schema', {
+    applied: MIGRATIONS.length - pending.length,
+    total: MIGRATIONS.length,
+    pending: pending.map((m) => m.name).join(',') || undefined,
+  })
+
+  for (const migration of pending) {
     await db.transaction(async (tx) => {
       for (const statement of migration.statements) {
         await tx.run(statement)
@@ -111,5 +123,7 @@ export async function migrate(db: DatabaseClient): Promise<void> {
         [migration.version, migration.name, Date.now()],
       )
     })
+
+    log.info('migration applied', { version: migration.version, name: migration.name })
   }
 }

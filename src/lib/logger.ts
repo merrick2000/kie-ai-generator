@@ -95,18 +95,96 @@ function redact(value: unknown, depth = 0): unknown {
 const ESC = '\x1b['
 const RESET = `${ESC}0m`
 const BOLD = `${ESC}1m`
-const DIM = `${ESC}90m`
+const DIM = `${ESC}2m`
+const GREY = `${ESC}90m`
 
-const COLOURS: Record<LogLevel, string> = {
+const LEVEL_COLOUR: Record<LogLevel, string> = {
   debug: `${ESC}90m`,
-  info: `${ESC}36m`,
+  info: `${ESC}32m`,
   warn: `${ESC}33m`,
   error: `${ESC}31m`,
 }
 
-/** Colour is pointless when the output is a file or a log collector. */
-const useColour = () => !isProduction() && process.stdout.isTTY === true
+/** Scope gets its own hue so one subsystem can be picked out at a glance. */
+const SCOPE_COLOUR: Record<string, string> = {
+  http: `${ESC}36m`,
+  auth: `${ESC}35m`,
+  kie: `${ESC}34m`,
+  generate: `${ESC}94m`,
+  webhook: `${ESC}95m`,
+  db: `${ESC}96m`,
+  health: `${ESC}92m`,
+  pricing: `${ESC}93m`,
+}
 
+/**
+ * Whether to emit ANSI colour.
+ *
+ * Checking `isTTY` alone is wrong in practice: the moment output goes through
+ * a file, `docker logs`, or a process manager, it is no longer a TTY and the
+ * colour disappears exactly where it was wanted. The standard NO_COLOR and
+ * FORCE_COLOR variables take precedence, and production defaults to off
+ * because it emits JSON.
+ */
+function useColour(): boolean {
+  if (process.env.NO_COLOR) return false
+  if (process.env.FORCE_COLOR) return process.env.FORCE_COLOR !== '0'
+  if (isProduction()) return false
+  // Development defaults to colour even without a TTY, since the output is
+  // almost always being read by a person.
+  return true
+}
+
+const paint = (colour: string, text: string): string =>
+  useColour() ? `${colour}${text}${RESET}` : text
+
+/** Colour an HTTP status by class, the way an access log does. */
+function paintStatus(status: number): string {
+  const text = String(status)
+  if (!useColour()) return text
+  if (status >= 500) return `${ESC}97;41m ${text} ${RESET}`
+  if (status >= 400) return `${ESC}30;43m ${text} ${RESET}`
+  if (status >= 300) return `${ESC}36m${text}${RESET}`
+  return `${ESC}30;42m ${text} ${RESET}`
+}
+
+const METHOD_WIDTH = 6
+const SCOPE_WIDTH = 9
+const LEVEL_WIDTH = 5
+
+/**
+ * Separate an error's stack from the fields printed on the main line.
+ *
+ * The message stays inline, since that is what identifies the failure; the
+ * frames go underneath where they can be skimmed or ignored.
+ */
+function splitStack(context?: LogContext): { fields?: LogContext; stack: string[] } {
+  if (!context) return { fields: context, stack: [] }
+
+  const error = context.error
+  if (!error || typeof error !== 'object') return { fields: context, stack: [] }
+
+  const { stack, message, name } = error as { stack?: unknown; message?: string; name?: string }
+  if (!Array.isArray(stack)) return { fields: context, stack: [] }
+
+  return {
+    fields: {
+      ...context,
+      // Collapsed to the one line that names the failure.
+      error: [name, message].filter(Boolean).join(': ') || 'Error',
+    },
+    // The first frame repeats the message, which is already on the line above.
+    stack: stack.slice(1).map(String),
+  }
+}
+
+/**
+ * Render one line.
+ *
+ * Columns are fixed width so the eye can scan straight down a busy console:
+ *
+ *   date time  LEVEL  scope     message                     key=value
+ */
 function write(level: LogLevel, scope: string, message: string, context?: LogContext): void {
   if (LEVELS[level] < threshold()) return
 
@@ -116,36 +194,80 @@ function write(level: LogLevel, scope: string, message: string, context?: LogCon
   if (isProduction()) {
     // One line of JSON, so a collector can index the fields.
     stream.write(
-      `${JSON.stringify({
-        ts: new Date().toISOString(),
-        level,
-        scope,
-        msg: message,
-        ...safe,
-      })}\n`,
+      `${JSON.stringify(
+        { ts: new Date().toISOString(), level, scope, msg: message, ...safe },
+        // JSON.stringify already drops undefined values in objects; this
+        // replacer keeps that behaviour explicit alongside the text path.
+        (_key, value) => (value === undefined ? undefined : value),
+      )}\n`,
     )
     return
   }
 
-  const time = new Date().toISOString().slice(11, 23)
-  const tail = safe && Object.keys(safe).length ? ` ${formatContext(safe)}` : ''
+  // Full date, not just the time: a server log read the next morning needs it.
+  const stamp = new Date().toISOString().replace('T', ' ').slice(0, 23)
 
-  if (!useColour()) {
-    stream.write(`${level.toUpperCase().padEnd(5)} ${time} [${scope}] ${message}${tail}\n`)
-    return
+  // A stack crammed into the key=value tail as JSON is unreadable, so it is
+  // lifted out and printed underneath instead.
+  const { fields, stack } = splitStack(safe)
+
+  const parts = [
+    paint(GREY, stamp),
+    paint(LEVEL_COLOUR[level], level.toUpperCase().padEnd(LEVEL_WIDTH)),
+    paint(SCOPE_COLOUR[scope] ?? GREY, scope.padEnd(SCOPE_WIDTH)),
+    formatMessage(scope, message, fields),
+  ]
+
+  stream.write(`${parts.join(' ')}\n`)
+
+  if (stack.length) {
+    const indent = ' '.repeat(stamp.length + LEVEL_WIDTH + 2)
+    for (const frame of stack) {
+      stream.write(`${indent}${paint(GREY, frame.trim())}\n`)
+    }
+  }
+}
+
+/**
+ * Requests read as an access log; everything else as a message plus fields.
+ *
+ * An HTTP line buried its method, status and path among the trailing
+ * key=value pairs, which is where they are least visible and most wanted.
+ */
+function formatMessage(
+  scope: string,
+  message: string,
+  context?: LogContext,
+): string {
+  if (scope !== 'http' || !context?.method || !context?.path) {
+    const tail = context && Object.keys(context).length ? ` ${formatContext(context)}` : ''
+    return `${message}${tail}`
   }
 
-  stream.write(
-    `${COLOURS[level]}${level.toUpperCase().padEnd(5)}${RESET} ` +
-      `${DIM}${time}${RESET} ${BOLD}${scope}${RESET} ${message}${tail}\n`,
-  )
+  const { method, path, status, ms, ...rest } = context
+  const columns = [
+    paint(BOLD, String(method).padEnd(METHOD_WIDTH)),
+    typeof status === 'number' ? paintStatus(status) : '',
+    String(path),
+  ]
+
+  if (typeof ms === 'number') {
+    // Slow requests are the ones worth spotting, so the duration is
+    // highlighted rather than dimmed once it gets long.
+    const rendered = `${ms}ms`
+    columns.push(ms >= 1000 ? paint(LEVEL_COLOUR.warn, rendered) : paint(DIM, rendered))
+  }
+
+  const extra = Object.keys(rest).length ? ` ${formatContext(rest)}` : ''
+  return `${columns.filter(Boolean).join(' ')}${extra}`
 }
 
 /** `key=value` pairs, quoting only what needs it. */
 function formatContext(context: LogContext): string {
-  const colour = useColour()
-
   return Object.entries(context)
+    // A field that was never set is noise. `null` is kept, since it says the
+    // value was looked for and found absent, which is often the diagnosis.
+    .filter(([, value]) => value !== undefined)
     .map(([key, value]) => {
       const rendered =
         typeof value === 'string'
@@ -155,7 +277,7 @@ function formatContext(context: LogContext): string {
           : typeof value === 'object' && value !== null
             ? JSON.stringify(value)
             : String(value)
-      return colour ? `${DIM}${key}=${RESET}${rendered}` : `${key}=${rendered}`
+      return `${paint(GREY, `${key}=`)}${rendered}`
     })
     .join(' ')
 }

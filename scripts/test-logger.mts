@@ -130,6 +130,28 @@ check('writes to stdout for info and stderr for errors', () => {
   assert.ok(captured.err[0].includes('[redacted]'))
 })
 
+check('omits fields that were never set, keeps explicit nulls', () => {
+  const captured: string[] = []
+  const realOut = process.stdout.write.bind(process.stdout)
+  process.stdout.write = ((s: string) => (captured.push(s), true)) as typeof process.stdout.write
+
+  try {
+    createLogger('test').info('received', {
+      event: undefined,
+      timestamp: null,
+      bytes: 2,
+    })
+  } finally {
+    process.stdout.write = realOut
+  }
+
+  const line = captured[0]
+  assert.ok(!line.includes('event='), 'an unset field is noise')
+  // null is the diagnosis: the header was looked for and was not there.
+  assert.ok(line.includes('timestamp=null'))
+  assert.ok(line.includes('bytes=2'))
+})
+
 check('a child logger carries its context onto every line', () => {
   const captured: string[] = []
   const realOut = process.stdout.write.bind(process.stdout)

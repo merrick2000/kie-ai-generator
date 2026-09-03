@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { createLogger } from '@/lib/logger'
 import { createPostgresClient } from './postgres'
 import { migrate } from './schema'
 import type { DatabaseClient } from './types'
@@ -48,7 +49,36 @@ declare global {
 }
 
 async function connect(): Promise<DatabaseClient> {
-  const client = createPostgresClient(connectionString())
+  const log = createLogger('boot')
+  const url = connectionString()
+
+  // Host and database only. The password lives in this string, so it is never
+  // logged whole.
+  let target = 'postgres'
+  try {
+    const parsed = new URL(url)
+    target = `${parsed.hostname}:${parsed.port || 5432}${parsed.pathname}`
+  } catch {
+    // Unparseable strings still connect; the label is cosmetic.
+  }
+
+  // Which optional features are actually configured. Answers "why did the
+  // webhook 503" or "why is there no cost showing" without a code read.
+  log.info('starting', {
+    database: target,
+    ssl: /sslmode=/.test(url) ? new URL(url).searchParams.get('sslmode') : 'off',
+    // These hold a status, never a value, but the redactor filters by key
+    // name, so they are named to say what they are rather than what they
+    // guard. `webhookToken` would have been censored into uselessness.
+    articleWebhook: process.env.ARTICLE_WEBHOOK_SECRET?.trim() ? 'configured' : 'DISABLED',
+    webhookAuth: process.env.ARTICLE_WEBHOOK_TOKEN?.trim() ? 'bearer required' : 'signature only',
+    keyEncryption: process.env.APP_SECRET?.trim() ? 'from env' : 'generated',
+    fallbackKieKey: process.env.KIE_API_KEY?.trim() ? 'set' : 'none',
+    publicUrl: process.env.NEXT_PUBLIC_APP_URL?.trim() || 'not set',
+    signups: process.env.SIGNUPS_ENABLED?.trim().toLowerCase() === 'false' ? 'closed' : 'open',
+  })
+
+  const client = createPostgresClient(url)
   await migrate(client)
   return client
 }

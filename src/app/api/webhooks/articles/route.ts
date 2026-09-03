@@ -64,15 +64,41 @@ async function handlePOST(req: Request) {
   const deliveryId = randomBytes(4).toString('hex')
 
   const event = req.headers.get(WEBHOOK_HEADERS.EVENT) ?? undefined
-  const rawBody = await req.text()
+
+  // Reading the body can fail on a truncated upload or a dropped connection.
+  // Uncaught, that surfaced as a bare 500 with nothing logged.
+  let rawBody: string
+  try {
+    rawBody = await req.text()
+  } catch (err) {
+    log.error('could not read request body', { deliveryId, error: err })
+    return fail(deliveryId, 400, {
+      code: 'invalid_json',
+      error: 'The request body could not be read.',
+      hint: 'The connection may have dropped mid-send. Retry the delivery.',
+      retryable: true,
+    })
+  }
 
   // Carried on every line below, so one delivery can be followed end to end.
   const delivery = log.child({ deliveryId })
 
-  delivery.debug('received', {
+  // info, not debug: production runs at info, and a delivery that leaves no
+  // trace is the one that cannot be supported when the sender says it sent
+  // something and nothing happened.
+  delivery.info('received', {
     event,
     bytes: rawBody.length,
     hasSignature: Boolean(req.headers.get(WEBHOOK_HEADERS.SIGNATURE)),
+    hasTimestamp: Boolean(req.headers.get(WEBHOOK_HEADERS.TIMESTAMP)),
+    // Where it came from, which the socket address cannot tell us behind a
+    // proxy.
+    ip:
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+      req.headers.get('x-real-ip') ??
+      undefined,
+    agent: req.headers.get('user-agent')?.slice(0, 80) ?? undefined,
+    contentType: req.headers.get('content-type') ?? undefined,
   })
 
   const secret = process.env.ARTICLE_WEBHOOK_SECRET?.trim()
