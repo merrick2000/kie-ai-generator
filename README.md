@@ -199,6 +199,28 @@ The browser runs one sync loop for the whole studio, asking only for what
 changed since its last answer: 2s while something is generating, 20s otherwise,
 and nothing at all while the tab is hidden.
 
+### Several at once
+
+Of the 177 model pages Kie publishes, seven take a count of their own:
+Seedream 4 and its edit variant take `max_images` (1 to 6), and Ideogram's
+character, character-edit, character-remix and v3-remix endpoints plus Qwen's
+image-edit take `num_images` (1 to 4). Everything else produces one image per
+request, whatever its sibling endpoints do.
+
+So the composer has a run count beside Generate. It submits the same prompt
+several times, giving each run its own seed, because four runs of one prompt
+with one seed are four copies of the same picture. An explicit seed is walked
+forward from rather than replaced, so a batch started from a result you liked
+stays anchored to it; a blank one is filled in, which also makes every
+variation reproducible afterwards.
+
+The two multiply, and the footer says what one press will actually produce:
+four runs of a model set to three images is twelve files.
+
+Runs go out one at a time rather than together, since each is a submission
+against the same rate limit, and the batch stops at the first refusal: a
+rejected prompt or an empty balance does not improve on the next attempt.
+
 ### Projects
 
 A project groups runs and carries the defaults that work keeps repeating: a

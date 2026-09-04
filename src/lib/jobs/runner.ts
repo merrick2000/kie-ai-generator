@@ -13,6 +13,8 @@
 
 import 'server-only'
 
+import { randomInt } from 'node:crypto'
+
 import { apiKeyForUser } from '@/lib/auth'
 import { getModel, type ModelDef } from '@/lib/kie/catalog'
 import { generateText } from '@/lib/kie/chat'
@@ -116,6 +118,56 @@ export function applyProjectPrompt(
   return [defaults.promptPrefix?.trim(), prompt.trim(), defaults.promptSuffix?.trim()]
     .filter(Boolean)
     .join('\n\n')
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Variations
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+/** Most models cap their seed here, and all of them accept a value below it. */
+const MAX_SEED = 2_147_483_647
+
+/**
+ * The values for one run of a batch.
+ *
+ * Only seven of the catalog's models take a count parameter of their own, so
+ * asking for four variations means four runs. Four runs of the same prompt
+ * with the same seed would be four copies of the same picture, which is not
+ * what anyone means by a variation.
+ *
+ * A model with a seed field therefore gets a different one per run. An
+ * explicit seed is walked forward from rather than replaced, so a batch
+ * started from a result you liked stays anchored to it. A blank one is filled
+ * in, which also makes each variation reproducible afterwards: the seed is
+ * stored with the run.
+ *
+ * A model with no seed field is left alone. Its own sampling is the variation.
+ */
+export function valuesForRun(
+  model: ModelDef,
+  values: Record<string, unknown>,
+  index: number,
+): Record<string, unknown> {
+  if (index === 0) return values
+
+  const field = model.fields.find((f) => f.name === 'seed')
+  if (!field) return values
+
+  const current = values.seed
+  const explicit =
+    typeof current === 'number'
+      ? current
+      : typeof current === 'string' && current.trim() !== '' && !Number.isNaN(Number(current))
+        ? Number(current)
+        : null
+
+  const seed =
+    explicit === null
+      ? randomInt(0, MAX_SEED)
+      : // Wrapped, so a seed near the ceiling does not walk past it.
+        (explicit + index) % MAX_SEED
+
+  return { ...values, seed }
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

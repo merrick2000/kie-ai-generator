@@ -57,11 +57,22 @@ export type ProjectCounts = Record<
 /** How many jobs one page of the gallery holds. */
 const PAGE_SIZE = 120
 
+/** Matches the ceiling the create route enforces. */
+export const MAX_RUNS = 8
+
 interface StudioState {
   /* Composer */
   modelId: string
   /** Form values, keyed by model id, so switching models is non-destructive. */
   formsByModel: Record<string, Record<string, unknown>>
+  /**
+   * How many variations one press of Generate starts.
+   *
+   * Only seven models in the catalog take a count of their own, so this is
+   * how the rest produce a set: the same prompt run several times, each with
+   * its own seed.
+   */
+  runCount: number
 
   /* Workspace */
   projects: Project[]
@@ -96,6 +107,7 @@ interface StudioState {
   totals: UsageTotals | null
 
   selectModel: (modelId: string) => void
+  setRunCount: (count: number) => void
   setValue: (name: string, value: unknown) => void
   setValues: (values: Record<string, unknown>) => void
   resetForm: () => void
@@ -184,6 +196,7 @@ export const useStudio = create<StudioState>()(
     (setState, getState) => ({
       modelId: DEFAULT_MODEL_ID,
       formsByModel: { [DEFAULT_MODEL_ID]: initialValues(DEFAULT_MODEL_ID) },
+      runCount: 1,
 
       projects: [],
       counts: {},
@@ -211,6 +224,9 @@ export const useStudio = create<StudioState>()(
             ? s.formsByModel
             : { ...s.formsByModel, [modelId]: initialValues(modelId) },
         })),
+
+      setRunCount: (count) =>
+        setState({ runCount: Math.min(MAX_RUNS, Math.max(1, Math.round(count))) }),
 
       setValue: (name, value) =>
         setState((s) => ({
@@ -563,6 +579,7 @@ export const useStudio = create<StudioState>()(
       partialize: (s) => ({
         modelId: s.modelId,
         formsByModel: s.formsByModel,
+        runCount: s.runCount,
         activeProjectId: s.activeProjectId,
         filters: s.filters,
       }),

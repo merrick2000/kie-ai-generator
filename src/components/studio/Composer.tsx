@@ -15,7 +15,7 @@ import {
 } from '@/lib/kie/pricing'
 import { presetsFor } from '@/lib/presets'
 import { cn } from '@/lib/utils'
-import { costFromUsage, selectActiveCount, useStudio } from '@/store/studio'
+import { costFromUsage, MAX_RUNS, selectActiveCount, useStudio } from '@/store/studio'
 import { FieldRenderer } from './FieldRenderer'
 import { ModelPicker } from './ModelPicker'
 
@@ -34,6 +34,21 @@ export function Composer() {
   // why it survived until a model was selected without one.
   const values = useStudio((s) => s.formsByModel[s.modelId] ?? EMPTY_VALUES)
   const activeCount = useStudio(selectActiveCount)
+  const runCount = useStudio((s) => s.runCount)
+  const setRunCount = useStudio((s) => s.setRunCount)
+
+  /**
+   * What one press of Generate actually produces.
+   *
+   * Seven models take a count of their own, so a run is not always one
+   * image. Multiplying the two here means the number on screen is the number
+   * of files you get, rather than something to work out in your head.
+   */
+  const perRun = useMemo(() => {
+    const raw = values.max_images ?? values.num_images
+    const count = Number(raw)
+    return Number.isFinite(count) && count > 0 ? count : 1
+  }, [values])
   // A measured charge is the truth. Failing that, Kie's published unit price
   // applied to the settings actually chosen. Failing both, say nothing.
   const usage = useStudio((s) => s.usage.find((u) => u.modelId === s.modelId))
@@ -147,6 +162,42 @@ export function Composer() {
       </div>
 
       <div className="shrink-0 border-t border-line bg-surface p-4">
+        {/*
+          Only seven models in the catalog take a count of their own, so this
+          is how the rest produce a set: the same prompt run several times,
+          each with its own seed. It sits beside Generate rather than among
+          the fields, because it is a decision about this press of the button
+          and not part of the model's schema.
+        */}
+        <div className="mb-2.5 flex items-center justify-between gap-3">
+          <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-muted">
+            Runs
+          </span>
+          <div className="flex gap-1 rounded-lg border border-line bg-raised p-0.5">
+            {Array.from({ length: MAX_RUNS }, (_, i) => i + 1).map((count) => (
+              <button
+                key={count}
+                type="button"
+                onClick={() => setRunCount(count)}
+                aria-pressed={runCount === count}
+                title={
+                  count === 1
+                    ? 'One run'
+                    : `${count} runs of the same prompt, each with its own seed`
+                }
+                className={cn(
+                  'size-6 rounded text-[11px] font-medium tabular-nums transition-colors',
+                  runCount === count
+                    ? 'bg-accent text-black'
+                    : 'text-ink-faint hover:bg-overlay hover:text-ink',
+                )}
+              >
+                {count}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex gap-2">
           <Button
             variant="primary"
@@ -156,7 +207,7 @@ export function Composer() {
             onClick={() => void onGenerate()}
           >
             {!submitting && <Sparkles className="size-4" />}
-            Generate
+            {runCount > 1 ? `Generate ×${runCount}` : 'Generate'}
           </Button>
           <Button
             variant="secondary"
@@ -170,17 +221,38 @@ export function Composer() {
           </Button>
         </div>
         <p className="mt-2 text-center text-[11px] text-ink-faint">
+          {/* Quoted for the whole batch, since that is what the press costs. */}
           {knownCost ? (
-            describeEstimate(knownCost)
+            <>
+              {describeEstimate(knownCost)}
+              {runCount > 1 && (
+                <span className="text-ink-faint/70">
+                  {' '}
+                  · {formatCredits(knownCost.averageCredits * runCount)} cr for{' '}
+                  {runCount}
+                </span>
+              )}
+            </>
           ) : reference ? (
             <>
-              {formatCredits(reference.credits)} cr {formatUsd(reference.usd)}
-              <span className="text-ink-faint/70"> · {reference.basis}</span>
+              {formatCredits(reference.credits * runCount)} cr{' '}
+              {formatUsd(reference.usd * runCount)}
+              <span className="text-ink-faint/70">
+                {' '}
+                · {reference.basis}
+                {runCount > 1 ? ` × ${runCount}` : ''}
+              </span>
             </>
           ) : (
             'Cost appears here once this model has run once.'
           )}
         </p>
+        {(runCount > 1 || perRun > 1) && (
+          <p className="mt-1 text-center text-[11px] text-ink-faint">
+            {runCount * perRun} image{runCount * perRun === 1 ? '' : 's'} from this press
+            {perRun > 1 && runCount > 1 ? ` · ${runCount} runs of ${perRun}` : ''}
+          </p>
+        )}
         <p className="mt-1 text-center text-[11px] text-ink-faint">
           {activeCount > 0
             ? `${activeCount} generation${activeCount > 1 ? 's' : ''} running`

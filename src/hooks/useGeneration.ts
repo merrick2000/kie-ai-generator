@@ -40,13 +40,13 @@ function reportError(title: string, error: FriendlyError): void {
 export function useGeneration() {
   const refresh = useStudio((s) => s.refresh)
 
-  const generate = useCallback(async (): Promise<Job | null> => {
+  const generate = useCallback(async (): Promise<Job[]> => {
     const state = useStudio.getState()
     const model = getModel(state.modelId)
 
     if (!model) {
       toast.error('No model selected.')
-      return null
+      return []
     }
 
     const values = state.currentValues()
@@ -58,7 +58,7 @@ export function useGeneration() {
       toast.error('Check the form', {
         description: errors.length > 1 ? `${errors[0]} (+${errors.length - 1} more)` : errors[0],
       })
-      return null
+      return []
     }
 
     try {
@@ -69,31 +69,50 @@ export function useGeneration() {
           modelId: model.id,
           values,
           projectId: state.activeProjectId,
+          count: state.runCount,
         }),
       })
 
       const data = (await res.json()) as {
-        job?: Job
+        jobs?: Job[]
+        requested?: number
+        partial?: boolean
         error?: string
         code?: number
       }
 
-      if (!res.ok || !data.job) {
+      if (!res.ok || !data.jobs?.length) {
         const explained = explainError(res.status, data.code, data.error)
         reportError('Could not start generation', explained)
         // The server records a failed job even when the submission is
         // refused, so the attempt is visible rather than silently dropped.
         void refresh()
-        return null
+        return []
       }
 
-      // Shows the new card immediately; the sync loop takes it from there.
+      // Some of a batch started and the rest did not, which is worth saying:
+      // the ones that did are running and will be charged for.
+      if (data.partial) {
+        toast.warning(
+          `Started ${data.jobs.length} of ${data.requested ?? data.jobs.length}`,
+          {
+            description: data.error ?? 'The rest were refused.',
+            duration: 9_000,
+          },
+        )
+      } else if (data.jobs.length > 1) {
+        toast.success(`${data.jobs.length} variations running`, {
+          description: 'Each has its own seed, so they will differ.',
+        })
+      }
+
+      // Shows the new cards immediately; the sync loop takes it from there.
       await refresh()
-      return data.job
+      return data.jobs
     } catch {
       const message = 'Could not reach the server. Check your connection.'
       toast.error('Could not start generation', { description: message })
-      return null
+      return []
     }
   }, [refresh])
 

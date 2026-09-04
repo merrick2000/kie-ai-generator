@@ -12,8 +12,8 @@
 import assert from 'node:assert/strict'
 
 import { errorBackoff, nextPollDelay } from '../src/lib/kie/reconciler'
-import { applyProjectPrompt, resolveRoute } from '../src/lib/jobs/runner'
-import { getModel } from '../src/lib/kie/catalog'
+import { applyProjectPrompt, resolveRoute, valuesForRun } from '../src/lib/jobs/runner'
+import { MODELS, getModel } from '../src/lib/kie/catalog'
 import { KIE_POLL_BUDGET } from '../src/lib/rate-limiter'
 
 let passed = 0
@@ -142,6 +142,80 @@ check('a chat model is never routed', () => {
 
   const routed = resolveRoute(model, { prompt: 'hello' })
   assert.equal(routed.model.id, model.id)
+})
+
+console.log('\nvariations')
+
+check('the first run is left exactly as submitted', () => {
+  const model = getModel('google/nano-banana-edit')!
+  const values = { prompt: 'a fox', seed: 42 }
+  // Same object, so nothing about a single run changes behaviour.
+  assert.equal(valuesForRun(model, values, 0), values)
+})
+
+check('an explicit seed is walked forward, not thrown away', () => {
+  const model = getModel('bytedance/seedream-v4-text-to-image')!
+  assert.ok(model.fields.some((f) => f.name === 'seed'))
+
+  // A batch started from a result you liked stays anchored to it.
+  assert.equal(valuesForRun(model, { seed: 1000 }, 1).seed, 1001)
+  assert.equal(valuesForRun(model, { seed: 1000 }, 3).seed, 1003)
+})
+
+check('a seed near the ceiling wraps rather than overflowing', () => {
+  const model = getModel('bytedance/seedream-v4-text-to-image')!
+  const seed = valuesForRun(model, { seed: 2_147_483_646 }, 4).seed as number
+
+  assert.ok(seed >= 0 && seed < 2_147_483_647, `seed out of range: ${seed}`)
+})
+
+check('a blank seed is filled in, differently each run', () => {
+  const model = getModel('bytedance/seedream-v4-text-to-image')!
+
+  const seeds = new Set(
+    Array.from({ length: 6 }, (_, i) => valuesForRun(model, { seed: '' }, i + 1).seed),
+  )
+  // Four runs of one prompt with one seed would be four copies of the same
+  // picture, which is not what anyone means by a variation.
+  assert.ok(seeds.size > 1, 'every run got the same seed')
+
+  for (const seed of seeds) {
+    assert.equal(typeof seed, 'number')
+    assert.ok((seed as number) >= 0 && (seed as number) < 2_147_483_647)
+  }
+})
+
+check('a model with no seed field is left alone', () => {
+  const model = getModel('google/nano-banana')!
+  assert.equal(model.fields.some((f) => f.name === 'seed'), false)
+
+  const values = { prompt: 'a fox' }
+  // Inventing a field the model does not accept would fail the request.
+  assert.deepEqual(valuesForRun(model, values, 2), values)
+})
+
+check('the other values are carried through untouched', () => {
+  const model = getModel('bytedance/seedream-v4-text-to-image')!
+  const out = valuesForRun(model, { prompt: 'a fox', image_size: 'square_hd' }, 1)
+
+  assert.equal(out.prompt, 'a fox')
+  assert.equal(out.image_size, 'square_hd')
+})
+
+console.log('\nnative variant counts')
+
+check('only models whose schema documents one declare it', () => {
+  // Checked against all 177 market model pages: seven take a count, and
+  // ideogram/v3-text-to-image is not one of them, whatever its siblings do.
+  const withCount = MODELS.filter((m) =>
+    m.fields.some((f) => f.name === 'num_images' || f.name === 'max_images'),
+  ).map((m) => m.id)
+
+  assert.deepEqual(withCount.sort(), [
+    'bytedance/seedream-v4-edit',
+    'bytedance/seedream-v4-text-to-image',
+    'ideogram/character',
+  ])
 })
 
 console.log(`\n${passed} checks passed`)

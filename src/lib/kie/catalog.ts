@@ -252,7 +252,7 @@ const IMAGE_TEXT: ModelDef[] = [
       {
         name: 'max_images',
         kind: 'number',
-        label: 'Variants',
+        label: 'Images per run',
         min: 1,
         max: 6,
         step: 1,
@@ -451,13 +451,11 @@ const IMAGE_TEXT: ModelDef[] = [
         ),
         default: 'square_hd',
       },
-      {
-        name: 'num_images',
-        kind: 'select',
-        label: 'Variants',
-        options: opts('1', '2', '3', '4'),
-        default: '1',
-      },
+      // No `num_images` here, deliberately. Ideogram's character and remix
+      // endpoints take one; this one's documented schema does not, and a
+      // field promising four variants that the endpoint has never heard of
+      // either returns a single image or fails the whole request. Use the
+      // run count in the composer for variations instead.
       {
         name: 'expand_prompt',
         kind: 'toggle',
@@ -613,7 +611,7 @@ const IMAGE_EDIT: ModelDef[] = [
       {
         name: 'max_images',
         kind: 'number',
-        label: 'Variants',
+        label: 'Images per run',
         min: 1,
         max: 6,
         step: 1,
@@ -741,7 +739,7 @@ const IMAGE_EDIT: ModelDef[] = [
       {
         name: 'num_images',
         kind: 'select',
-        label: 'Variants',
+        label: 'Images per run',
         options: opts('1', '2', '3', '4'),
         default: '1',
       },
