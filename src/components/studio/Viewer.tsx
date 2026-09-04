@@ -169,7 +169,12 @@ export function Viewer({ job, onClose }: ViewerProps) {
           </p>
         </div>
 
-        <div className="flex shrink-0 items-center gap-1.5">
+        {/*
+          shrink-0 with gap-1 on a phone. Without it the labelled buttons
+          pushed Close off the right of the screen, and Escape is not an
+          option on a touch device: the viewer became impossible to leave.
+        */}
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
           {job.state === 'success' && (
             <Button
               size="sm"
@@ -189,10 +194,12 @@ export function Viewer({ job, onClose }: ViewerProps) {
               restoreJob(job.id)
               onClose()
             }}
+            aria-label="Reuse these settings"
             title="Load these settings back into the composer"
+            className="px-2 sm:px-3"
           >
             <RefreshCw className="size-4" />
-            Settings
+            <span className="hidden sm:inline">Settings</span>
           </Button>
 
           {/*
@@ -207,10 +214,12 @@ export function Viewer({ job, onClose }: ViewerProps) {
               onClick={async () => {
                 if (await reuse(asset)) onClose()
               }}
+              aria-label="Use as input"
               title="Use this result as a reference for a new generation"
+              className="px-2 sm:px-3"
             >
               {!reusing && <CornerUpRight className="size-4" />}
-              Use as input
+              <span className="hidden sm:inline">Use as input</span>
             </Button>
           )}
           {asset && (
@@ -223,9 +232,11 @@ export function Viewer({ job, onClose }: ViewerProps) {
                   filename: `highfield-${job.id}-${index + 1}`,
                 })
               }}
+              aria-label="Download"
+              className="px-2 sm:px-3"
             >
               <Download className="size-4" />
-              Download
+              <span className="hidden sm:inline">Download</span>
             </Button>
           )}
           <Button size="sm" variant="ghost" onClick={onClose} aria-label="Close">

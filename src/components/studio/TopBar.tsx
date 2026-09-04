@@ -25,9 +25,11 @@ export function TopBar() {
 
   return (
     <>
-      <header className="rule flex h-14 shrink-0 items-center justify-between gap-4 px-4">
-        <div className="flex items-center gap-2.5">
-          <span className="grid size-7 place-items-center rounded-lg bg-accent text-black">
+      <header className="rule flex h-14 shrink-0 items-center justify-between gap-2 px-3 sm:gap-4 sm:px-4">
+        {/* min-w-0 on both halves, or the switcher's long project names push
+            the account button off the side of a phone. */}
+        <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+          <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-accent text-black">
             <svg viewBox="0 0 16 16" className="size-4" aria-hidden>
               <path
                 d="M3 12.5 8 3l5 9.5H3Z"
@@ -45,18 +47,18 @@ export function TopBar() {
             <p className="text-[10px] text-ink-faint">Powered by Kie.ai</p>
           </div>
 
-          <span className="mx-1 h-5 w-px bg-line" aria-hidden />
+          <span className="mx-1 hidden h-5 w-px bg-line sm:block" aria-hidden />
 
           <ProjectSwitcher />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
           <button
             type="button"
             onClick={() => setInsightsOpen(true)}
             aria-label="Model insights"
             title="Which models actually work for you"
-            className="grid size-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-raised hover:text-ink"
+            className="grid size-8 shrink-0 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-raised hover:text-ink"
           >
             <BarChart3 className="size-4" />
           </button>
@@ -65,10 +67,11 @@ export function TopBar() {
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-warn/30 bg-warn/10 px-2.5 py-1 text-[11px] font-medium text-warn transition-colors hover:bg-warn/20"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-warn/30 bg-warn/10 px-2 py-1 text-[11px] font-medium text-warn transition-colors hover:bg-warn/20 sm:px-2.5"
             >
               <AlertTriangle className="size-3.5" />
-              Add API key
+              <span className="hidden sm:inline">Add API key</span>
+              <span className="sm:hidden">Key</span>
             </button>
           ) : (
             <button
@@ -76,7 +79,7 @@ export function TopBar() {
               onClick={() => setSettingsOpen(true)}
               title={error ?? 'Kie.ai credit balance'}
               className={cn(
-                'flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium tabular-nums transition-colors',
+                'flex shrink-0 items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] font-medium tabular-nums transition-colors sm:px-2.5',
                 low
                   ? 'border-warn/30 bg-warn/10 text-warn hover:bg-warn/20'
                   : 'border-line bg-raised text-ink-muted hover:border-line-bright hover:text-ink',
@@ -88,18 +91,22 @@ export function TopBar() {
                 : credits != null
                   ? credits.toLocaleString()
                   : 'n/a'}
-              {/* Signals whose key is being billed when several are possible. */}
+              {/* Signals whose key is being billed when several are possible.
+                  Dropped on a phone, where the row has no space to spare and
+                  Settings says the same thing. */}
               {session.source === 'env' && (
-                <span className="text-ink-faint">shared</span>
+                <span className="hidden text-ink-faint sm:inline">shared</span>
               )}
             </button>
           )}
 
+          {/* Hidden on a phone. It is a link out of the app, and it was what
+              pushed the account button off the side of the screen. */}
           <a
             href="https://kie.ai/logs"
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1 px-1 text-[11px] text-ink-faint transition-colors hover:text-ink"
+            className="hidden items-center gap-1 px-1 text-[11px] text-ink-faint transition-colors hover:text-ink sm:flex"
           >
             Logs
             <ExternalLink className="size-3" />
@@ -110,10 +117,12 @@ export function TopBar() {
             onClick={() => setSettingsOpen(true)}
             aria-label="Account and settings"
             title={session.user?.email ?? 'Settings'}
-            className="flex h-8 items-center gap-2 rounded-lg pl-1 pr-1.5 text-ink-faint transition-colors hover:bg-raised hover:text-ink"
+            // Square on a phone, where the avatar is hidden and only the
+            // gear is left: px-1 around a 16px icon is a 24px wide target.
+            className="flex size-8 shrink-0 items-center justify-center gap-2 rounded-lg text-ink-faint transition-colors hover:bg-raised hover:text-ink sm:h-8 sm:w-auto sm:px-1 sm:pr-1.5"
           >
             {session.user && (
-              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-overlay text-[10px] font-semibold uppercase text-ink-muted">
+              <span className="hidden size-6 shrink-0 place-items-center rounded-full bg-overlay text-[10px] font-semibold uppercase text-ink-muted sm:grid">
                 {session.user.email.slice(0, 2)}
               </span>
             )}

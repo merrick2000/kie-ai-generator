@@ -186,7 +186,7 @@ function Row({ label, hint, selected, icon, onClick, onEdit }: RowProps) {
       <button
         type="button"
         onClick={onClick}
-        className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-2.5 text-left"
+        className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pl-2.5 text-left sm:py-2"
       >
         <span className="grid size-4 shrink-0 place-items-center">{icon}</span>
         <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{label}</span>
@@ -205,7 +205,7 @@ function Row({ label, hint, selected, icon, onClick, onEdit }: RowProps) {
           // Always visible, not revealed on hover. A control you have to
           // discover by waving the mouse at a row is a control nobody finds,
           // and `text-ink-faint` is already quiet enough not to shout.
-          className="grid size-7 shrink-0 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-ink"
+          className="grid size-8 shrink-0 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-ink sm:size-7"
         >
           <Settings2 className="size-3.5" />
         </button>

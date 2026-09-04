@@ -134,7 +134,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
         aria-label={project ? 'Project settings' : 'New project'}
         className="animate-rise relative flex max-h-[86vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-line-bright bg-surface shadow-2xl shadow-black/60"
       >
-        <header className="rule flex shrink-0 items-center justify-between gap-3 px-5 py-3.5">
+        <header className="rule flex shrink-0 items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
           <div className="min-w-0">
             <h2 className="truncate text-[15px] font-semibold text-ink">
               {project ? project.name : 'New project'}
@@ -155,7 +155,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
           </button>
         </header>
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-5">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-5">
           <FieldShell label="Name" required htmlFor="project-name">
             <input
               id="project-name"
@@ -324,10 +324,13 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
           )}
         </div>
 
-        <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-line px-5 py-3">
+        {/* Wraps rather than scrolling sideways: with the delete
+            confirmation showing, five controls do not fit one row on a
+            phone and the ones on the end were clipped. */}
+        <footer className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-line px-4 py-3 sm:gap-3 sm:px-5">
           {project ? (
             confirmDelete ? (
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
                 <span className="text-[11px] text-ink-faint">Delete this project?</span>
                 <Button size="sm" variant="danger" onClick={() => void remove()}>
                   Confirm
@@ -351,7 +354,7 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
             <span />
           )}
 
-          <div className="flex gap-2">
+          <div className="ml-auto flex gap-2">
             <Button size="sm" variant="ghost" onClick={onClose}>
               Cancel
             </Button>

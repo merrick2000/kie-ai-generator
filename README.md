@@ -221,6 +221,22 @@ Runs go out one at a time rather than together, since each is a submission
 against the same rate limit, and the batch stops at the first refusal: a
 rejected prompt or an empty balance does not improve on the next attempt.
 
+### On a phone
+
+The studio is usable on a small screen rather than merely reachable from one.
+
+The composer is a full-height sheet below 1024px, opened from a Create button
+in the thumb's reach rather than from a corner control that used to sit on top
+of the search field. The gallery keeps two columns instead of one enormous
+card, the search gets a row of its own rather than the 121px it was sharing
+with three other controls, and the viewer's actions collapse to icons so Close
+never leaves the screen: without it, and with no keyboard for Escape, a result
+opened on a phone could not be closed.
+
+Fields are 16px on small screens. iOS zooms the page in when a smaller one
+takes focus and then leaves it zoomed, and the usual fix, `maximum-scale=1`
+in the viewport meta, also takes zooming away from anyone who needs it.
+
 ### Projects
 
 A project groups runs and carries the defaults that work keeps repeating: a

@@ -179,7 +179,7 @@ export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
               onClick={() => onCancel(job.id)}
               aria-label="Remove from the gallery"
               title="Remove from the gallery. The task still runs on kie.ai."
-              className="grid size-6 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-danger"
+              className="grid size-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-danger sm:size-6"
             >
               <X className="size-3.5" />
             </button>
@@ -191,7 +191,9 @@ export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
               onClick={() => void toggleFavorite(job.id)}
               aria-label={job.favorite ? 'Unpin' : 'Pin to library'}
               className={cn(
-                'grid size-6 place-items-center rounded-lg transition-colors hover:bg-overlay',
+                // Bigger on touch. 24px is a fine mouse target and a poor
+                // thumb one, and these sit side by side on a card.
+                'grid size-8 place-items-center rounded-lg transition-colors hover:bg-overlay sm:size-6',
                 job.favorite ? 'text-accent' : 'text-ink-faint hover:text-ink',
               )}
             >
@@ -207,7 +209,7 @@ export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
                 setMovingOpen(false)
               }}
               aria-label="More actions"
-              className="grid size-6 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-ink"
+              className="grid size-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-ink sm:size-6"
             >
               <MoreHorizontal className="size-3.5" />
             </button>
@@ -289,7 +291,7 @@ export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
                             filename: `highfield-${job.id}`,
                           })}
                           onClick={() => setMenuOpen(false)}
-                          className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-ink-muted transition-colors hover:bg-raised hover:text-ink"
+                          className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12px] text-ink-muted transition-colors hover:bg-raised hover:text-ink sm:py-1.5"
                         >
                           <Download className="size-3.5" />
                           Download
@@ -302,7 +304,7 @@ export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
                           void removeJob(job.id)
                           setMenuOpen(false)
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-danger transition-colors hover:bg-raised"
+                        className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12px] text-danger transition-colors hover:bg-raised sm:py-1.5"
                       >
                         <Trash2 className="size-3.5" />
                         Delete
@@ -330,7 +332,7 @@ function MenuItem({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12px] text-ink-muted transition-colors hover:bg-raised hover:text-ink"
+      className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-[12px] text-ink-muted transition-colors hover:bg-raised hover:text-ink sm:py-1.5"
     >
       {children}
     </button>

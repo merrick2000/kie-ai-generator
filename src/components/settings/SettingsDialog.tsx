@@ -79,14 +79,17 @@ export function SettingsDialog({ open, onClose }: SettingsDialogProps) {
           </button>
         </header>
 
-        <nav className="rule flex shrink-0 gap-1 px-3 py-2">
+        {/* Scrolls sideways rather than wrapping: on a phone "API key" broke
+            across two lines and left the row a different height than the
+            tab beside it. */}
+        <nav className="rule flex shrink-0 gap-1 overflow-x-auto px-3 py-2 no-scrollbar">
           {TABS.map((t) => (
             <button
               key={t.id}
               type="button"
               onClick={() => setTab(t.id)}
               className={cn(
-                'rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors',
+                'shrink-0 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors',
                 tab === t.id
                   ? 'bg-raised text-ink'
                   : 'text-ink-faint hover:text-ink-muted',

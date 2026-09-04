@@ -13,8 +13,10 @@ export const viewport: Viewport = {
   themeColor: '#07070a',
   width: 'device-width',
   initialScale: 1,
-  // The composer and viewer are full-height panes; let them own the viewport.
-  maximumScale: 1,
+  // No maximumScale. It was here to stop iOS zooming in when a field takes
+  // focus, but that is caused by fields smaller than 16px and the fix for it
+  // is in the stylesheet. Blocking zoom altogether takes the page away from
+  // anyone who needs to magnify it.
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

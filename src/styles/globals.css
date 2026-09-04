@@ -167,6 +167,27 @@
   }
 }
 
+/*
+ * 16px fields on a phone.
+ *
+ * iOS zooms the whole page in when a field smaller than 16px takes focus, and
+ * then leaves it zoomed. The old fix was to forbid zooming in the viewport
+ * meta, which also took it away from anyone who needed to magnify the page.
+ * Sizing the fields correctly solves the same problem without that cost, and
+ * a larger tap target is the right call on touch anyway.
+ *
+ * Deliberately outside `@layer`. Unlayered rules win over every layer, which
+ * is what it takes to beat the `text-[13px]` utilities on the fields
+ * themselves. Inside `@layer base` this was silently ignored.
+ */
+@media (max-width: 640px) {
+  input:not([type='range']):not([type='checkbox']):not([type='radio']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 @layer utilities {
   /* Hairline that reads as a border but never doubles up in dense layouts. */
   .rule {

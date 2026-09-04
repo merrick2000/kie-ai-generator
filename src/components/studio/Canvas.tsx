@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ImageIcon,
   Loader2,
+  PanelLeftOpen,
   Search,
   SlidersHorizontal,
   Trash2,
@@ -42,8 +43,33 @@ const SORTS: { value: GallerySort; label: string }[] = [
 /** Typing should not fire a query per keystroke. */
 const SEARCH_DEBOUNCE_MS = 280
 
+/**
+ * Two columns on a phone, then as many as fit.
+ *
+ * `auto-fill` alone gives one enormous card on a 390px screen, because the
+ * 200px minimum leaves no room for a second. Two smaller thumbnails are more
+ * useful than one big one when the point is scanning what you have made.
+ */
+const GRID =
+  'mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]'
+
+interface CanvasProps {
+  /** Whether the composer pane is showing. */
+  composerOpen: boolean
+  onOpenComposer: () => void
+  /**
+   * False on a phone, where the composer is reached from a button of its own
+   * rather than from the corner of this toolbar.
+   */
+  showComposerButton: boolean
+}
+
 /** The results area: everything this account has made, searchable. */
-export function Canvas() {
+export function Canvas({
+  composerOpen,
+  onOpenComposer,
+  showComposerButton,
+}: CanvasProps) {
   const jobs = useStudio((s) => s.jobs)
   const filters = useStudio((s) => s.filters)
   const setFilter = useStudio((s) => s.setFilter)
@@ -77,9 +103,25 @@ export function Canvas() {
     Boolean(filters.search)
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="rule flex shrink-0 flex-wrap items-center gap-2 px-4 py-2.5">
-        <label className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-lg border border-line bg-raised px-2.5 transition-colors focus-within:border-accent sm:max-w-xs">
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="rule flex shrink-0 flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4">
+        {showComposerButton && !composerOpen && (
+          <button
+            type="button"
+            onClick={onOpenComposer}
+            aria-label="Show the composer"
+            className="order-first grid size-8 shrink-0 place-items-center rounded-lg border border-line bg-raised text-ink-faint transition-colors hover:border-line-bright hover:text-ink"
+          >
+            <PanelLeftOpen className="size-4" />
+          </button>
+        )}
+
+        {/*
+          A full row of its own on a phone. Sharing one row with the filter
+          button, the count and Clear left it 121px wide, which is not a field
+          anyone can type a prompt fragment into.
+        */}
+        <label className="order-first flex h-9 w-full min-w-0 items-center gap-2 rounded-lg border border-line bg-raised px-2.5 transition-colors focus-within:border-accent sm:order-none sm:h-8 sm:w-auto sm:max-w-xs sm:flex-1">
           <Search className="size-3.5 shrink-0 text-ink-faint" />
           <input
             value={search}
@@ -141,7 +183,7 @@ export function Canvas() {
       </div>
 
       {showFilters && (
-        <div className="rule flex shrink-0 flex-wrap items-center gap-2 px-4 py-2.5">
+        <div className="rule flex shrink-0 flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4">
           <Chip
             active={filters.category === 'all'}
             onClick={() => setFilter({ category: 'all' })}
@@ -215,11 +257,11 @@ export function Canvas() {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3 pb-24 sm:p-4 sm:pb-4">
         <ProjectBanner />
 
         {!hydrated ? (
-          <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+          <div className={GRID}>
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="skeleton aspect-square rounded-2xl" />
             ))}
@@ -228,7 +270,7 @@ export function Canvas() {
           <EmptyState narrowed={narrowed} />
         ) : (
           <>
-            <div className="mt-3 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+            <div className={GRID}>
               {jobs.map((job) => (
                 <JobCard
                   key={job.id}
@@ -297,7 +339,9 @@ function EmptyState({ narrowed }: { narrowed: boolean }) {
       }
     : {
         title: 'Nothing generated yet',
-        body: 'Pick a model on the left, describe what you want, and hit Generate.',
+        // Deliberately not "on the left": on a phone the composer is a sheet
+        // reached from the Create button, and there is no left.
+        body: 'Pick a model, describe what you want, and hit Generate.',
       }
 
   return (

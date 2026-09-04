@@ -90,7 +90,10 @@ export function Composer() {
   if (!model) return null
 
   return (
-    <div className="flex h-full flex-col">
+    // `flex-1` rather than `h-full`: on a phone the sheet has a header above
+    // this, and 100% of the sheet would then be taller than what is left,
+    // pushing the Generate button off the bottom of the screen.
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="rule shrink-0 p-4">
         <ModelPicker modelId={modelId} onSelect={selectModel} />
       </div>
@@ -186,7 +189,8 @@ export function Composer() {
                     : `${count} runs of the same prompt, each with its own seed`
                 }
                 className={cn(
-                  'size-6 rounded text-[11px] font-medium tabular-nums transition-colors',
+                  // Larger on touch, where 24px is an awkward target.
+                  'size-7 rounded text-[11px] font-medium tabular-nums transition-colors sm:size-6',
                   runCount === count
                     ? 'bg-accent text-black'
                     : 'text-ink-faint hover:bg-overlay hover:text-ink',
