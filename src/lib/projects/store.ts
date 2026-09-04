@@ -154,6 +154,31 @@ export async function createProject(
   return project
 }
 
+/**
+ * The project an account's older work belongs to.
+ *
+ * Looked up by name rather than kept as a flag on the row: if someone renames
+ * or deletes it, the next import makes a fresh one instead of failing, and
+ * nothing about the app depends on this project being special.
+ */
+export const DEFAULT_PROJECT_NAME = 'Default project'
+
+export async function findOrCreateProject(
+  userId: string,
+  name: string,
+  input: Omit<ProjectInput, 'name'> = {},
+): Promise<Project> {
+  const db = await getDb()
+
+  const existing = await db.get<ProjectRow>(
+    `SELECT ${COLUMNS} FROM projects WHERE user_id = ? AND name = ? ORDER BY created_at ASC`,
+    [userId, name],
+  )
+  if (existing) return toProject(existing)
+
+  return createProject(userId, { name, ...input })
+}
+
 export interface ProjectPatch {
   name?: string
   description?: string | null
@@ -204,6 +229,69 @@ export async function updateProject(
   )
 
   return getProject(userId, id)
+}
+
+/**
+ * Copy a project.
+ *
+ * Two things get copied and one is optional. The settings always do, since
+ * that is what a project is for: a brief and a house style worth reusing on
+ * the next campaign. The work inside is a choice, because "same setup, fresh
+ * start" and "a variant of this, keeping what is already here" are both
+ * things people want, and guessing wrong is annoying either way.
+ */
+export async function duplicateProject(
+  userId: string,
+  id: string,
+  options: { name?: string; withJobs: boolean },
+): Promise<{ project: Project; copiedJobs: number } | null> {
+  const source = await getProject(userId, id)
+  if (!source) return null
+
+  const copy = await createProject(userId, {
+    name: options.name?.trim() || `${source.name} copy`,
+    description: source.description,
+    color: source.color,
+    settings: source.settings,
+  })
+
+  if (!options.withJobs) return { project: copy, copiedJobs: 0 }
+
+  const db = await getDb()
+
+  // Copied inside the database rather than read out and written back: the
+  // rows carry prompts and asset lists, and a project of any size would mean
+  // moving all of it through the app for no reason.
+  //
+  // New ids, and `favorite` deliberately reset: a copy is a starting point,
+  // not a second claim on the same pinned results.
+  const rows = await db.all<{ id: string }>(
+    `INSERT INTO jobs (
+       id, user_id, project_id, task_id, api, model_id, submitted_model_id,
+       model_name, category, output, title, prompt_preview, values_json,
+       state, progress, assets_json, text, error, favorite,
+       credits_consumed, cost_time_ms, created_at, updated_at, completed_at,
+       next_poll_at
+     )
+     SELECT
+       substr(md5(random()::text || id), 1, 20), user_id, ?, task_id, api,
+       model_id, submitted_model_id, model_name, category, output, title,
+       prompt_preview, values_json, state, progress, assets_json, text, error,
+       FALSE, credits_consumed, cost_time_ms, created_at, ?, completed_at, ?
+       FROM jobs
+      WHERE user_id = ? AND project_id = ? AND state IN ('success', 'fail')
+      RETURNING id`,
+    [copy.id, Date.now(), Number.MAX_SAFE_INTEGER, userId, source.id],
+  )
+
+  log.info('project duplicated', {
+    userId,
+    from: source.id,
+    to: copy.id,
+    copiedJobs: rows.length,
+  })
+
+  return { project: copy, copiedJobs: rows.length }
 }
 
 /**

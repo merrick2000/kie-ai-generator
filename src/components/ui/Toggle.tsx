@@ -36,10 +36,19 @@ export function Toggle({ checked, onChange, label, description, id }: ToggleProp
           checked ? 'bg-accent' : 'bg-line-bright',
         )}
       >
+        {/*
+          `left` is set explicitly. Without it an absolutely positioned child
+          falls back to its static position, which a button centres, so the
+          knob started from the middle of the track and the transform pushed
+          it out of the right-hand end.
+
+          The travel is what is left over: 38 track, 16 knob, 3 of inset on
+          each side.
+        */}
         <span
           className={cn(
-            'absolute top-[3px] size-4 rounded-full bg-white transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]',
-            checked ? 'translate-x-[19px]' : 'translate-x-[3px]',
+            'absolute left-[3px] top-[3px] size-4 rounded-full bg-white transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]',
+            checked ? 'translate-x-4' : 'translate-x-0',
           )}
         />
       </button>

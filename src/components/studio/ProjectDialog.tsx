@@ -1,6 +1,6 @@
 'use client'
 
-import { Trash2, X } from 'lucide-react'
+import { Copy, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
@@ -30,8 +30,10 @@ interface ProjectDialogProps {
 export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
   const createProject = useStudio((s) => s.createProject)
   const updateProject = useStudio((s) => s.updateProject)
+  const duplicateProject = useStudio((s) => s.duplicateProject)
   const deleteProject = useStudio((s) => s.deleteProject)
   const setActiveProject = useStudio((s) => s.setActiveProject)
+  const counts = useStudio((s) => s.counts)
 
   const [name, setName] = useState(project?.name ?? '')
   const [description, setDescription] = useState(project?.description ?? '')
@@ -41,7 +43,33 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
   const [suffix, setSuffix] = useState(project?.settings.promptSuffix ?? '')
   const [modelId, setModelId] = useState(project?.settings.modelId ?? '')
   const [saving, setSaving] = useState(false)
+  const [duplicating, setDuplicating] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const held = project ? (counts[project.id]?.runs ?? 0) : 0
+
+  const duplicate = async (withJobs: boolean) => {
+    if (!project) return
+
+    setDuplicating(true)
+    try {
+      const result = await duplicateProject(project.id, { withJobs })
+      if (!result) {
+        toast.error('Could not duplicate the project.')
+        return
+      }
+
+      setActiveProject(result.project.id)
+      toast.success(`Duplicated as ${result.project.name}`, {
+        description: withJobs
+          ? `${result.copiedJobs} result${result.copiedJobs === 1 ? '' : 's'} copied across. Now working in it.`
+          : 'The defaults came across, the work did not. Now working in it.',
+      })
+      onClose()
+    } finally {
+      setDuplicating(false)
+    }
+  }
 
   const save = async () => {
     if (!name.trim()) {
@@ -107,9 +135,16 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
         className="animate-rise relative flex max-h-[86vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-line-bright bg-surface shadow-2xl shadow-black/60"
       >
         <header className="rule flex shrink-0 items-center justify-between gap-3 px-5 py-3.5">
-          <h2 className="text-[15px] font-semibold text-ink">
-            {project ? 'Project settings' : 'New project'}
-          </h2>
+          <div className="min-w-0">
+            <h2 className="truncate text-[15px] font-semibold text-ink">
+              {project ? project.name : 'New project'}
+            </h2>
+            {project && (
+              <p className="mt-0.5 text-[12px] text-ink-faint">
+                Rename it, change its defaults, duplicate or delete it.
+              </p>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}
@@ -243,6 +278,50 @@ export function ProjectDialog({ project, onClose }: ProjectDialogProps) {
               </button>
             )}
           </FieldShell>
+
+          {project && (
+            <>
+              <div className="rule" />
+
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-muted">
+                  Duplicate
+                </p>
+                <p className="mt-1 text-[12px] leading-relaxed text-ink-faint">
+                  The name, colour and every default above come across either
+                  way. What differs is whether the work does.
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    loading={duplicating}
+                    onClick={() => void duplicate(false)}
+                  >
+                    {!duplicating && <Copy className="size-3.5" />}
+                    Settings only
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={held === 0}
+                    loading={duplicating}
+                    onClick={() => void duplicate(true)}
+                    title={
+                      held === 0
+                        ? 'This project has nothing in it yet'
+                        : 'Copies the finished results too'
+                    }
+                  >
+                    {!duplicating && <Copy className="size-3.5" />}
+                    Settings and {held} result{held === 1 ? '' : 's'}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <footer className="flex shrink-0 items-center justify-between gap-3 border-t border-line px-5 py-3">

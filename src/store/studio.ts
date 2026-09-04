@@ -127,6 +127,10 @@ interface StudioState {
       archived?: boolean
     },
   ) => Promise<void>
+  duplicateProject: (
+    id: string,
+    options: { name?: string; withJobs: boolean },
+  ) => Promise<{ project: Project; copiedJobs: number } | null>
   deleteProject: (id: string) => Promise<void>
 
   renameJob: (id: string, title: string | null) => Promise<void>
@@ -444,6 +448,20 @@ export const useStudio = create<StudioState>()(
         }))
       },
 
+      duplicateProject: async (id, options) => {
+        const res = await fetch(`/api/projects/${id}/duplicate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(options),
+        })
+        if (!res.ok) return null
+
+        const data = (await res.json()) as { project: Project; copiedJobs: number }
+        setState((s) => ({ projects: [data.project, ...s.projects] }))
+        void getState().loadProjects()
+        return data
+      },
+
       deleteProject: async (id) => {
         const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' })
         if (!res.ok) return
@@ -532,7 +550,12 @@ export const useStudio = create<StudioState>()(
       },
     }),
     {
-      name: 'highfield-studio',
+      // Deliberately not the old key. The previous build stored the whole
+      // job history under `highfield-studio`, and this state no longer
+      // carries jobs, so writing here would overwrite that record with one
+      // that has none. The old entry is left untouched and read once by the
+      // importer in lib/jobs/legacy.ts.
+      name: 'highfield-workspace',
       storage: createJSONStorage(() => idbStorage),
       // Only the things that are genuinely local. Jobs are deliberately
       // absent: persisting them would recreate the stale-copy problem this

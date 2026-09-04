@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/Button'
@@ -23,6 +23,7 @@ import { cn, formatDuration, proxied } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
 import { jobLabel, type Job } from '@/lib/jobs/types'
 import { AssetView } from './AssetView'
+import { Markdown } from './Markdown'
 
 interface ViewerProps {
   job: Job
@@ -45,6 +46,35 @@ export function Viewer({ job, onClose }: ViewerProps) {
   const asset = job.assets[index]
   const model = getModel(job.modelId)
   const many = job.assets.length > 1
+
+  /**
+   * The settings worth showing back.
+   *
+   * Computed rather than filtered inline, because the section is hidden
+   * entirely when it would be empty: a run with nothing but a prompt used to
+   * render an empty box under a heading.
+   */
+  const parameters = useMemo(() => {
+    if (!model) return []
+
+    return model.fields.flatMap((field) => {
+      const value = job.values[field.name]
+
+      if (field.name === 'prompt' || field.name === 'text') return []
+      if (value === '' || value == null) return []
+      if (Array.isArray(value) && !value.length) return []
+
+      const display = Array.isArray(value)
+        ? `${value.length} file${value.length > 1 ? 's' : ''}`
+        : typeof value === 'boolean'
+          ? value
+            ? 'On'
+            : 'Off'
+          : String(value)
+
+      return [{ name: field.name, label: field.label, value: display }]
+    })
+  }, [model, job.values])
 
   const step = useCallback(
     (delta: number) =>
@@ -205,13 +235,21 @@ export function Viewer({ job, onClose }: ViewerProps) {
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <div className="relative flex min-h-0 flex-1 items-center justify-center p-4">
+        <div
+          className={cn(
+            'relative flex min-h-0 flex-1 justify-center p-4',
+            // An image is centred in whatever space it has. A page of prose
+            // is not: it should start at the top and use the full height,
+            // the way anything you read does.
+            asset ? 'items-center' : 'items-stretch',
+          )}
+        >
           {asset ? (
             <AssetView asset={asset} fit="contain" controls className="max-h-full" />
           ) : job.text ? (
             // A language model's answer is prose, not a code block: readable
             // measure, real line height, and one obvious way to take it away.
-            <div className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line bg-surface">
+            <div className="flex h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line bg-surface">
               <div className="rule flex shrink-0 items-center justify-between gap-3 px-4 py-2">
                 <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-muted">
                   Answer
@@ -231,9 +269,9 @@ export function Viewer({ job, onClose }: ViewerProps) {
                 </div>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto p-5">
-                <p className="whitespace-pre-wrap text-[14px] leading-[1.7] text-ink-muted">
-                  {job.text}
-                </p>
+                {/* Models answer in markdown whether or not you ask them to,
+                    so it is rendered rather than shown as its own source. */}
+                <Markdown>{job.text}</Markdown>
               </div>
             </div>
           ) : (
@@ -287,47 +325,40 @@ export function Viewer({ job, onClose }: ViewerProps) {
             </section>
           )}
 
-          <section className="mb-5">
-            <h2 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-muted">
-              Parameters
-            </h2>
-            <dl className="space-y-1.5 rounded-xl border border-line bg-surface p-3">
-              {model?.fields
-                .filter((f) => {
-                  const v = job.values[f.name]
-                  if (f.name === 'prompt' || f.name === 'text') return false
-                  if (v === '' || v == null) return false
-                  if (Array.isArray(v) && !v.length) return false
-                  return true
-                })
-                .map((f) => {
-                  const v = job.values[f.name]
-                  const display = Array.isArray(v)
-                    ? `${v.length} file${v.length > 1 ? 's' : ''}`
-                    : typeof v === 'boolean'
-                      ? v
-                        ? 'On'
-                        : 'Off'
-                      : String(v)
-                  return (
-                    <div key={f.name} className="flex items-baseline justify-between gap-3">
-                      <dt className="shrink-0 text-[11px] text-ink-faint">{f.label}</dt>
-                      <dd className="truncate text-right text-[12px] text-ink-muted">
-                        {display}
-                      </dd>
-                    </div>
-                  )
-                })}
-              {job.taskId && (
-                <div className="mt-2 flex items-baseline justify-between gap-3 border-t border-line pt-2">
-                  <dt className="shrink-0 text-[11px] text-ink-faint">Task ID</dt>
-                  <dd className="truncate text-right font-mono text-[10px] text-ink-faint">
-                    {job.taskId}
-                  </dd>
-                </div>
-              )}
-            </dl>
-          </section>
+          {(parameters.length > 0 || job.taskId) && (
+            <section className="mb-5">
+              <h2 className="mb-2 text-[11px] font-medium uppercase tracking-[0.08em] text-ink-muted">
+                Parameters
+              </h2>
+              <dl className="space-y-1.5 rounded-xl border border-line bg-surface p-3">
+                {parameters.map((row) => (
+                  <div
+                    key={row.name}
+                    className="flex items-baseline justify-between gap-3"
+                  >
+                    <dt className="shrink-0 text-[11px] text-ink-faint">{row.label}</dt>
+                    <dd className="truncate text-right text-[12px] text-ink-muted">
+                      {row.value}
+                    </dd>
+                  </div>
+                ))}
+
+                {job.taskId && (
+                  <div
+                    className={cn(
+                      'flex items-baseline justify-between gap-3',
+                      parameters.length > 0 && 'mt-2 border-t border-line pt-2',
+                    )}
+                  >
+                    <dt className="shrink-0 text-[11px] text-ink-faint">Task ID</dt>
+                    <dd className="truncate text-right font-mono text-[10px] text-ink-faint">
+                      {job.taskId}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+          )}
 
           {many && (
             <section className="mb-5">

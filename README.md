@@ -205,8 +205,26 @@ A project groups runs and carries the defaults that work keeps repeating: a
 brief, a prompt prefix and suffix, the model that kind of work is usually done
 in. The open project scopes the gallery and receives new runs.
 
+Every project can be renamed, recoloured and reconfigured from the gear beside
+it in the switcher, without switching into it first. Duplicating one always
+copies the defaults, and optionally the finished work inside, which is the
+difference between "same setup, fresh start" and "a variant of this".
+
 Deleting one keeps everything inside it. The rows move to Unfiled rather than
 being destroyed.
+
+### Upgrading from the browser-only build
+
+Anyone who used Highfield before generations moved to the server has their
+whole history in that browser's IndexedDB. On the first load after the
+upgrade it is read once, sent to `/api/jobs/import`, and filed into a project
+called **Default project**. The composer draft comes across with it.
+
+The old record is never deleted, and each row is keyed on the account plus its
+original id, so importing twice, or opening the same history on a second
+device, adds nothing. Anything the old build left mid-flight is stored closed:
+its task expired long before the row existed, and polling it would report an
+old run as a fresh failure.
 
 ### Seven APIs, one interface
 

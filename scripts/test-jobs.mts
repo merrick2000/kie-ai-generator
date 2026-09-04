@@ -7,6 +7,10 @@
  * ILIKE. None of those behave the same anywhere else.
  *
  *   DATABASE_URL=postgres://... bun --preload ./scripts/preload.ts scripts/test-jobs.mts
+ *
+ * Give it a database nothing else is using. The reconciler claims due jobs
+ * every second, so a dev server pointed at the same one will take them out
+ * from under the queue checks below and they will fail for the wrong reason.
  */
 
 import assert from 'node:assert/strict'
@@ -423,6 +427,151 @@ await check('a text run still inside its deadline is left alone', async () => {
   // not be what ends it.
   assert.equal(await store.failStalledChatJobs(10 * 60_000), 0)
   assert.notEqual((await store.getJob(USER, fresh.id))!.state, 'fail')
+})
+
+console.log('\nimporting a browser history')
+
+const legacy = (id: string, over: Record<string, unknown> = {}) => ({
+  id,
+  taskId: 'old-task',
+  api: 'market',
+  modelId: 'google/nano-banana',
+  modelName: 'Nano Banana',
+  category: 'image',
+  output: 'image',
+  promptPreview: 'made before the move',
+  values: { prompt: 'made before the move' },
+  state: 'success',
+  assets: [{ url: 'https://example.com/old.png', kind: 'image' }],
+  text: null,
+  error: null,
+  favorite: false,
+  creditsConsumed: 4,
+  costTimeMs: 2000,
+  createdAt: 1_700_000_000_000,
+  completedAt: 1_700_000_002_000,
+  ...over,
+})
+
+await check('old work is written into a project', async () => {
+  await db.run('DELETE FROM jobs')
+
+  const project = await projects.findOrCreateProject(USER, projects.DEFAULT_PROJECT_NAME)
+  const result = await store.importJobs(USER, project.id, [legacy('a'), legacy('b')])
+
+  assert.equal(result.imported, 2)
+
+  const filed = await store.listJobs(USER, { projectId: project.id })
+  assert.equal(filed.length, 2)
+  // The original timestamps survive, or the history arrives out of order.
+  assert.equal(filed[0].createdAt, 1_700_000_000_000)
+  assert.equal(filed[0].assets.length, 1)
+  assert.equal(filed[0].creditsConsumed, 4)
+})
+
+await check('importing twice adds nothing', async () => {
+  await db.run('DELETE FROM jobs')
+
+  const project = await projects.findOrCreateProject(USER, projects.DEFAULT_PROJECT_NAME)
+  await store.importJobs(USER, project.id, [legacy('a')])
+
+  // The same browser reloading, or a second device with the same history.
+  const again = await store.importJobs(USER, project.id, [legacy('a')])
+  assert.equal(again.imported, 0)
+  assert.equal(again.skipped, 1)
+  assert.equal((await store.listJobs(USER)).length, 1)
+})
+
+await check('two accounts with the same old id do not collide', async () => {
+  await db.run('DELETE FROM jobs')
+
+  // The old ids were Date.now() plus six random characters, which is not
+  // enough to rule out a repeat across accounts.
+  const project = await projects.findOrCreateProject(USER, projects.DEFAULT_PROJECT_NAME)
+  const other = await projects.findOrCreateProject(OTHER, projects.DEFAULT_PROJECT_NAME)
+
+  await store.importJobs(USER, project.id, [legacy('shared-id')])
+  const theirs = await store.importJobs(OTHER, other.id, [legacy('shared-id')])
+
+  assert.equal(theirs.imported, 1)
+  assert.equal((await store.listJobs(USER)).length, 1)
+  assert.equal((await store.listJobs(OTHER)).length, 1)
+})
+
+await check('imported work is never polled again', async () => {
+  await db.run('DELETE FROM jobs')
+
+  const project = await projects.findOrCreateProject(USER, projects.DEFAULT_PROJECT_NAME)
+  // A run the old build left mid-flight, carrying a task id from days ago.
+  await store.importJobs(USER, project.id, [legacy('stuck', { state: 'generating' })])
+
+  const [job] = await store.listJobs(USER)
+  // Polling a task that expired long before this row existed would report it
+  // as a fresh failure, so it is stored closed instead.
+  assert.equal(job.state, 'fail')
+  assert.ok(job.error)
+  assert.equal((await store.claimDueJobs(10, 30_000)).length, 0)
+})
+
+await check('duplicating copies the defaults but not the work', async () => {
+  await db.run('DELETE FROM jobs')
+
+  const source = await projects.createProject(USER, { name: 'Campaign', color: 'rose' })
+  await projects.updateProject(USER, source.id, {
+    settings: { promptPrefix: 'Shot on film', brief: 'Warm tones' },
+  })
+  await store.insertJob({ ...base, projectId: source.id })
+
+  const result = await projects.duplicateProject(USER, source.id, { withJobs: false })
+  assert.ok(result)
+  assert.equal(result!.copiedJobs, 0)
+  assert.equal(result!.project.settings.promptPrefix, 'Shot on film')
+  assert.equal(result!.project.color, 'rose')
+  assert.notEqual(result!.project.id, source.id)
+
+  // The original keeps everything it had.
+  assert.equal((await store.listJobs(USER, { projectId: source.id })).length, 1)
+  assert.equal((await store.listJobs(USER, { projectId: result!.project.id })).length, 0)
+})
+
+await check('duplicating with the work copies finished results only', async () => {
+  await db.run('DELETE FROM jobs')
+
+  const source = await projects.createProject(USER, { name: 'With work' })
+
+  const done = await store.insertJob({ ...base, projectId: source.id })
+  await store.attachTask(done.id, 'dup-1', Date.now())
+  await store.applyTaskResult(done.id, task(), Date.now())
+  await store.patchJob(USER, done.id, { favorite: true })
+
+  // Still running upstream, so copying it would mean two rows waiting on one
+  // task and both being polled.
+  const running = await store.insertJob({ ...base, projectId: source.id })
+  await store.attachTask(running.id, 'dup-2', Date.now())
+
+  const result = await projects.duplicateProject(USER, source.id, { withJobs: true })
+  assert.equal(result!.copiedJobs, 1)
+
+  const copied = await store.listJobs(USER, { projectId: result!.project.id })
+  assert.equal(copied.length, 1)
+  assert.notEqual(copied[0].id, done.id)
+  assert.equal(copied[0].assets.length, 1)
+  // A copy is a starting point, not a second claim on a pinned result.
+  assert.equal(copied[0].favorite, false)
+
+  // And nothing new for the reconciler to poll.
+  assert.equal((await store.claimDueJobs(10, 30_000)).length, 1)
+})
+
+await check('one account cannot duplicate another’s project', async () => {
+  const mine = await projects.createProject(USER, { name: 'Private' })
+  assert.equal(await projects.duplicateProject(OTHER, mine.id, { withJobs: true }), null)
+})
+
+await check('the default project is reused, not duplicated', async () => {
+  const first = await projects.findOrCreateProject(USER, projects.DEFAULT_PROJECT_NAME)
+  const second = await projects.findOrCreateProject(USER, projects.DEFAULT_PROJECT_NAME)
+  assert.equal(first.id, second.id)
 })
 
 console.log('\nhistory and usage')

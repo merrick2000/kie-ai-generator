@@ -11,7 +11,7 @@
 
 import 'server-only'
 
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 
 import { getDb, type SqlValue } from '@/lib/db'
 import type { ModelCategory } from '@/lib/kie/catalog'
@@ -627,6 +627,131 @@ export async function failStalledChatJobs(olderThanMs: number): Promise<number> 
 
   if (rows.length) log.warn('closed text runs left by a restart', { count: rows.length })
   return rows.length
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Importing an older browser's history
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+/**
+ * The id an imported row gets.
+ *
+ * Derived from the account and the original id rather than reusing the
+ * original, for two reasons. It is stable, so importing the same history
+ * twice, or from a second device, writes nothing the second time. And the old
+ * ids were `Date.now()` plus six random characters, which is not enough to
+ * rule out two accounts having generated the same one.
+ */
+export function importedJobId(userId: string, legacyId: string): string {
+  return createHash('sha256')
+    .update(`${userId}:${legacyId}`)
+    .digest('base64url')
+    .slice(0, 20)
+}
+
+export interface ImportableJob {
+  id: string
+  taskId: string | null
+  api: string
+  modelId: string
+  modelName: string
+  category: string
+  output: string
+  promptPreview: string
+  values: Record<string, unknown>
+  state: string
+  assets: unknown[]
+  text: string | null
+  error: string | null
+  favorite: boolean
+  creditsConsumed: number | null
+  costTimeMs: number | null
+  createdAt: number
+  completedAt: number | null
+}
+
+const TERMINAL: KieTaskState[] = ['success', 'fail']
+
+/**
+ * Write history that was made before jobs lived on the server.
+ *
+ * Everything is stored closed. A run that the old build left mid-flight has a
+ * task id from days ago, and handing it to the reconciler would mean polling
+ * a task that expired long before this row existed, then reporting it as a
+ * fresh failure. Saying what actually happened is more useful.
+ */
+export async function importJobs(
+  userId: string,
+  projectId: string | null,
+  jobs: ImportableJob[],
+): Promise<{ imported: number; skipped: number }> {
+  if (!jobs.length) return { imported: 0, skipped: 0 }
+
+  const db = await getDb()
+  const now = Date.now()
+  let imported = 0
+
+  await db.transaction(async (tx) => {
+    for (const job of jobs) {
+      const state = (TERMINAL as string[]).includes(job.state)
+        ? job.state
+        : 'fail'
+
+      const error =
+        state === 'fail'
+          ? (job.error ??
+            'This run was still going when it was last seen in the browser, before results moved to the server.')
+          : null
+
+      const rows = await tx.all<{ id: string }>(
+        `INSERT INTO jobs (
+           id, user_id, project_id, task_id, api, model_id, submitted_model_id,
+           model_name, category, output, title, prompt_preview, values_json,
+           state, progress, assets_json, text, error, favorite,
+           credits_consumed, cost_time_ms, created_at, updated_at, completed_at,
+           next_poll_at
+         ) VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, NULL, ?, ?, ?, 100, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (id) DO NOTHING
+         RETURNING id`,
+        [
+          importedJobId(userId, job.id),
+          userId,
+          projectId,
+          job.taskId,
+          job.api,
+          job.modelId,
+          job.modelName,
+          job.category,
+          job.output,
+          job.promptPreview.slice(0, 2000),
+          JSON.stringify(job.values ?? {}),
+          state,
+          JSON.stringify(job.assets ?? []),
+          job.text,
+          error,
+          job.favorite,
+          job.creditsConsumed,
+          job.costTimeMs,
+          job.createdAt,
+          now,
+          job.completedAt ?? job.createdAt,
+          // Closed, so the reconciler never looks at it.
+          Number.MAX_SAFE_INTEGER,
+        ],
+      )
+
+      if (rows.length) imported++
+    }
+  })
+
+  log.info('imported history from a browser', {
+    userId,
+    projectId: projectId ?? undefined,
+    imported,
+    skipped: jobs.length - imported,
+  })
+
+  return { imported, skipped: jobs.length - imported }
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

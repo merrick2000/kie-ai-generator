@@ -1,6 +1,7 @@
 'use client'
 
 import { Check, ChevronDown, FolderOpen, Layers, Plus, Settings2 } from 'lucide-react'
+import type { Project } from '@/lib/projects/store'
 import { useEffect, useRef, useState } from 'react'
 
 import { colorOf } from '@/lib/projects/colors'
@@ -23,7 +24,9 @@ export function ProjectSwitcher() {
   const setActiveProject = useStudio((s) => s.setActiveProject)
 
   const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<'new' | 'current' | null>(null)
+  // Null while closed. 'new' creates one; a project opens its settings, which
+  // is where renaming, defaults and duplication live.
+  const [editing, setEditing] = useState<'new' | Project | null>(null)
   const panelRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -123,45 +126,36 @@ export function ProjectSwitcher() {
                     setActiveProject(project.id)
                     setOpen(false)
                   }}
+                  // On the row itself, so renaming a project does not mean
+                  // switching into it first.
+                  onEdit={() => {
+                    setEditing(project)
+                    setOpen(false)
+                  }}
                 />
               )
             })}
           </div>
 
-          <div className="flex items-center gap-1 border-t border-line p-1.5">
+          <div className="border-t border-line p-1.5">
             <button
               type="button"
               onClick={() => {
                 setEditing('new')
                 setOpen(false)
               }}
-              className="flex flex-1 items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] text-ink-muted transition-colors hover:bg-raised hover:text-ink"
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[12px] text-ink-muted transition-colors hover:bg-raised hover:text-ink"
             >
               <Plus className="size-3.5" />
               New project
             </button>
-
-            {active && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing('current')
-                  setOpen(false)
-                }}
-                aria-label={`Settings for ${active.name}`}
-                title="Project settings and defaults"
-                className="grid size-8 shrink-0 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-raised hover:text-ink"
-              >
-                <Settings2 className="size-3.5" />
-              </button>
-            )}
           </div>
         </div>
       )}
 
       {editing && (
         <ProjectDialog
-          project={editing === 'current' ? active : null}
+          project={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
         />
       )}
@@ -175,23 +169,48 @@ interface RowProps {
   selected: boolean
   icon: React.ReactNode
   onClick: () => void
+  /** Present on real projects, absent on "All work". */
+  onEdit?: () => void
 }
 
-function Row({ label, hint, selected, icon, onClick }: RowProps) {
+function Row({ label, hint, selected, icon, onClick, onEdit }: RowProps) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    // A div rather than a button, because the settings control is itself a
+    // button and one cannot be nested inside another.
+    <div
       className={cn(
-        'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
+        'flex items-center gap-1 rounded-lg pr-1 transition-colors',
         selected ? 'bg-overlay' : 'hover:bg-raised',
       )}
     >
-      <span className="grid size-4 shrink-0 place-items-center">{icon}</span>
-      <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{label}</span>
-      {hint && <span className="shrink-0 text-[11px] tabular-nums text-ink-faint">{hint}</span>}
-      {selected && <Check className="size-3.5 shrink-0 text-accent" />}
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        className="flex min-w-0 flex-1 items-center gap-2.5 py-2 pl-2.5 text-left"
+      >
+        <span className="grid size-4 shrink-0 place-items-center">{icon}</span>
+        <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{label}</span>
+        {hint && (
+          <span className="shrink-0 text-[11px] tabular-nums text-ink-faint">{hint}</span>
+        )}
+        {selected && <Check className="size-3.5 shrink-0 text-accent" />}
+      </button>
+
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          aria-label={`Settings for ${label}`}
+          title="Rename, defaults, duplicate"
+          // Always visible, not revealed on hover. A control you have to
+          // discover by waving the mouse at a row is a control nobody finds,
+          // and `text-ink-faint` is already quiet enough not to shout.
+          className="grid size-7 shrink-0 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-ink"
+        >
+          <Settings2 className="size-3.5" />
+        </button>
+      )}
+    </div>
   )
 }
 

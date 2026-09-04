@@ -20,6 +20,7 @@ import { colorOf } from '@/lib/projects/colors'
 import { cn, proxied, timeAgo, truncate } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
 import { AssetView } from './AssetView'
+import { stripMarkdown } from './Markdown'
 
 interface JobCardProps {
   job: Job
@@ -88,11 +89,13 @@ export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
           <AssetView asset={primary} hoverPlay />
         ) : job.text ? (
           // A language model's result has no thumbnail, so the opening of the
-          // answer is the thumbnail.
+          // answer is the thumbnail. Markers are stripped rather than
+          // rendered: headings and bullets at this size are noise, but
+          // leaving `###` and `**` in the preview is worse.
           <div className="flex size-full flex-col gap-2 bg-raised p-3 text-left">
             <Type className="size-3.5 shrink-0 text-ink-faint" />
             <p className="line-clamp-[9] whitespace-pre-wrap text-[11px] leading-relaxed text-ink-muted">
-              {job.text}
+              {stripMarkdown(job.text)}
             </p>
           </div>
         ) : job.state === 'fail' ? (
