@@ -11,11 +11,13 @@
  *   'suno'   → POST /api/v1/generate
  */
 
+import type { ChatEndpoint } from './chat-types'
 import {
   type Field,
   audioUrl,
   imageUrl,
   imageUrls,
+  maxTokens,
   negativePrompt,
   nsfwChecker,
   opts,
@@ -23,13 +25,16 @@ import {
   outputFormat,
   prompt,
   ratio,
+  reasoningEffort,
   resolution,
   seed,
+  systemPrompt,
+  webSearchToggle,
 } from './fields'
 
-export type ModelCategory = 'image' | 'video' | 'audio' | 'utility'
+export type ModelCategory = 'image' | 'video' | 'audio' | 'text' | 'utility'
 
-export type ModelApi = 'market' | 'veo' | 'suno'
+export type ModelApi = 'market' | 'veo' | 'suno' | 'chat'
 
 /** What the model consumes, used for filtering and for empty-state copy. */
 export type ModelMode =
@@ -40,6 +45,7 @@ export type ModelMode =
   | 'video-to-video'
   | 'text-to-audio'
   | 'audio-to-video'
+  | 'text-to-text'
   | 'enhance'
 
 export interface ModelDef {
@@ -61,6 +67,15 @@ export interface ModelDef {
   featured?: boolean
   /** Media type the result is rendered as. */
   output: 'image' | 'video' | 'audio' | 'text'
+
+  /**
+   * Where to send a language model's request.
+   *
+   * Present only when `api` is 'chat'. Those models answer in the request
+   * rather than through the job API, and each vendor keeps its own wire
+   * format, so the descriptor says which one and where.
+   */
+  chat?: ChatEndpoint
 
   /**
    * Where to submit when the optional reference field holds something.
@@ -1923,6 +1938,275 @@ const AUDIO: ModelDef[] = [
 ]
 
 /* ────────────────────────────────────────────────────────────────────────────
+ * TEXT, language models
+ *
+ * These do not go through the job API. They answer in the request, each in
+ * its vendor's own format, so every entry carries a `chat` descriptor saying
+ * which transport to use and where. See lib/kie/chat.ts.
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+const TEXT: ModelDef[] = [
+  {
+    id: 'chat/claude-opus-5',
+    name: 'Claude Opus 5',
+    family: 'Anthropic',
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: 'The strongest reasoning on offer. Long documents, hard problems.',
+    speed: 'slow',
+    featured: true,
+    badges: ['Reasoning'],
+    chat: { transport: 'anthropic-messages', model: 'claude-opus-5', maxTokens: 16384 },
+    fields: [
+      prompt({ maxLength: 200000, placeholder: 'Ask anything, or paste a document to work on…' }),
+      systemPrompt(),
+      maxTokens(16384, 64000),
+    ],
+  },
+  {
+    id: 'chat/claude-sonnet-5',
+    name: 'Claude Sonnet 5',
+    family: 'Anthropic',
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: 'The everyday workhorse. Nearly Opus quality at a fraction of the wait.',
+    speed: 'balanced',
+    featured: true,
+    chat: { transport: 'anthropic-messages', model: 'claude-sonnet-5', maxTokens: 16384 },
+    fields: [
+      prompt({ maxLength: 200000, placeholder: 'Ask anything, or paste a document to work on…' }),
+      systemPrompt(),
+      maxTokens(16384, 64000),
+    ],
+  },
+  {
+    id: 'chat/claude-haiku-4-5',
+    name: 'Claude Haiku 4.5',
+    family: 'Anthropic',
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: 'Fast and cheap. Right for rewrites, extraction and short answers.',
+    speed: 'fast',
+    chat: { transport: 'anthropic-messages', model: 'claude-haiku-4-5', maxTokens: 8192 },
+    fields: [
+      prompt({ maxLength: 200000, placeholder: 'Ask anything…' }),
+      systemPrompt(),
+      maxTokens(8192, 32000),
+    ],
+  },
+  {
+    id: 'chat/gpt-5-2',
+    name: 'GPT 5.2',
+    family: 'OpenAI',
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: 'Reads images alongside the prompt, and can search the web.',
+    speed: 'balanced',
+    featured: true,
+    badges: ['Vision', 'Search'],
+    chat: {
+      transport: 'openai-chat',
+      model: 'gpt-5-2',
+      path: 'gpt-5-2',
+      effortLevels: ['low', 'high'],
+      webSearch: 'web_search',
+      vision: true,
+    },
+    fields: [
+      prompt({ maxLength: 100000, placeholder: 'Ask anything…' }),
+      systemPrompt(),
+      optionalReference(6, {
+        name: 'image_urls',
+        label: 'Attachments',
+        description: 'Optional. Images, and on this endpoint also video, audio or PDF.',
+        accepts: 'JPEG, PNG, WebP, PDF, MP4, MP3',
+        maxSizeMb: 50,
+      }),
+      reasoningEffort(['low', 'high'], 'high'),
+      webSearchToggle(),
+    ],
+  },
+  {
+    id: 'chat/gpt-5-6-sol',
+    name: 'GPT 5.6 Sol',
+    family: 'OpenAI',
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: 'Four levels of deliberation, up to xhigh for the hardest asks.',
+    speed: 'slow',
+    badges: ['Reasoning'],
+    chat: {
+      transport: 'openai-responses',
+      model: 'gpt-5-6-sol',
+      effortLevels: ['low', 'medium', 'high', 'xhigh'],
+      webSearch: 'web_search',
+    },
+    fields: [
+      prompt({ maxLength: 100000, placeholder: 'Ask anything…' }),
+      systemPrompt(),
+      reasoningEffort(['low', 'medium', 'high', 'xhigh'], 'medium'),
+      webSearchToggle(),
+    ],
+  },
+  {
+    id: 'chat/gpt-5-6-luna',
+    name: 'GPT 5.6 Luna',
+    family: 'OpenAI',
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: 'The lighter 5.6. Quick turnarounds without dropping to a mini model.',
+    speed: 'balanced',
+    chat: {
+      transport: 'openai-responses',
+      model: 'gpt-5-6-luna',
+      effortLevels: ['low', 'medium', 'high', 'xhigh'],
+      webSearch: 'web_search',
+    },
+    fields: [
+      prompt({ maxLength: 100000, placeholder: 'Ask anything…' }),
+      systemPrompt(),
+      reasoningEffort(['low', 'medium', 'high', 'xhigh'], 'low'),
+      webSearchToggle(),
+    ],
+  },
+  {
+    id: 'chat/gemini-3-pro',
+    name: 'Gemini 3 Pro',
+    family: 'Google',
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: 'Very long context, grounded in Google Search when you ask for it.',
+    speed: 'balanced',
+    featured: true,
+    badges: ['Vision', 'Search'],
+    chat: {
+      transport: 'openai-chat',
+      model: 'gemini-3-pro',
+      path: 'gemini-3-pro',
+      webSearch: 'googleSearch',
+      vision: true,
+    },
+    fields: [
+      prompt({ maxLength: 200000, placeholder: 'Ask anything, or paste a long document…' }),
+      systemPrompt(),
+      optionalReference(6, {
+        name: 'image_urls',
+        label: 'Attachments',
+        description: 'Optional. Images, video, audio or PDF, all through the same field.',
+        accepts: 'JPEG, PNG, WebP, PDF, MP4, MP3',
+        maxSizeMb: 50,
+      }),
+      webSearchToggle(),
+    ],
+  },
+  {
+    id: 'chat/gemini-3-8-flash',
+    name: 'Gemini 3.8 Flash',
+    family: 'Google',
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: 'The cheapest way to run text through a capable model at volume.',
+    speed: 'fast',
+    badges: ['Vision'],
+    chat: {
+      transport: 'openai-chat',
+      model: 'gemini-3-8-flash',
+      // Kie exposes the OpenAI-shaped route under its own slug, distinct from
+      // the native streaming one.
+      path: 'gemini-3-8-flash-openai',
+      effortLevels: ['low', 'high'],
+      webSearch: 'googleSearch',
+      vision: true,
+    },
+    fields: [
+      prompt({ maxLength: 200000, placeholder: 'Ask anything…' }),
+      systemPrompt(),
+      optionalReference(6, {
+        name: 'image_urls',
+        label: 'Attachments',
+        description: 'Optional. Images, video, audio or PDF, all through the same field.',
+        accepts: 'JPEG, PNG, WebP, PDF, MP4, MP3',
+        maxSizeMb: 50,
+      }),
+      reasoningEffort(['low', 'high'], 'high'),
+      webSearchToggle(),
+    ],
+  },
+  {
+    id: 'chat/gemini-2-5-flash',
+    name: 'Gemini 2.5 Flash',
+    family: 'Google',
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: 'Proven and inexpensive. A safe default for bulk text work.',
+    speed: 'fast',
+    chat: {
+      transport: 'openai-chat',
+      model: 'gemini-2.5-flash',
+      path: 'gemini-2.5-flash',
+      effortLevels: ['low', 'high'],
+      webSearch: 'googleSearch',
+      vision: true,
+    },
+    fields: [
+      prompt({ maxLength: 200000, placeholder: 'Ask anything…' }),
+      systemPrompt(),
+      optionalReference(6, {
+        name: 'image_urls',
+        label: 'Attachments',
+        description: 'Optional. Images, video, audio or PDF, all through the same field.',
+        accepts: 'JPEG, PNG, WebP, PDF, MP4, MP3',
+        maxSizeMb: 50,
+      }),
+      reasoningEffort(['low', 'high'], 'high'),
+      webSearchToggle(),
+    ],
+  },
+  {
+    id: 'chat/grok-4-6',
+    name: 'Grok 4.6',
+    family: 'xAI',
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: 'Blunt, current, and strong on anything that needs live search.',
+    speed: 'balanced',
+    badges: ['Search'],
+    chat: {
+      transport: 'grok-responses',
+      model: 'grok-4-6',
+      effortLevels: ['low', 'medium', 'high', 'xhigh'],
+      webSearch: 'web_search',
+    },
+    fields: [
+      prompt({ maxLength: 100000, placeholder: 'Ask anything…' }),
+      systemPrompt(),
+      reasoningEffort(['low', 'medium', 'high', 'xhigh'], 'medium'),
+      webSearchToggle(),
+    ],
+  },
+]
+
+/* ────────────────────────────────────────────────────────────────────────────
  * UTILITY, upscale, cleanup
  * ──────────────────────────────────────────────────────────────────────────*/
 
@@ -2057,6 +2341,7 @@ export const MODELS: ModelDef[] = [
   ...VIDEO_IMAGE,
   ...VIDEO_AVATAR,
   ...AUDIO,
+  ...TEXT,
   ...UTILITY,
 ]
 
@@ -2078,6 +2363,7 @@ export const CATEGORIES: {
   { id: 'image', label: 'Image', description: 'Generate and edit stills' },
   { id: 'video', label: 'Video', description: 'Motion, avatars and lipsync' },
   { id: 'audio', label: 'Audio', description: 'Music, speech and cleanup' },
+  { id: 'text', label: 'Text', description: 'Writing, reasoning and analysis' },
   { id: 'utility', label: 'Enhance', description: 'Upscale, cutout, decompose' },
 ]
 
@@ -2089,6 +2375,7 @@ export const MODES: { id: ModelMode; label: string }[] = [
   { id: 'video-to-video', label: 'Video → Video' },
   { id: 'audio-to-video', label: 'Audio → Video' },
   { id: 'text-to-audio', label: 'Text → Audio' },
+  { id: 'text-to-text', label: 'Text → Text' },
   { id: 'enhance', label: 'Enhance' },
 ]
 

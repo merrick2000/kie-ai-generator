@@ -15,7 +15,7 @@ import {
 } from '@/lib/kie/pricing'
 import { presetsFor } from '@/lib/presets'
 import { cn } from '@/lib/utils'
-import { useStudio } from '@/store/studio'
+import { costFromUsage, selectActiveCount, useStudio } from '@/store/studio'
 import { FieldRenderer } from './FieldRenderer'
 import { ModelPicker } from './ModelPicker'
 
@@ -33,12 +33,11 @@ export function Composer() {
   // It only shows up when the current model has no form entry yet, which is
   // why it survived until a model was selected without one.
   const values = useStudio((s) => s.formsByModel[s.modelId] ?? EMPTY_VALUES)
-  const activeCount = useStudio(
-    (s) => s.jobs.filter((j) => j.state !== 'success' && j.state !== 'fail').length,
-  )
+  const activeCount = useStudio(selectActiveCount)
   // A measured charge is the truth. Failing that, Kie's published unit price
   // applied to the settings actually chosen. Failing both, say nothing.
-  const knownCost = useStudio((s) => s.costByModel[s.modelId])
+  const usage = useStudio((s) => s.usage.find((u) => u.modelId === s.modelId))
+  const knownCost = useMemo(() => costFromUsage(usage), [usage])
   const reference = useMemo(
     () => (knownCost ? null : estimateFromReference(modelId, values)),
     [knownCost, modelId, values],

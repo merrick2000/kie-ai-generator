@@ -22,9 +22,9 @@ export function useCredits() {
     loading: true,
   })
 
-  const completedCount = useStudio(
-    (s) => s.jobs.filter((j) => j.state === 'success').length,
-  )
+  // Account-wide, not the gallery's count: a filter on screen must not stop
+  // the balance updating when a run finishes outside it.
+  const completedCount = useStudio((s) => s.totals?.succeeded ?? 0)
 
   const refresh = useCallback(async () => {
     try {

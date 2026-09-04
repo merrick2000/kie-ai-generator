@@ -1,12 +1,15 @@
 'use client'
 
-import { AlertTriangle, Coins, ExternalLink, Settings } from 'lucide-react'
+import { AlertTriangle, BarChart3, Coins, ExternalLink, Settings } from 'lucide-react'
 import { useState } from 'react'
 
 import { SettingsDialog } from '@/components/settings/SettingsDialog'
 import { useCredits } from '@/hooks/useCredits'
 import { useSession } from '@/hooks/useSession'
 import { cn } from '@/lib/utils'
+import { useStudio } from '@/store/studio'
+import { InsightsPanel } from './InsightsPanel'
+import { ProjectSwitcher } from './ProjectSwitcher'
 
 /** Warn before a long video job fails on an empty balance. */
 const LOW_CREDIT_THRESHOLD = 200
@@ -15,6 +18,8 @@ export function TopBar() {
   const { configured, credits, loading, error } = useCredits()
   const session = useSession()
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [insightsOpen, setInsightsOpen] = useState(false)
+  const selectModel = useStudio((s) => s.selectModel)
 
   const low = credits != null && credits < LOW_CREDIT_THRESHOLD
 
@@ -33,15 +38,29 @@ export function TopBar() {
               />
             </svg>
           </span>
-          <div className="leading-tight">
+          <div className="hidden leading-tight sm:block">
             <p className="text-[13px] font-semibold tracking-tight text-ink">
               Highfield
             </p>
             <p className="text-[10px] text-ink-faint">Powered by Kie.ai</p>
           </div>
+
+          <span className="mx-1 h-5 w-px bg-line" aria-hidden />
+
+          <ProjectSwitcher />
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setInsightsOpen(true)}
+            aria-label="Model insights"
+            title="Which models actually work for you"
+            className="grid size-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-raised hover:text-ink"
+          >
+            <BarChart3 className="size-4" />
+          </button>
+
           {!configured ? (
             <button
               type="button"
@@ -104,6 +123,13 @@ export function TopBar() {
       </header>
 
       <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+
+      {insightsOpen && (
+        <InsightsPanel
+          onClose={() => setInsightsOpen(false)}
+          onPickModel={selectModel}
+        />
+      )}
     </>
   )
 }

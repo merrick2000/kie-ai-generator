@@ -11,7 +11,7 @@ import {
   formatCredits,
   formatUsd,
 } from '@/lib/kie/pricing'
-import { useStudio } from '@/store/studio'
+import { costFromUsage, useStudio } from '@/store/studio'
 import { PriceTable } from './PriceTable'
 
 const TOP_UP_URL = 'https://kie.ai/billing'
@@ -25,18 +25,21 @@ const TOP_UP_URL = 'https://kie.ai/billing'
  */
 export function BillingTab() {
   const { credits, loading } = useCredits()
-  const jobs = useStudio((s) => s.jobs)
-  const costByModel = useStudio((s) => s.costByModel)
+  // The account's whole history, not just what the gallery is showing, so a
+  // filter on screen cannot understate what has been spent.
+  const usage = useStudio((s) => s.usage)
+  const totals = useStudio((s) => s.totals)
 
-  const billed = jobs.filter((j) => (j.creditsConsumed ?? 0) > 0)
-  const spent = billed.reduce((total, j) => total + (j.creditsConsumed ?? 0), 0)
+  const spent = totals?.credits ?? 0
+  const billed = usage.reduce((n, model) => n + (model.credits > 0 ? model.succeeded : 0), 0)
 
-  const perModel = Object.entries(costByModel)
-    .map(([modelId, cost]) => ({
-      modelId,
-      name: getModel(modelId)?.name ?? modelId,
-      ...cost,
-    }))
+  const perModel = usage
+    .flatMap((model) => {
+      const cost = costFromUsage(model)
+      return cost
+        ? [{ modelId: model.modelId, name: getModel(model.modelId)?.name ?? model.modelName, ...cost }]
+        : []
+    })
     .sort((a, b) => b.averageCredits - a.averageCredits)
 
   const runsLeft =
@@ -57,7 +60,7 @@ export function BillingTab() {
         <Stat
           label="Spent in history"
           value={formatCredits(spent)}
-          sub={`${formatUsd(creditsToUsd(spent))} over ${billed.length} run${billed.length === 1 ? '' : 's'}`}
+          sub={`${formatUsd(creditsToUsd(spent))} over ${billed} run${billed === 1 ? '' : 's'}`}
         />
       </div>
 

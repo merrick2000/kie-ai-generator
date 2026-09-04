@@ -25,7 +25,7 @@ async function runSuite(db: DatabaseClient, label: string) {
     const rows = await db.all<{ version: number }>(
       'SELECT version FROM schema_migrations',
     )
-    assert.equal(rows.length, 2)
+    assert.equal(rows.length, 3)
   })
 
   await check('round-trips a user', async () => {
@@ -178,7 +178,11 @@ if (!url) {
 const db = createPostgresClient(url)
 
 // Start from a clean slate so a re-run is not tripped by leftover rows.
-await db.run('DROP TABLE IF EXISTS articles, sessions, users, app_settings, schema_migrations')
+// The whole schema rather than a list of tables: jobs and projects reference
+// users, so dropping them one by one fails on the foreign keys, and naming
+// every table here means this line has to be edited on each migration.
+await db.run('DROP SCHEMA public CASCADE')
+await db.run('CREATE SCHEMA public')
 await migrate(db)
 await runSuite(db, 'postgres')
 await db.close()

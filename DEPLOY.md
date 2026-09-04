@@ -54,7 +54,7 @@ present in the image.
 | `DATABASE_URL` | **yes** | Postgres connection string |
 | `KIE_API_KEY` | no | Fallback key when a user has not set their own |
 | `KIE_WEBHOOK_HMAC_KEY` | no | Verifies Kie webhook callbacks |
-| `NEXT_PUBLIC_APP_URL` | no | Public origin, enables webhooks instead of polling |
+| `NEXT_PUBLIC_APP_URL` | no | Public origin. Lets Kie call back, which cuts the wait for a finished result |
 | `SIGNUPS_ENABLED` | recommended | `false` closes registration after the first account |
 | `ARTICLE_WEBHOOK_SECRET` | for the blog | Signing secret shared with the publisher |
 | `ARTICLE_WEBHOOK_TOKEN` | no | Optional bearer token, checked as well as the signature |
@@ -75,6 +75,12 @@ disappears on the next redeploy.
 
 The app container holds no state: no volume to mount, nothing to preserve
 across a deploy, and replicas can be added without any of them diverging.
+
+Generations live here too, which is what makes a redeploy safe in the middle
+of one. A job is written before it is submitted, and the reconciler in the new
+container picks up whatever the old one was carrying. Running several replicas
+is fine: jobs are claimed with a lease and `FOR UPDATE SKIP LOCKED`, so two of
+them never poll the same task.
 
 Migrations run automatically at startup, each inside its own transaction, so a
 failed migration leaves nothing half-applied.
@@ -159,8 +165,10 @@ That is opt-in rather than the production default, because JSON is worse than
 useless in a plain-text panel: the object wraps mid-key and nothing lines up.
 
 `LOG_LEVEL` accepts `debug`, `info`, `warn` or `error`, defaulting to `info` in
-production. Scopes are `boot`, `http`, `auth`, `kie`, `generate`, `webhook`,
-`db`, `health` and `pricing`, so one area can be followed with a grep.
+production. Scopes are `boot`, `http`, `auth`, `kie`, `chat`, `generate`, `reconcile`,
+`jobs`, `projects`, `webhook`, `db`, `health` and `pricing`, so one area can be
+followed with a grep. To watch a single generation from submission to result,
+grep its `jobId`.
 
 Colour follows `NO_COLOR` and `FORCE_COLOR`, and is on by default: checking
 `isTTY` alone loses it exactly where it is wanted, behind a file or a panel.
@@ -174,11 +182,20 @@ The first two lines after a start answer most configuration questions:
 ```
 INFO boot  starting database=host:5432/highfield ssl=off articleWebhook=configured
            webhookAuth="signature only" keyEncryption="from env" signups=open
-INFO db    schema applied=2 total=2
+INFO db    schema applied=3 total=3
+INFO reconcile started tickMs=1000 batch=12 deadlineMinutes=45
 ```
 
+The reconciler starts on the first request the process serves. Any traffic
+does it, and on a container with none the health check does: with the
+`--start-period=40s` in the Dockerfile, a fresh instance picks up whatever the
+previous one was carrying within about forty seconds of starting.
+
+If that line never appears, no generation will ever finish. Check the two
+above it for a database problem.
+
 `articleWebhook=DISABLED` explains a webhook answering 503.
-`schema applied=1 total=2` explains a query failing on a table that was never
+`schema applied=2 total=3` explains a query failing on a table that was never
 created.
 
 ### Is the database actually correct?
@@ -191,7 +208,7 @@ So the tables and columns this build needs are checked against the database
 itself at boot, and reported:
 
 ```
-INFO db  schema verified tables=5
+INFO db  schema verified tables=7
 ```
 
 If anything is missing it is announced loudly, naming exactly what:

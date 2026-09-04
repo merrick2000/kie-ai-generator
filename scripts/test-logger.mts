@@ -14,6 +14,15 @@ import { __internal, createLogger, since } from '../src/lib/logger'
 
 const { redact, isSecret } = __internal
 
+/**
+ * Strip ANSI colour before matching.
+ *
+ * The readable format paints `key=` separately from its value, so a raw
+ * substring search for `key=value` finds a reset sequence wedged between the
+ * two and fails on output that is perfectly correct.
+ */
+const plain = (line: string) => line.replace(/\x1b\[[0-9;]*m/g, '')
+
 let passed = 0
 function check(name: string, fn: () => void) {
   fn()
@@ -127,7 +136,7 @@ check('defaults to readable text, even in production', () => {
   // JSON is unreadable in a plain-text log panel, which is what most
   // self-hosted deployments give you.
   assert.ok(!captured[0].trim().startsWith('{'), 'must not default to JSON')
-  assert.ok(captured[0].includes('/x'))
+  assert.ok(plain(captured[0]).includes('/x'))
 })
 
 check('emits JSON when asked for it', () => {
@@ -175,11 +184,11 @@ check('writes to stdout for info and stderr for errors', () => {
 
   assert.equal(captured.out.length, 1)
   assert.equal(captured.err.length, 1)
-  assert.ok(captured.out[0].includes('hello'))
-  assert.ok(captured.out[0].includes('u1'))
+  assert.ok(plain(captured.out[0]).includes('hello'))
+  assert.ok(plain(captured.out[0]).includes('u1'))
   // The whole point: the key never reaches the stream.
   assert.ok(!captured.err[0].includes('sk-secret-value-here'))
-  assert.ok(captured.err[0].includes('[redacted]'))
+  assert.ok(plain(captured.err[0]).includes('[redacted]'))
 })
 
 check('omits fields that were never set, keeps explicit nulls', () => {
@@ -197,7 +206,7 @@ check('omits fields that were never set, keeps explicit nulls', () => {
     process.stdout.write = realOut
   }
 
-  const line = captured[0]
+  const line = plain(captured[0])
   assert.ok(!line.includes('event='), 'an unset field is noise')
   // null is the diagnosis: the header was looked for and was not there.
   assert.ok(line.includes('timestamp=null'))
@@ -215,7 +224,7 @@ check('a child logger carries its context onto every line', () => {
     process.stdout.write = realOut
   }
 
-  assert.ok(captured[0].includes('req-1'))
+  assert.ok(plain(captured[0]).includes('req-1'))
 })
 
 check('since() measures elapsed time', () => {

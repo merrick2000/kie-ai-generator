@@ -1,7 +1,8 @@
 # Highfield
 
 A complete AI generation studio built on the [Kie.ai](https://kie.ai) API.
-Image, video, audio and enhancement across **55 models**, in one interface.
+Image, video, audio, text and enhancement across **56 models**, in one
+interface, with every generation carried to completion server-side.
 
 ![stack](https://img.shields.io/badge/Next.js-15-black) ![stack](https://img.shields.io/badge/React-19-blue) ![stack](https://img.shields.io/badge/Tailwind-4-38bdf8)
 
@@ -125,12 +126,20 @@ Every variable is optional.
 **Models.** Nano Banana 2, Seedream 5 Pro, FLUX.2, GPT Image 2, Z-Image, Imagen 4,
 Ideogram V3 + Character, Qwen 3, Grok Imagine · Veo 3.1, Seedance 2, Kling 3
 Turbo/Omni, Wan 2.7, Hailuo, MiniMax H3, PixVerse · OmniHuman 1.5, Kling Avatar,
-Kling Motion Control, InfiniTalk · Suno, ElevenLabs · Topaz upscale, Recraft
+Kling Motion Control, InfiniTalk · Suno, ElevenLabs · Claude Opus 5 and
+Sonnet 5, GPT 5.2 and 5.6, Gemini 3 Pro, Grok 4.6 · Topaz upscale, Recraft
 cutout.
 
 **The studio.** Model search across every family, schema-driven parameter forms,
 drag-and-drop asset upload, aspect-ratio tiles, seed control, live progress,
-a full-screen viewer with the run's parameters, and a persistent library.
+a full-screen viewer with the run's parameters, projects with their own
+defaults, a searchable gallery, and a ranking of the models that actually work
+on this account.
+
+**Generations survive the browser.** A run is recorded server-side before it is
+submitted and polled there until it finishes, so reloading the page, closing
+the tab or redeploying the container does not lose it. Open the studio on
+another device and the same history is there.
 
 ---
 
@@ -142,26 +151,67 @@ src/
 │  ├─ db/            Postgres client and migrations
 │  ├─ auth/          Accounts: passwords, sessions, repositories
 │  ├─ blog/          Webhook verification, sanitisation, articles
+│  ├─ jobs/          Job records, the runner, usage aggregates
+│  ├─ projects/      Folders with their own defaults
+│  ├─ boot.ts        Starts the reconciler on the first request
 │  └─ kie/
-│     ├─ types.ts    Wire types for all three Kie API surfaces
+│     ├─ types.ts    Wire types for the Kie job APIs
 │     ├─ client.ts   Server-only HTTP client (auth, retries, errors)
-│     ├─ catalog.ts  55 models to declarative field schemas
+│     ├─ chat.ts     The four language-model transports
+│     ├─ catalog.ts  56 models to declarative field schemas
 │     ├─ fields.ts   Field system: defaults, validation, input building
-│     └─ tasks.ts    Adapter normalising market/veo/suno into one shape
+│     ├─ tasks.ts    Adapter normalising market/veo/suno into one shape
+│     └─ reconciler.ts  Carries every running job to completion
 ├─ app/blog/        Public articles, no authentication
 ├─ app/api/
 │  ├─ auth/          Sign up, sign in, sign out, password
+│  ├─ jobs/          The gallery and the sync loop
+│  ├─ projects/      Project CRUD
+│  ├─ stats/         Which models actually work here
 │  ├─ webhooks/      Signed article intake
 │  └─ kie/           Proxy routes: the API key never leaves the server
 ├─ components/       Auth, onboarding, studio, settings
-├─ hooks/            Generation polling, credits, uploads, session
-└─ store/            Zustand + IndexedDB persistence
+├─ hooks/            Workspace sync, generation, credits, uploads, session
+└─ store/            Zustand, mirroring what the server holds
 ```
 
-### Three APIs, one interface
+### Generations outlive the tab that started them
+
+The browser used to own polling, which meant a generation only existed for as
+long as its tab did: reload, and the job was orphaned mid-flight with the
+credits already spent.
+
+Now `/api/kie/create` writes the job to Postgres *before* submitting it, and a
+loop in `lib/kie/reconciler.ts` carries it the rest of the way whether or not
+anyone is watching. The browser only reads.
+
+- Jobs are claimed with a lease and `FOR UPDATE SKIP LOCKED`, so several
+  instances can run the reconciler without two of them polling one task.
+- The poll interval widens with a job's age, and every request is spent from a
+  per-account token bucket, so a busy user cannot throttle anyone else.
+- Kie's callback does not carry the result: it brings the next poll forward to
+  now. The callback body differs per transport and can arrive out of order, so
+  it is a hint to go and look, never a second source of truth.
+- A job that was inserted but never submitted is closed after two minutes with
+  a message saying nothing was charged.
+
+The browser runs one sync loop for the whole studio, asking only for what
+changed since its last answer: 2s while something is generating, 20s otherwise,
+and nothing at all while the tab is hidden.
+
+### Projects
+
+A project groups runs and carries the defaults that work keeps repeating: a
+brief, a prompt prefix and suffix, the model that kind of work is usually done
+in. The open project scopes the gallery and receives new runs.
+
+Deleting one keeps everything inside it. The rows move to Unfiled rather than
+being destroyed.
+
+### Seven APIs, one interface
 
 Kie exposes generation through unrelated shapes. `lib/kie/tasks.ts` is the only
-file that knows the difference:
+file that knows the difference between the job APIs:
 
 | Transport | Create | Poll | Completion signal |
 |---|---|---|---|
@@ -170,6 +220,25 @@ file that knows the difference:
 | `suno` | `POST /api/v1/generate` | `GET /api/v1/generate/record-info` | `status` enum |
 
 Everything above that layer sees one `NormalizedTask`.
+
+Language models do not use the job API at all. They answer in the request, each
+vendor in its own format, and `lib/kie/chat.ts` is the only file that knows it:
+
+| Transport | Endpoint | Used by |
+|---|---|---|
+| `openai-chat` | `POST /{model}/v1/chat/completions` | GPT 5.2, Gemini |
+| `openai-responses` | `POST /codex/v1/responses` | GPT 5.4 and later |
+| `grok-responses` | `POST /grok/v1/responses` | Grok |
+| `anthropic-messages` | `POST /claude/v1/messages` | Claude |
+
+All four answer HTTP 200 with a failing `code` in the body when something is
+wrong, so the status alone means nothing: an expired key arrives as 200 plus
+`code: 401`. Reading only the status turned that into "the model returned an
+empty answer", which sends you looking at your prompt instead of your key.
+
+A text run still becomes a job row. The request returns immediately and the
+answer is written when it arrives, so a browser is never left holding a
+connection open while a reasoning model thinks.
 
 ### Adding a model
 

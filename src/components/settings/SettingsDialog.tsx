@@ -456,20 +456,30 @@ function Row({
 /* ────────────────────────────────────────────────────────────────────────── */
 
 function DataTab({ onClose }: { onClose: () => void }) {
-  const jobs = useStudio((s) => s.jobs)
+  // The account's whole history, which is what a clear actually affects. The
+  // gallery may be filtered, and quoting a filtered number beside a delete
+  // button would understate what is about to go.
+  const totals = useStudio((s) => s.totals)
+  const library = useStudio((s) => s.library)
   const clearHistory = useStudio((s) => s.clearHistory)
   const [confirming, setConfirming] = useState(false)
 
-  const pinned = jobs.filter((j) => j.favorite).length
+  const runs = totals?.runs ?? 0
+  const pinned = library.filter((j) => j.favorite).length
+  const running = totals?.running ?? 0
+  // Running jobs are never swept: deleting one abandons a task that is still
+  // being paid for upstream.
+  const doomed = Math.max(0, runs - pinned - running)
 
   return (
     <div className="space-y-5">
       <div className="rounded-xl border border-line bg-raised p-4">
-        <p className="text-[13px] font-medium text-ink">Local history</p>
+        <p className="text-[13px] font-medium text-ink">Your history</p>
         <p className="mt-1 text-[12px] leading-relaxed text-ink-muted">
-          {jobs.length} generation{jobs.length === 1 ? '' : 's'} stored in this
-          browser{pinned > 0 ? `, ${pinned} pinned` : ''}. Nothing is uploaded.
-          History lives in IndexedDB on this device only.
+          {runs} generation{runs === 1 ? '' : 's'} on your account
+          {pinned > 0 ? `, ${pinned} pinned` : ''}. Stored on the server, not in
+          this browser, which is why a reload never loses a run in progress and
+          why the same history follows you to another device.
         </p>
       </div>
 
@@ -485,16 +495,19 @@ function DataTab({ onClose }: { onClose: () => void }) {
       {confirming ? (
         <div className="space-y-2 rounded-xl border border-danger/30 bg-danger/5 p-4">
           <p className="text-[13px] text-ink">
-            Delete {jobs.length - pinned} generation
-            {jobs.length - pinned === 1 ? '' : 's'}?
+            Delete {doomed} generation{doomed === 1 ? '' : 's'}?
             {pinned > 0 && ` ${pinned} pinned item${pinned === 1 ? '' : 's'} will be kept.`}
+            {running > 0 &&
+              ` ${running} still running, and ${running === 1 ? 'it stays' : 'they stay'} too.`}
           </p>
           <div className="flex gap-2">
             <Button
               size="sm"
               variant="danger"
               onClick={() => {
-                clearHistory()
+                // 'all' rather than the open project: this button sits under
+                // a count for the whole account, so it has to match it.
+                void clearHistory('all')
                 setConfirming(false)
                 onClose()
                 toast.success('History cleared')
@@ -511,7 +524,7 @@ function DataTab({ onClose }: { onClose: () => void }) {
         <Button
           size="sm"
           variant="danger"
-          disabled={jobs.length === 0}
+          disabled={doomed === 0}
           onClick={() => setConfirming(true)}
         >
           <Trash2 className="size-3.5" />

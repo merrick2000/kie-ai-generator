@@ -48,7 +48,7 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
   const libraryCount = useStudio((s) => {
     const wanted =
       field.kind === 'audio' ? 'audio' : field.kind.startsWith('video') ? 'video' : 'image'
-    return s.jobs.reduce(
+    return s.library.reduce(
       (total, job) =>
         job.state === 'success'
           ? total + job.assets.filter((a) => a.kind === wanted).length

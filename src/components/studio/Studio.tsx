@@ -3,6 +3,7 @@
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { cn } from '@/lib/utils'
 import { Canvas } from './Canvas'
 import { Composer } from './Composer'
@@ -17,6 +18,10 @@ import { TopBar } from './TopBar'
 export function Studio() {
   const [railOpen, setRailOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
+
+  // One sync loop for the whole studio. Mounted here rather than per card,
+  // so the number of requests does not grow with the size of the gallery.
+  useWorkspace()
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 1023px)')

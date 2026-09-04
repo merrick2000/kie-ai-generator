@@ -14,6 +14,7 @@ import 'server-only'
 
 import { NextResponse } from 'next/server'
 
+import { ensureBooted } from './boot'
 import { createLogger, since } from './logger'
 
 const log = createLogger('http')
@@ -48,6 +49,12 @@ export function withLogging<T extends unknown[]>(
   handler: (req: Request, ...rest: T) => Promise<Response>,
 ): (req: Request, ...rest: T) => Promise<Response> {
   return async (req: Request, ...rest: T) => {
+    // Starts the reconciler on the first request this process serves. Not
+    // awaited: a generation submitted in that same request is claimed on the
+    // loop's first tick either way, and blocking here would put database
+    // startup in front of a health check.
+    void ensureBooted()
+
     const startedAt = Date.now()
     // Query strings carry task ids, asset URLs and signed download links, so
     // only the path is logged.

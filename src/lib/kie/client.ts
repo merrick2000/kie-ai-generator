@@ -8,6 +8,7 @@
 
 import 'server-only'
 
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomBytes } from 'node:crypto'
 
 import { currentApiKey } from '@/lib/auth'
@@ -75,12 +76,31 @@ export class KieError extends Error {
 }
 
 /**
- * Resolve the key for the current request.
+ * An explicitly supplied key, scoped to one async call tree.
  *
- * The signed-in user's own key wins over the deployment's fallback, so one
- * instance can serve many people each billing their own Kie account.
+ * Background work has no cookie to read: the reconciler polls on behalf of a
+ * user who is not making a request, and may not even have a browser open. It
+ * looks the key up itself and installs it here, so every call underneath bills
+ * the right account without threading a key through a dozen signatures.
+ */
+const actorKey = new AsyncLocalStorage<string>()
+
+/** Run `fn` with an explicit key, for work outside a request. */
+export function runWithApiKey<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  return actorKey.run(key, fn)
+}
+
+/**
+ * Resolve the key for the current call.
+ *
+ * An explicitly installed key wins, then the signed-in user's own, then the
+ * deployment's fallback, so one instance can serve many people each billing
+ * their own Kie account.
  */
 async function apiKey(): Promise<string> {
+  const explicit = actorKey.getStore()
+  if (explicit) return explicit
+
   const key = (await currentApiKey()) || process.env.KIE_API_KEY?.trim()
 
   if (!key) {

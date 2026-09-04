@@ -8,6 +8,7 @@ import {
   Lock,
   Mail,
   Music,
+  Type,
   Video,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -49,10 +50,16 @@ export function AuthScreen({
   const [error, setError] = useState<string | null>(null)
   const [errorField, setErrorField] = useState<'email' | 'password' | null>(null)
 
+  // Hidden entries are the sibling slugs a reference field routes to. They
+  // are not separate choices, so counting them would overstate the catalog.
+  const listed = MODELS.filter((m) => !m.hidden)
+
   const counts = {
-    image: MODELS.filter((m) => m.category === 'image').length,
-    video: MODELS.filter((m) => m.category === 'video').length,
-    audio: MODELS.filter((m) => m.category === 'audio').length,
+    total: listed.length,
+    image: listed.filter((m) => m.category === 'image' || m.category === 'utility').length,
+    video: listed.filter((m) => m.category === 'video').length,
+    audio: listed.filter((m) => m.category === 'audio').length,
+    text: listed.filter((m) => m.category === 'text').length,
   }
 
   const switchMode = (next: Mode) => {
@@ -123,8 +130,9 @@ export function AuthScreen({
           </h1>
 
           <p className="mt-4 max-w-md text-[15px] leading-relaxed text-ink-muted">
-            {MODELS.length} models from Google, OpenAI, ByteDance, Kuaishou, xAI,
-            Black Forest Labs, ElevenLabs and Suno, behind a single interface.
+            {counts.total} models from Google, OpenAI, Anthropic, ByteDance,
+            Kuaishou, xAI, Black Forest Labs, ElevenLabs and Suno, behind a
+            single interface.
           </p>
 
           <ul className="mt-8 space-y-3">
@@ -133,6 +141,12 @@ export function AuthScreen({
               count={counts.image}
               label="image models"
               hint="Generate, edit, upscale, cut out"
+            />
+            <Capability
+              icon={<Type className="size-4" />}
+              count={counts.text}
+              label="language models"
+              hint="Writing, reasoning, long documents"
             />
             <Capability
               icon={<Video className="size-4" />}

@@ -241,6 +241,66 @@ export const audioUrl = (
 })
 
 /* ────────────────────────────────────────────────────────────────────────────
+ * Language models
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+/**
+ * Standing instructions, separate from the prompt.
+ *
+ * Kept apart because the two change at different rates: the prompt is the
+ * question of the moment, the system text is the role the model keeps for a
+ * whole project.
+ */
+export const systemPrompt = (
+  overrides: Partial<PromptField> = {},
+): PromptField => ({
+  name: 'system',
+  kind: 'textarea',
+  label: 'System instructions',
+  description: 'Who the model is and how it should answer. Optional.',
+  maxLength: 20000,
+  placeholder: 'You are a senior copywriter working in French…',
+  ...overrides,
+})
+
+/** How hard the model thinks before answering. */
+export const reasoningEffort = (
+  levels: string[],
+  def = levels[levels.length - 1],
+): SelectField => ({
+  name: 'effort',
+  kind: 'select',
+  label: 'Reasoning effort',
+  description: 'Higher is slower, and better on problems that need working out.',
+  options: levels.map((value) => ({
+    value,
+    label: value.charAt(0).toUpperCase() + value.slice(1),
+  })),
+  default: def,
+})
+
+/** Lets the model look things up before answering. */
+export const webSearchToggle = (): ToggleField => ({
+  name: 'web_search',
+  kind: 'toggle',
+  label: 'Web search',
+  description: 'Let the model look things up before it answers.',
+  default: false,
+})
+
+export const maxTokens = (def = 8192, max = 64000): NumberField => ({
+  name: 'max_tokens',
+  kind: 'number',
+  label: 'Answer length limit',
+  description: 'Maximum tokens in the reply. Raise it for long documents.',
+  min: 256,
+  max,
+  step: 256,
+  default: def,
+  advanced: true,
+})
+
+/* ────────────────────────────────────────────────────────────────────────────
  * Defaults & validation
  * ──────────────────────────────────────────────────────────────────────────*/
 

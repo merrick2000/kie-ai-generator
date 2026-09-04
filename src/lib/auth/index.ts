@@ -28,6 +28,7 @@ import {
   deleteSession,
   encryptionSecret,
   findUserByEmail,
+  findUserById,
   findUserBySessionToken,
   newId,
   touchLastLogin,
@@ -214,6 +215,21 @@ export async function currentApiKey(): Promise<string | null> {
 
   const key = deriveKey(await encryptionSecret())
   return decryptValue(user.apiKeyEnc, key)?.trim() || null
+}
+
+/**
+ * Decrypted key for an arbitrary account.
+ *
+ * Used by work that runs outside a request, where there is no cookie to read:
+ * the reconciler polls a user's tasks whether or not they have a tab open.
+ * Callers must already have established that they are acting for that user.
+ */
+export async function apiKeyForUser(userId: string): Promise<string | null> {
+  const user = await findUserById(userId)
+  if (!user?.apiKeyEnc) return process.env.KIE_API_KEY?.trim() || null
+
+  const key = deriveKey(await encryptionSecret())
+  return decryptValue(user.apiKeyEnc, key)?.trim() || process.env.KIE_API_KEY?.trim() || null
 }
 
 export async function setApiKey(value: string): Promise<boolean> {

@@ -9,7 +9,7 @@
     "start": "next start -p 3400",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "bun --preload ./scripts/preload.ts scripts/test-auth.mts && bun --preload ./scripts/preload.ts scripts/test-session-crypto.mts && bun --preload ./scripts/preload.ts scripts/test-webhook.mts && bun --preload ./scripts/preload.ts scripts/test-upload.mts && bun --preload ./scripts/preload.ts scripts/test-pricing.mts && bun --preload ./scripts/preload.ts scripts/test-scheduler.mts && bun --preload ./scripts/preload.ts scripts/test-logger.mts && bun --preload ./scripts/preload.ts scripts/test-routing.mts && bun --preload ./scripts/preload.ts scripts/test-db.mts"
+    "test": "bun --preload ./scripts/preload.ts scripts/test-auth.mts && bun --preload ./scripts/preload.ts scripts/test-session-crypto.mts && bun --preload ./scripts/preload.ts scripts/test-webhook.mts && bun --preload ./scripts/preload.ts scripts/test-upload.mts && bun --preload ./scripts/preload.ts scripts/test-pricing.mts && bun --preload ./scripts/preload.ts scripts/test-logger.mts && bun --preload ./scripts/preload.ts scripts/test-routing.mts && bun --preload ./scripts/preload.ts scripts/test-chat.mts && bun --preload ./scripts/preload.ts scripts/test-reconciler.mts && bun --preload ./scripts/preload.ts scripts/test-db.mts && bun --preload ./scripts/preload.ts scripts/test-jobs.mts"
   },
   "dependencies": {
     "clsx": "2.1.1",

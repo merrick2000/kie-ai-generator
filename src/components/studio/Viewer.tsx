@@ -7,11 +7,12 @@ import {
   CornerUpRight,
   Download,
   Heart,
+  Pencil,
   RefreshCw,
   Trash2,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/Button'
@@ -20,7 +21,7 @@ import { useReuseAsset, modelsAccepting } from '@/hooks/useReuseAsset'
 import { formatCost } from '@/lib/kie/pricing'
 import { cn, formatDuration, proxied } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
-import type { Job } from '@/store/types'
+import { jobLabel, type Job } from '@/lib/jobs/types'
 import { AssetView } from './AssetView'
 
 interface ViewerProps {
@@ -34,7 +35,12 @@ export function Viewer({ job, onClose }: ViewerProps) {
   const toggleFavorite = useStudio((s) => s.toggleFavorite)
   const restoreJob = useStudio((s) => s.restoreJob)
   const removeJob = useStudio((s) => s.removeJob)
+  const renameJob = useStudio((s) => s.renameJob)
   const { reuse, working: reusing } = useReuseAsset()
+
+  const [renaming, setRenaming] = useState(false)
+  const [draft, setDraft] = useState('')
+  const nameRef = useRef<HTMLInputElement>(null)
 
   const asset = job.assets[index]
   const model = getModel(job.modelId)
@@ -47,14 +53,28 @@ export function Viewer({ job, onClose }: ViewerProps) {
   )
 
   useEffect(() => {
+    if (renaming) nameRef.current?.select()
+  }, [renaming])
+
+  const commitRename = () => {
+    setRenaming(false)
+    const next = draft.trim()
+    // Emptying the field restores the prompt as the label rather than
+    // leaving the result nameless.
+    if (next !== (job.title ?? '')) void renameJob(job.id, next || null)
+  }
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // While the name field has focus, Escape belongs to it.
+      if (e.key === 'Escape' && renaming) return
       if (e.key === 'Escape') onClose()
       if (many && e.key === 'ArrowRight') step(1)
       if (many && e.key === 'ArrowLeft') step(-1)
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [many, onClose, step])
+  }, [many, onClose, step, renaming])
 
   // Lock background scroll while the overlay is open.
   useEffect(() => {
@@ -72,13 +92,48 @@ export function Viewer({ job, onClose }: ViewerProps) {
     toast.success('Prompt copied')
   }
 
+  const copyAnswer = () => {
+    if (!job.text) return
+    void navigator.clipboard.writeText(job.text)
+    toast.success('Answer copied')
+  }
+
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-void/95 backdrop-blur-xl">
       <header className="rule flex shrink-0 items-center justify-between gap-3 px-4 py-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-ink">{job.modelName}</p>
+          {renaming ? (
+            <input
+              ref={nameRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitRename()
+                if (e.key === 'Escape') setRenaming(false)
+              }}
+              placeholder="Name this result"
+              className="w-full max-w-md rounded border border-accent bg-raised px-1.5 py-0.5 text-sm text-ink focus:outline-none"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setDraft(job.title ?? job.promptPreview.slice(0, 80))
+                setRenaming(true)
+              }}
+              title="Rename"
+              className="group flex max-w-full items-center gap-1.5"
+            >
+              <span className="truncate text-sm font-medium text-ink">
+                {jobLabel(job)}
+              </span>
+              <Pencil className="size-3 shrink-0 text-ink-faint opacity-0 transition-opacity group-hover:opacity-100" />
+            </button>
+          )}
           <p className="truncate text-[11px] text-ink-faint">
-            {model?.family}
+            {job.modelName}
+            {model?.family ? ` · ${model.family}` : ''}
             {job.costTimeMs ? ` · ${formatDuration(job.costTimeMs)}` : ''}
             {job.creditsConsumed ? ` · ${formatCost(job.creditsConsumed)}` : ''}
           </p>
@@ -89,7 +144,7 @@ export function Viewer({ job, onClose }: ViewerProps) {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => toggleFavorite(job.id)}
+              onClick={() => void toggleFavorite(job.id)}
               aria-label={job.favorite ? 'Unpin' : 'Pin to library'}
             >
               <Heart
@@ -154,9 +209,33 @@ export function Viewer({ job, onClose }: ViewerProps) {
           {asset ? (
             <AssetView asset={asset} fit="contain" controls className="max-h-full" />
           ) : job.text ? (
-            <pre className="max-h-full overflow-auto whitespace-pre-wrap rounded-2xl border border-line bg-surface p-5 font-mono text-[13px] leading-relaxed text-ink-muted">
-              {job.text}
-            </pre>
+            // A language model's answer is prose, not a code block: readable
+            // measure, real line height, and one obvious way to take it away.
+            <div className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-line bg-surface">
+              <div className="rule flex shrink-0 items-center justify-between gap-3 px-4 py-2">
+                <span className="text-[11px] font-medium uppercase tracking-[0.08em] text-ink-muted">
+                  Answer
+                </span>
+                <div className="flex items-center gap-3 text-[11px] text-ink-faint">
+                  <span className="tabular-nums">
+                    {job.text.length.toLocaleString()} characters
+                  </span>
+                  <button
+                    type="button"
+                    onClick={copyAnswer}
+                    className="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-overlay hover:text-ink"
+                  >
+                    <Copy className="size-3" />
+                    Copy
+                  </button>
+                </div>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto p-5">
+                <p className="whitespace-pre-wrap text-[14px] leading-[1.7] text-ink-muted">
+                  {job.text}
+                </p>
+              </div>
+            </div>
           ) : (
             <p className="text-sm text-ink-faint">{job.error ?? 'Nothing to show.'}</p>
           )}
@@ -278,7 +357,7 @@ export function Viewer({ job, onClose }: ViewerProps) {
             size="sm"
             className="w-full"
             onClick={() => {
-              removeJob(job.id)
+              void removeJob(job.id)
               onClose()
             }}
           >

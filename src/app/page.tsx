@@ -2,6 +2,7 @@ import { AuthScreen } from '@/components/auth/AuthScreen'
 import { KeySetup } from '@/components/onboarding/KeySetup'
 import { Studio } from '@/components/studio/Studio'
 import { currentUser, signupsAllowed } from '@/lib/auth'
+import { ensureBooted } from '@/lib/boot'
 import { hasApiKey } from '@/lib/kie/client'
 
 // Reads the session cookie, so this can never be statically cached.
@@ -17,6 +18,9 @@ export const dynamic = 'force-dynamic'
  *   3. ready        -> the studio
  */
 export default async function Page() {
+  // Covers the case where a page is loaded before any API route is hit.
+  void ensureBooted()
+
   const user = await currentUser()
   if (!user) return <AuthScreen signupsAllowed={await signupsAllowed()} />
 

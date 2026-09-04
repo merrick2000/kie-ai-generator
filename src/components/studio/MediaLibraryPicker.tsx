@@ -60,7 +60,9 @@ export function MediaLibraryPicker({
   onCancel,
   onPick,
 }: MediaLibraryPickerProps) {
-  const jobs = useStudio((s) => s.jobs)
+  // The whole account's finished work, not the filtered gallery: a reference
+  // is picked from everything you have made.
+  const jobs = useStudio((s) => s.library)
   const [selected, setSelected] = useState<string[]>([])
   const [importing, setImporting] = useState(false)
   const [progress, setProgress] = useState(0)

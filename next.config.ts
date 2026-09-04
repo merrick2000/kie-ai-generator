@@ -18,6 +18,7 @@ const config: NextConfig = {
 
   // Generated media can be large; allow a generous body for base64 uploads.
   experimental: { serverActions: { bodySizeLimit: '25mb' } },
+
 }
 
 export default config

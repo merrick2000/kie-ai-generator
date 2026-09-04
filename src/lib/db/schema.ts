@@ -86,6 +86,94 @@ const MIGRATIONS: Migration[] = [
          ON articles(published_at DESC)`,
     ],
   },
+  {
+    version: 3,
+    name: 'workspace',
+    statements: [
+      // A project is a folder with its own defaults. Everything a user makes
+      // belongs to one, or to none, which reads as "Unfiled".
+      `CREATE TABLE IF NOT EXISTS projects (
+         id          TEXT PRIMARY KEY,
+         user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+         name        TEXT NOT NULL,
+         description TEXT,
+         color       TEXT,
+         -- Free-form defaults applied to a new run inside this project:
+         -- model, aspect ratio, a prompt prefix or suffix. Stored as JSON so
+         -- adding a knob is not a migration.
+         settings    TEXT NOT NULL DEFAULT '{}',
+         archived    BOOLEAN NOT NULL DEFAULT FALSE,
+         created_at  BIGINT NOT NULL,
+         updated_at  BIGINT NOT NULL
+       )`,
+
+      `CREATE INDEX IF NOT EXISTS projects_user_idx
+         ON projects(user_id, archived, updated_at DESC)`,
+
+      // Jobs live here rather than in the browser so a generation survives a
+      // reload, a closed tab and a different device. The server keeps polling
+      // whether or not anyone is watching.
+      `CREATE TABLE IF NOT EXISTS jobs (
+         id                 TEXT PRIMARY KEY,
+         user_id            TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+         project_id         TEXT REFERENCES projects(id) ON DELETE SET NULL,
+
+         -- Null between insert and the upstream accepting the submission, and
+         -- for chat models, which answer in the same request.
+         task_id            TEXT,
+         api                TEXT NOT NULL,
+         -- The model the user picked. History stays attached to this one even
+         -- when a reference routes the request to a sibling slug.
+         model_id           TEXT NOT NULL,
+         -- What was actually submitted, when routing changed it.
+         submitted_model_id TEXT,
+         model_name         TEXT NOT NULL,
+         category           TEXT NOT NULL,
+         output             TEXT NOT NULL,
+
+         -- User-given name, overriding the prompt in listings.
+         title              TEXT,
+         prompt_preview     TEXT NOT NULL DEFAULT '',
+         values_json        TEXT NOT NULL DEFAULT '{}',
+
+         state              TEXT NOT NULL,
+         progress           INTEGER NOT NULL DEFAULT 0,
+         assets_json        TEXT NOT NULL DEFAULT '[]',
+         text               TEXT,
+         error              TEXT,
+         favorite           BOOLEAN NOT NULL DEFAULT FALSE,
+
+         credits_consumed   DOUBLE PRECISION,
+         cost_time_ms       BIGINT,
+
+         created_at         BIGINT NOT NULL,
+         updated_at         BIGINT NOT NULL,
+         completed_at       BIGINT,
+
+         -- Reconciler bookkeeping. next_poll_at paces one job; lease_until
+         -- stops two instances polling the same job in the same second.
+         next_poll_at       BIGINT NOT NULL DEFAULT 0,
+         lease_until        BIGINT NOT NULL DEFAULT 0,
+         poll_attempts      INTEGER NOT NULL DEFAULT 0
+       )`,
+
+      // The gallery reads one user's work newest first.
+      `CREATE INDEX IF NOT EXISTS jobs_user_created_idx
+         ON jobs(user_id, created_at DESC)`,
+
+      `CREATE INDEX IF NOT EXISTS jobs_project_idx
+         ON jobs(project_id, created_at DESC)`,
+
+      // The reconciler's hot query: unfinished jobs that are due.
+      `CREATE INDEX IF NOT EXISTS jobs_pending_idx
+         ON jobs(next_poll_at)
+         WHERE state NOT IN ('success', 'fail')`,
+
+      // Incremental sync sends only what changed since the client last asked.
+      `CREATE INDEX IF NOT EXISTS jobs_user_updated_idx
+         ON jobs(user_id, updated_at DESC)`,
+    ],
+  },
 ]
 
 export async function migrate(db: DatabaseClient): Promise<void> {
@@ -167,6 +255,18 @@ const REQUIRED: Record<string, string[]> = {
     'keyword', 'language', 'seo_title', 'seo_description', 'seo_keywords',
     'project_id', 'project_name', 'reading_minutes', 'published_at',
     'created_at', 'updated_at',
+  ],
+  projects: [
+    'id', 'user_id', 'name', 'description', 'color', 'settings', 'archived',
+    'created_at', 'updated_at',
+  ],
+  jobs: [
+    'id', 'user_id', 'project_id', 'task_id', 'api', 'model_id',
+    'submitted_model_id', 'model_name', 'category', 'output', 'title',
+    'prompt_preview', 'values_json', 'state', 'progress', 'assets_json',
+    'text', 'error', 'favorite', 'credits_consumed', 'cost_time_ms',
+    'created_at', 'updated_at', 'completed_at', 'next_poll_at',
+    'lease_until', 'poll_attempts',
   ],
 }
 
