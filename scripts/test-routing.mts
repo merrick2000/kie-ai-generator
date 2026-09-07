@@ -96,11 +96,13 @@ check('text-only submissions stay on the text model', () => {
 
 check('a filled reference validates against the target model', () => {
   const target = getModel('gpt-image-2-image-to-image')!
-  const values = { prompt: 'make it snowy', image_urls: ['https://cdn.test/a.png'] }
+  // `input_urls`, not `image_urls`: that is the name Kie's schema uses, and
+  // sending the other one had every edit refused.
+  const values = { prompt: 'make it snowy', input_urls: ['https://cdn.test/a.png'] }
 
   assert.deepEqual(validate(target.fields, values), [])
   const input = buildInput(target.fields, values)
-  assert.deepEqual(input.image_urls, ['https://cdn.test/a.png'])
+  assert.deepEqual(input.input_urls, ['https://cdn.test/a.png'])
 })
 
 check('drops fields the target does not accept', () => {
@@ -123,12 +125,25 @@ check('drops fields the target does not accept', () => {
   assert.equal(input.duration, '5')
 })
 
-check('single-valued targets receive one url, not a list', () => {
-  // wan, pixverse and minimax take a single image field.
-  for (const id of ['wan/2-7-image-to-video', 'pixverse/image-to-video', 'minimax-h3/image-to-video']) {
-    const target = getModel(id)!
-    const field = target.fields.find((f) => ['image_url', 'first_frame_url'].includes(f.name))!
-    assert.equal(field.kind, 'image', `${id} should take a single image`)
+check('a route lands on a field the target really has', () => {
+  // The mapping is checked against every route rather than a hand-picked
+  // three, because pointing at a field the target does not declare is
+  // exactly the mistake that had four edit models refusing every request.
+  for (const model of MODELS) {
+    const route = model.routeWithAssets
+    if (!route) continue
+
+    const target = getModel(route.modelId)
+    assert.ok(target, `${model.id} routes to a missing model`)
+
+    const field = target!.fields.find((f) => f.name === route.to)
+    assert.ok(field, `${model.id} routes to ${route.modelId}.${route.to}, which does not exist`)
+
+    // The router hands a list to a list field and one URL to a single one.
+    assert.ok(
+      ['image', 'images', 'video', 'videos', 'audio'].includes(field!.kind),
+      `${route.modelId}.${route.to} is not an asset field`,
+    )
   }
 })
 

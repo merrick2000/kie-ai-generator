@@ -53,6 +53,14 @@ export interface SelectField extends BaseField {
   kind: 'select' | 'ratio'
   options: FieldOption[]
   default?: string
+  /**
+   * Submit the chosen value as a number.
+   *
+   * Several models declare an integer enum: a duration of 4, 6 or 8 seconds
+   * is a menu to the reader and an integer to the API. Sending `"6"` where
+   * the schema says integer is rejected.
+   */
+  asNumber?: boolean
 }
 
 export interface ToggleField extends BaseField {
@@ -240,6 +248,95 @@ export const audioUrl = (
   ...overrides,
 })
 
+/**
+ * Every voice Kie accepts, in the order its documentation lists them.
+ *
+ * Generated from the `voice` enum on the ElevenLabs endpoints rather than
+ * typed out: an earlier hand-written list offered five IDs that are not in
+ * that enum, so picking one of them had the request refused upstream. Both
+ * speech models share the same roster.
+ *
+ * Preview any of them at
+ * https://static.aiquickdraw.com/elevenlabs/voice/<id>.mp3
+ */
+export const ELEVENLABS_VOICES: FieldOption[] = [
+  { value: 'EkK5I93UQWFDigLMpZcX', label: 'James', hint: 'Husky, Engaging and Bold' },
+  { value: 'Z3R5wn05IrDiVCyEkUrK', label: 'Arabella', hint: 'Mysterious and Emotive' },
+  { value: 'NNl6r8mD7vthiJatiJt1', label: 'Bradford', hint: 'Expressive and Articulate' },
+  { value: 'YOq2y2Up4RgXP2HyXjE5', label: 'Xavier', hint: 'Dominating, Metallic Announcer' },
+  { value: 'B8gJV1IhpuegLxdpXFOE', label: 'Kuon', hint: 'Cheerful, Clear and Steady' },
+  { value: '2zRM7PkgwBPiau2jvVXc', label: 'Monika Sogam', hint: 'Deep and Natural' },
+  { value: '1SM7GgM6IMuvQlz2BwM3', label: 'Mark', hint: 'Casual, Relaxed and Light' },
+  { value: '5l5f8iK3YPeGga21rQIX', label: 'Adeline', hint: 'Feminine and Conversational' },
+  { value: 'scOwDtmlUjD3prqpp97I', label: 'Sam', hint: 'Support Agent' },
+  { value: 'NOpBlnGInO9m6vDvFkFC', label: 'Spuds Oxley', hint: 'Wise and Approachable' },
+  { value: 'BZgkqPqms7Kj9ulSkVzn', label: 'Eve', hint: 'Authentic, Energetic and Happy' },
+  { value: 'wo6udizrrtpIxWGp2qJk', label: 'Northern Terry gU0LNdkMOQCOrPrwtbee', hint: 'British Football Announcer' },
+  { value: 'gU0LNdkMOQCOrPrwtbee', label: 'Voice gU0LNd' },
+  { value: 'DGzg6RaUqxGRTHSBjfgF', label: 'Brock', hint: 'Commanding and Loud Sergeant' },
+  { value: 'x70vRnQBMBu4FAYhjJbO', label: 'Nathan', hint: 'Virtual Radio Host' },
+  { value: 'Sm1seazb4gs7RSlUVw7c', label: 'Anika', hint: 'Animated, Friendly and Engaging' },
+  { value: 'P1bg08DkjqiVEzOn76yG', label: 'Viraj', hint: 'Rich and Soft' },
+  { value: 'qDuRKMlYmrm8trt5QyBn', label: 'Taksh', hint: 'Calm, Serious and Smooth' },
+  { value: 'qXpMhyvQqiRxWQs4qSSB', label: 'Horatius', hint: 'Energetic Character Voice' },
+  { value: 'TX3LPaxmHKxFdv7VOQHJ', label: 'Liam', hint: 'Energetic, Social Media Creator' },
+  { value: 'N2lVS1w4EtoT3dr4eOWO', label: 'Callum', hint: 'Husky Trickster' },
+  { value: 'FGY2WhTYpPnrIDTdsKH5', label: 'Laura', hint: 'Enthusiast, Quirky Attitude' },
+  { value: 'kPzsL2i3teMYv0FxEYQ6', label: 'Voice kPzsL2' },
+  { value: 'UgBBYS2sOqTuMpoF3BR0', label: 'Mark', hint: 'Natural Conversations' },
+  { value: 'hpp4J3VqNfWAUOO0d1Us', label: 'Bella', hint: 'Professional, Bright, Warm' },
+  { value: 'nPczCjzI2devNBz1zQrb', label: 'Brian', hint: 'Deep, Resonant and Comforting' },
+  { value: 'uYXf8XasLslADfZ2MB4u', label: 'Hope', hint: 'Bubbly, Gossipy and Girly' },
+  { value: 'gs0tAILXbY5DNrJrsM6F', label: 'Jeff', hint: 'Classy, Resonating and Strong' },
+  { value: 'DTKMou8ccj1ZaWGBiotd', label: 'Jamahal', hint: 'Young, Vibrant, and Natural' },
+  { value: 'vBKc2FfBKJfcZNyEt1n6', label: 'Finn', hint: 'Youthful, Eager and Energetic' },
+  { value: 'DYkrAHD8iwork3YSUBbs', label: 'Tom', hint: 'Conversations & Books' },
+  { value: '56AoDkrOh6qfVPDXZ7Pt', label: 'Cassidy', hint: 'Crisp, Direct and Clear' },
+  { value: 'eR40ATw9ArzDf9h3v7t7', label: 'Addison 2.0', hint: 'Australian Audiobook & Podcast' },
+  { value: 'g6xIsTj2HwM6VR4iXFCw', label: 'Jessica Anne Bogart', hint: 'Chatty and Friendly' },
+  { value: 'lcMyyd2HUfFzxdCaC4Ta', label: 'Lucy', hint: 'Fresh & Casual' },
+  { value: '6aDn1KB0hjpdcocrUkmq', label: 'Tiffany', hint: 'Natural and Welcoming' },
+  { value: 'Sq93GQT4X1lKDXsQcixO', label: 'Felix', hint: 'Warm, Positive & Contemporary RP' },
+  { value: 'flHkNRp1BlvT73UL6gyz', label: 'Jessica Anne Bogart', hint: 'Eloquent Villain' },
+  { value: '9yzdeviXkFddZ4Oz8Mok', label: 'Lutz', hint: 'Chuckling, Giggly and Cheerful' },
+  { value: 'pPdl9cQBQq4p6mRkZy2Z', label: 'Emma', hint: 'Adorable and Upbeat' },
+  { value: 'zYcjlYFOd3taleS0gkk3', label: 'Edward', hint: 'Loud, Confident and Cocky' },
+  { value: 'nzeAacJi50IvxcyDnMXa', label: 'Marshal', hint: 'Friendly, Funny Professor' },
+  { value: 'ruirxsoakN0GWmGNIo04', label: 'John Morgan', hint: 'Gritty, Rugged Cowboy' },
+  { value: 'TC0Zp7WVFzhA8zpTlRqV', label: 'Aria', hint: 'Sultry Villain' },
+  { value: 'ljo9gAlSqKOvF6D8sOsX', label: 'Viking Bjorn', hint: 'Epic Medieval Raider' },
+  { value: 'PPzYpIqttlTYA83688JI', label: 'Voice PPzYpI' },
+  { value: '8JVbfL6oEdmuxKn5DK2C', label: 'Johnny Kid', hint: 'Serious and Calm Narrator' },
+  { value: 'iCrDUkL56s3C8sCRl7wb', label: 'Hope', hint: 'Poetic, Romantic and Captivating' },
+  { value: 'wJqPPQ618aTW29mptyoc', label: 'Ana Rita', hint: 'Smooth, Expressive and Bright' },
+  { value: 'EiNlNiXeDU1pqqOPrYMO', label: 'John Doe', hint: 'Deep' },
+  { value: '4YYIPFl9wE5c4L2eu2Gb', label: 'Burt Reynolds™', hint: 'Deep, Smooth and Clear' },
+  { value: '6F5Zhi321D3Oq7v1oNT4', label: 'Hank', hint: 'Deep and Engaging Narrator' },
+  { value: 'YXpFCvM1S3JbWEJhoskW', label: 'Wyatt', hint: 'Wise Rustic Cowboy' },
+  { value: 'LG95yZDEHg6fCZdQjLqj', label: 'Phil', hint: 'Explosive, Passionate Announcer' },
+  { value: 'CeNX9CMwmxDxUF5Q2Inm', label: 'Johnny Dynamite', hint: 'Vintage Radio DJ' },
+  { value: 'aD6riP1btT197c6dACmy', label: 'Rachel M', hint: 'Pro British Radio Presenter' },
+  { value: 'mtrellq69YZsNwzUSyXh', label: 'Rex Thunder', hint: 'Deep N Tough' },
+  { value: 'dHd5gvgSOzSfduK4CvEg', label: 'Ed', hint: 'Late Night Announcer' },
+  { value: 'eVItLK1UvXctxuaRV2Oq', label: 'Jean', hint: 'Alluring and Playful Femme Fatale' },
+  { value: 'esy0r39YPLQjOczyOib8', label: 'Britney', hint: 'Calm and Calculative Villain' },
+  { value: 'Tsns2HvNFKfGiNjllgqo', label: 'Sven', hint: 'Emotional and Nice' },
+  { value: '1U02n4nD6AdIZ9CjF053', label: 'Viraj', hint: 'Smooth and Gentle' },
+  { value: 'AeRdCCKzvd23BpJoofzx', label: 'Nathaniel', hint: 'Engaging, British and Calm' },
+  { value: 'LruHrtVF6PSyGItzMNHS', label: 'Benjamin', hint: 'Deep, Warm, Calming' },
+  { value: '1wGbFxmAM3Fgw63G1zZJ', label: 'Allison', hint: 'Calm, Soothing and Meditative' },
+  { value: 'hqfrgApggtO1785R4Fsn', label: 'Theodore HQ', hint: 'Serene and Grounded' },
+  { value: 'MJ0RnG71ty4LH3dvNfSd', label: 'Voice MJ0RnG' },
+]
+
+export const elevenLabsVoice = (): SelectField => ({
+  name: 'voice',
+  kind: 'select',
+  label: 'Voice',
+  options: ELEVENLABS_VOICES,
+  default: ELEVENLABS_VOICES[0].value,
+})
+
 /* ────────────────────────────────────────────────────────────────────────────
  * Language models
  * ──────────────────────────────────────────────────────────────────────────*/
@@ -370,7 +467,14 @@ export function buildInput(
       }
       case 'select':
       case 'ratio': {
-        if (typeof raw === 'string' && raw) input[f.name] = raw
+        if (typeof raw !== 'string' || !raw) break
+        const select = f as SelectField
+        if (select.asNumber) {
+          const n = Number(raw)
+          if (!Number.isNaN(n)) input[f.name] = n
+          break
+        }
+        input[f.name] = raw
         break
       }
       case 'toggle': {

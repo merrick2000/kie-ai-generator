@@ -211,10 +211,17 @@ check('only models whose schema documents one declare it', () => {
     m.fields.some((f) => f.name === 'num_images' || f.name === 'max_images'),
   ).map((m) => m.id)
 
+  // Seven, now that the generated half of the catalog carries the Ideogram
+  // and Qwen endpoints that also take one. Checked against every model page:
+  // no other model in the catalog offers a count of its own.
   assert.deepEqual(withCount.sort(), [
     'bytedance/seedream-v4-edit',
     'bytedance/seedream-v4-text-to-image',
     'ideogram/character',
+    'ideogram/character-edit',
+    'ideogram/character-remix',
+    'ideogram/v3-remix',
+    'qwen/image-edit',
   ])
 })
 

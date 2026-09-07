@@ -12,9 +12,11 @@
  */
 
 import type { ChatEndpoint } from './chat-types'
+import { GENERATED } from './catalog.generated'
 import {
   type Field,
   audioUrl,
+  elevenLabsVoice,
   imageUrl,
   imageUrls,
   maxTokens,
@@ -216,6 +218,13 @@ const IMAGE_TEXT: ModelDef[] = [
     fields: [
       prompt({ maxLength: 5000 }),
       ratio(['1:1', '4:3', '3:4', '16:9', '9:16', '2:3', '3:2', '21:9'], '1:1'),
+      {
+        name: 'quality',
+        kind: 'select',
+        label: 'Quality',
+        options: opts('basic', 'high', 'ultra'),
+        default: 'basic',
+      },
       outputFormat(),
       nsfwChecker(),
     ],
@@ -293,7 +302,7 @@ const IMAGE_TEXT: ModelDef[] = [
     routeWithAssets: {
       modelId: 'flux-2/pro-image-to-image',
       from: 'reference_images',
-      to: 'image_urls',
+      to: 'input_urls',
     },
     fields: [
       prompt({ maxLength: 5000 }),
@@ -339,7 +348,7 @@ const IMAGE_TEXT: ModelDef[] = [
     routeWithAssets: {
       modelId: 'gpt-image-2-image-to-image',
       from: 'reference_images',
-      to: 'image_urls',
+      to: 'input_urls',
     },
     fields: [
       prompt({ maxLength: 20000 }),
@@ -356,7 +365,7 @@ const IMAGE_TEXT: ModelDef[] = [
     ],
   },
   {
-    id: 'gpt-image/1-5-text-to-image',
+    id: 'gpt-image/1.5-text-to-image',
     name: 'GPT Image 1.5',
     family: 'OpenAI',
     category: 'image',
@@ -366,9 +375,15 @@ const IMAGE_TEXT: ModelDef[] = [
     tagline: 'The previous generation, still excellent at diagrams and UI.',
     speed: 'balanced',
     fields: [
-      prompt({ maxLength: 20000 }),
-      ratio(['auto', '1:1', '3:2', '2:3', '16:9', '9:16'], 'auto'),
-      resolution(['1K', '2K'], '1K'),
+      prompt({ maxLength: 5000 }),
+      ratio(['1:1', '2:3', '3:2'], '1:1'),
+      {
+        name: 'quality',
+        kind: 'select',
+        label: 'Quality',
+        options: opts('medium', 'high'),
+        default: 'medium',
+      },
     ],
   },
   {
@@ -513,8 +528,7 @@ const IMAGE_TEXT: ModelDef[] = [
     speed: 'fast',
     fields: [
       prompt({ maxLength: 5000 }),
-      ratio(['2:3', '3:2', '1:1', '16:9', '9:16'], '1:1'),
-      nsfwChecker(),
+      ratio(['1:1', '2:3', '3:2', '16:9', '9:16'], '1:1'),
     ],
   },
 ]
@@ -634,9 +648,24 @@ const IMAGE_EDIT: ModelDef[] = [
     hidden: true,
     fields: [
       prompt({ maxLength: 20000 }),
-      imageUrls(10),
-      ratio(['auto', '1:1', '3:2', '2:3', '4:3', '3:4', '16:9', '9:16'], 'auto'),
+      imageUrls(10, {
+        name: 'input_urls',
+        label: 'Source images',
+        maxSizeMb: 30,
+      }),
+      ratio(
+        ['auto', '1:1', '3:2', '2:3', '4:3', '3:4', '5:4', '4:5', '16:9', '9:16', '2:1', '1:2', '3:1', '1:3', '21:9', '9:21'],
+        'auto',
+      ),
       resolution(['1K', '2K', '4K'], '1K'),
+      {
+        name: 'background',
+        kind: 'select',
+        label: 'Background',
+        options: opts('auto', 'transparent', 'opaque'),
+        default: 'auto',
+        advanced: true,
+      },
     ],
   },
   {
@@ -652,8 +681,12 @@ const IMAGE_EDIT: ModelDef[] = [
     hidden: true,
     fields: [
       prompt({ maxLength: 5000 }),
-      imageUrls(10),
-      ratio(['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3'], '1:1'),
+      imageUrls(10, {
+        name: 'input_urls',
+        label: 'Source images',
+        maxSizeMb: 20,
+      }),
+      ratio(['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3', 'auto'], '1:1'),
       resolution(['1K', '2K'], '1K'),
       nsfwChecker(),
     ],
@@ -765,10 +798,9 @@ const IMAGE_EDIT: ModelDef[] = [
     tagline: 'Fast, loose edits with personality.',
     speed: 'fast',
     fields: [
-      prompt({ maxLength: 5000 }),
-      imageUrls(7),
-      ratio(['2:3', '3:2', '1:1', '16:9', '9:16'], '1:1'),
-      nsfwChecker(),
+      prompt({ maxLength: 5000, required: false }),
+      imageUrls(4, { label: 'Source images' }),
+      ratio(['1:1', '2:3', '3:2', '16:9', '9:16', 'auto'], 'auto'),
     ],
   },
 ]
@@ -938,7 +970,7 @@ const VIDEO_TEXT: ModelDef[] = [
           required: false,
         }),
       },
-      resolution(['480p', '720p', '1080p'], '720p'),
+      resolution(['480p', '720p'], '720p'),
       ratio(['1:1', '4:3', '3:4', '16:9', '9:16', '21:9', 'adaptive'], '16:9'),
       {
         name: 'duration',
@@ -993,7 +1025,7 @@ const VIDEO_TEXT: ModelDef[] = [
     ],
   },
   {
-    id: 'kling/v3-omni-text-to-video',
+    id: 'kling-3.0-omni/text-to-video',
     name: 'Kling 3 Omni',
     family: 'Kuaishou',
     category: 'video',
@@ -1031,7 +1063,7 @@ const VIDEO_TEXT: ModelDef[] = [
     routeWithAssets: {
       modelId: 'wan/2-7-image-to-video',
       from: 'reference_images',
-      to: 'image_url',
+      to: 'first_frame_url',
     },
     fields: [
       prompt({ maxLength: 5000 }),
@@ -1150,6 +1182,7 @@ const VIDEO_TEXT: ModelDef[] = [
     },
     fields: [
       prompt({ maxLength: 7000 }),
+      ratio(['21:9', '16:9', '4:3', '1:1', '3:4', '9:16'], '16:9'),
       optionalReference(1, {
         label: 'First frame',
         description:
@@ -1178,23 +1211,20 @@ const VIDEO_TEXT: ModelDef[] = [
     tagline: 'Reliable physics and character motion.',
     speed: 'balanced',
     fields: [
-      prompt({ maxLength: 5000 }),
+      prompt({ maxLength: 2000 }),
       {
-        name: 'duration',
-        kind: 'select',
-        label: 'Duration',
-        options: [
-          { value: '6', label: '6s' },
-          { value: '10', label: '10s', hint: 'Not available at 1080P' },
-        ],
-        default: '6',
+        name: 'prompt_optimizer',
+        kind: 'toggle',
+        label: 'Prompt optimiser',
+        description: 'Let Hailuo rewrite the prompt before generating.',
+        default: true,
+        advanced: true,
       },
-      resolution(['768P', '1080P'], '768P'),
       nsfwChecker(),
     ],
   },
   {
-    id: 'pixverse/text-to-video',
+    id: 'pixverse-v6/text-to-video',
     name: 'PixVerse',
     family: 'PixVerse',
     category: 'video',
@@ -1204,30 +1234,50 @@ const VIDEO_TEXT: ModelDef[] = [
     tagline: 'Stylised motion with strong anime presets.',
     speed: 'fast',
     routeWithAssets: {
-      modelId: 'pixverse/image-to-video',
+      modelId: 'pixverse-v6/image-to-video',
       from: 'reference_images',
-      to: 'image_url',
+      to: 'image_urls',
     },
     fields: [
-      prompt({ maxLength: 5000 }),
-      optionalReference(1, {
-        label: 'Reference image',
+      prompt({ maxLength: 2048 }),
+      optionalReference(2, {
+        label: 'First frame',
         description:
-          'Optional. Adding one guides the result instead of generating from the prompt alone.',
+          'Optional. Anchors the opening frame instead of generating from the prompt alone.',
       }),
-      ratio(['16:9', '9:16', '1:1', '4:3', '3:4'], '16:9'),
-      resolution(['360p', '540p', '720p', '1080p'], '720p'),
+      ratio(['16:9', '4:3', '1:1', '3:4', '9:16', '2:3', '3:2', '21:9'], '16:9'),
+      {
+        name: 'quality',
+        kind: 'select',
+        label: 'Quality',
+        options: opts('360p', '540p', '720p', '1080p'),
+        default: '720p',
+      },
       {
         name: 'duration',
-        kind: 'select',
+        kind: 'slider',
         label: 'Duration',
-        options: [
-          { value: '5', label: '5s' },
-          { value: '8', label: '8s' },
-        ],
-        default: '5',
+        description: 'Seconds.',
+        min: 1,
+        max: 15,
+        step: 1,
+        default: 5,
       },
-      negativePrompt(),
+      {
+        name: 'generate_audio_switch',
+        kind: 'toggle',
+        label: 'Generate audio',
+        default: false,
+      },
+      {
+        name: 'generate_multi_clip_switch',
+        kind: 'toggle',
+        label: 'Multiple clips',
+        description: 'Cut the prompt into several shots rather than one take.',
+        default: false,
+        advanced: true,
+      },
+      seed(),
     ],
   },
 ]
@@ -1373,18 +1423,45 @@ const VIDEO_IMAGE: ModelDef[] = [
     speed: 'balanced',
     hidden: true,
     fields: [
-      prompt({ maxLength: 5000 }),
-      imageUrl(),
-      negativePrompt(),
+      prompt({ maxLength: 2000 }),
+      imageUrl({
+        name: 'first_frame_url',
+        label: 'First frame',
+        maxSizeMb: 20,
+      }),
+      imageUrl({
+        name: 'last_frame_url',
+        label: 'Last frame',
+        required: false,
+        description: 'Optional. The shot moves towards this image.',
+        maxSizeMb: 20,
+      }),
+      negativePrompt({ maxLength: 2000 }),
       resolution(['720p', '1080p'], '1080p'),
       {
         name: 'duration',
-        kind: 'number',
+        kind: 'slider',
         label: 'Duration',
+        description: 'Seconds.',
         min: 2,
         max: 15,
         step: 1,
         default: 5,
+      },
+      {
+        name: 'prompt_extend',
+        kind: 'toggle',
+        label: 'Extend the prompt',
+        description: 'Let Wan elaborate on a short prompt before generating.',
+        default: true,
+        advanced: true,
+      },
+      {
+        name: 'watermark',
+        kind: 'toggle',
+        label: 'Watermark',
+        default: false,
+        advanced: true,
       },
       seed(),
       nsfwChecker(),
@@ -1418,7 +1495,7 @@ const VIDEO_IMAGE: ModelDef[] = [
     ],
   },
   {
-    id: 'pixverse/image-to-video',
+    id: 'pixverse-v6/image-to-video',
     name: 'PixVerse I2V',
     family: 'PixVerse',
     category: 'video',
@@ -1429,20 +1506,42 @@ const VIDEO_IMAGE: ModelDef[] = [
     speed: 'fast',
     hidden: true,
     fields: [
-      prompt({ maxLength: 5000 }),
-      imageUrl(),
-      resolution(['360p', '540p', '720p', '1080p'], '720p'),
+      prompt({ maxLength: 2048 }),
+      imageUrls(2, {
+        label: 'Source images',
+        description: 'The first frame, and optionally a last frame to move towards.',
+      }),
+      {
+        name: 'quality',
+        kind: 'select',
+        label: 'Quality',
+        options: opts('360p', '540p', '720p', '1080p'),
+        default: '720p',
+      },
       {
         name: 'duration',
-        kind: 'select',
+        kind: 'slider',
         label: 'Duration',
-        options: [
-          { value: '5', label: '5s' },
-          { value: '8', label: '8s' },
-        ],
-        default: '5',
+        description: 'Seconds.',
+        min: 1,
+        max: 15,
+        step: 1,
+        default: 5,
       },
-      negativePrompt(),
+      {
+        name: 'generate_audio_switch',
+        kind: 'toggle',
+        label: 'Generate audio',
+        default: false,
+      },
+      {
+        name: 'generate_multi_clip_switch',
+        kind: 'toggle',
+        label: 'Multiple clips',
+        default: false,
+        advanced: true,
+      },
+      seed(),
     ],
   },
 ]
@@ -1509,7 +1608,6 @@ const VIDEO_AVATAR: ModelDef[] = [
       imageUrl({ label: 'Avatar image' }),
       audioUrl({ maxSizeMb: 100, description: 'Up to 5 minutes.' }),
       prompt({
-        required: false,
         maxLength: 5000,
         label: 'Direction',
         placeholder: 'Optional performance notes…',
@@ -1530,7 +1628,7 @@ const VIDEO_AVATAR: ModelDef[] = [
     fields: [
       imageUrl({ label: 'Avatar image' }),
       audioUrl({ maxSizeMb: 100 }),
-      prompt({ required: false, maxLength: 5000, label: 'Direction' }),
+      prompt({ maxLength: 5000, label: 'Direction' }),
     ],
   },
   {
@@ -1629,7 +1727,7 @@ const VIDEO_AVATAR: ModelDef[] = [
     fields: [
       imageUrl({ label: 'Portrait' }),
       audioUrl(),
-      prompt({ required: false, maxLength: 2000, label: 'Direction' }),
+      prompt({ maxLength: 2000, label: 'Direction' }),
       resolution(['480p', '720p'], '480p'),
     ],
   },
@@ -1784,28 +1882,7 @@ const AUDIO: ModelDef[] = [
         maxLength: 5000,
         placeholder: 'The text to speak…',
       },
-      {
-        name: 'voice',
-        kind: 'select',
-        label: 'Voice',
-        // Kie exposes voices as ElevenLabs IDs. Names below are the public
-        // ElevenLabs library names for the default roster.
-        options: [
-          { value: 'EkK5I93UQWFDigLMpZcX', label: 'James, warm narrator' },
-          { value: 'TX3LPaxmHKxFdv7VOQHJ', label: 'Liam, clear, youthful' },
-          { value: 'FGY2WhTYpPnrIDTdsKH5', label: 'Laura, bright, upbeat' },
-          { value: 'N2lVS1w4EtoT3dr4eOWO', label: 'Callum, gravelly' },
-          { value: 'UgBBYS2sOqTuMpoF3BR0', label: 'Mark, natural, casual' },
-          { value: 'kPzsL2i3teMYv0FxEYQ6', label: 'Alice, British, confident' },
-          { value: 'nPczCjzI2devNBz1zQrb', label: 'Brian, deep, resonant' },
-          { value: 'Xb7hH8MSUJpSbSDYk0k2', label: 'Alice alt' },
-          { value: 'cgSgspJ2msm6clMCkdW9', label: 'Jessica, expressive' },
-          { value: 'iP95p4xoKVk53GoZ742B', label: 'Chris, conversational' },
-          { value: 'onwK4e9ZLuTAKqWW03F9', label: 'Daniel, authoritative' },
-          { value: 'pFZP5JQG7iQjIQuC4Bku', label: 'Lily, soft, British' },
-        ],
-        default: 'EkK5I93UQWFDigLMpZcX',
-      },
+      elevenLabsVoice(),
       {
         name: 'stability',
         kind: 'slider',
@@ -1879,18 +1956,7 @@ const AUDIO: ModelDef[] = [
         required: true,
         maxLength: 5000,
       },
-      {
-        name: 'voice',
-        kind: 'select',
-        label: 'Voice',
-        options: [
-          { value: 'EkK5I93UQWFDigLMpZcX', label: 'James, warm narrator' },
-          { value: 'TX3LPaxmHKxFdv7VOQHJ', label: 'Liam, clear, youthful' },
-          { value: 'FGY2WhTYpPnrIDTdsKH5', label: 'Laura, bright, upbeat' },
-          { value: 'nPczCjzI2devNBz1zQrb', label: 'Brian, deep, resonant' },
-        ],
-        default: 'EkK5I93UQWFDigLMpZcX',
-      },
+      elevenLabsVoice(),
       {
         name: 'stability',
         kind: 'slider',
@@ -2317,13 +2383,21 @@ const UTILITY: ModelDef[] = [
     tagline: 'Split an image into editable layers.',
     speed: 'balanced',
     fields: [
-      imageUrls(1, { label: 'Source image' }),
+      imageUrl({ label: 'Source image', maxSizeMb: 30 }),
       prompt({
         required: false,
         maxLength: 5000,
-        label: 'Direction',
-        placeholder: 'Optional. Describe which layers to isolate.',
+        label: 'Guidance',
+        placeholder: 'Optional. Name the layers you want separated…',
       }),
+      {
+        name: 'size',
+        kind: 'select',
+        label: 'Size',
+        options: opts('auto', '1K', '1.5K', '2K'),
+        default: 'auto',
+      },
+      outputFormat(['png', 'jpeg'], 'jpeg'),
     ],
   },
 ]
@@ -2341,6 +2415,9 @@ export const MODELS: ModelDef[] = [
   ...AUDIO,
   ...TEXT,
   ...UTILITY,
+  // Derived from Kie's schemas rather than transcribed. See
+  // catalog.generated.ts for why that distinction exists.
+  ...GENERATED,
 ]
 
 const BY_ID = new Map(MODELS.map((m) => [m.id, m]))

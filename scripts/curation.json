@@ -1,0 +1,93 @@
+{
+  "nano-banana-pro": {
+    "name": "Nano Banana Pro",
+    "tagline": "Google's top image model. Reasoning-grade prompt adherence at 4K.",
+    "featured": true,
+    "badges": [
+      "4K"
+    ],
+    "mode": "text-to-image"
+  },
+  "nano-banana-2-lite": {
+    "name": "Nano Banana 2 Lite",
+    "tagline": "The cheap Nano Banana. Good enough for drafts and iteration.",
+    "speed": "fast",
+    "mode": "text-to-image"
+  },
+  "gemini-omni-video": {
+    "name": "Gemini Omni",
+    "tagline": "Google's multimodal video model. Ten-second shots, native 4K.",
+    "featured": true,
+    "badges": [
+      "4K"
+    ]
+  },
+  "google/gemini-omni-flash-1-1": {
+    "name": "Gemini Omni 1.1 Flash",
+    "tagline": "The fast Omni. Same control, shorter wait, lower price."
+  },
+  "google/imagen4-fast": {
+    "name": "Imagen 4 Fast",
+    "tagline": "Imagen 4 tuned for speed rather than fidelity.",
+    "speed": "fast"
+  },
+  "kling-2.6/text-to-video": {
+    "name": "Kling 2.6",
+    "tagline": "Strong motion and physics, with audio generated alongside."
+  },
+  "kling-2.6/image-to-video": {
+    "name": "Kling 2.6 I2V",
+    "tagline": "Animate a still with Kling 2.6's motion model."
+  },
+  "kling-3.0-omni/image-to-video": {
+    "name": "Kling 3 Omni I2V",
+    "tagline": "Multi-shot sequences from one image, with sound."
+  },
+  "seedream/4.5-text-to-image": {
+    "name": "Seedream 4.5",
+    "tagline": "ByteDance's mid-tier image model. Reliable composition at 4K."
+  },
+  "seedream/4.5-edit": {
+    "name": "Seedream 4.5 Edit",
+    "tagline": "Edit a picture while keeping what you did not ask to change."
+  },
+  "bytedance/seedance-2-5": {
+    "name": "Seedance 2.5",
+    "tagline": "ByteDance's newest video model, and the one their site leads with.",
+    "featured": true
+  },
+  "bytedance/seedance-1.5-pro": {
+    "name": "Seedance 1.5 Pro",
+    "tagline": "The previous Seedance generation. Cheaper, still capable."
+  },
+  "qwen3/pro-text-to-image": {
+    "name": "Qwen 3 Pro",
+    "tagline": "Alibaba's top image model. Excellent with Chinese text in frame."
+  },
+  "wan/2-5-text-to-video": {
+    "name": "Wan 2.5",
+    "tagline": "Alibaba's video workhorse. Long clips, sound, sensible motion."
+  },
+  "pixverse-v6/text-to-video": {
+    "name": "PixVerse v6",
+    "tagline": "Stylised motion with per-clip audio and multi-shot output."
+  },
+  "omnihuman-1-5/human-identification": {
+    "name": "OmniHuman Identify People",
+    "category": "utility",
+    "mode": "enhance",
+    "output": "text",
+    "tagline": "Find the people in a picture before animating one of them."
+  },
+  "omnihuman-1-5/subject-detection": {
+    "name": "OmniHuman Detect Subject",
+    "category": "utility",
+    "mode": "enhance",
+    "output": "text",
+    "tagline": "Locate the subject a talking-head render should drive."
+  },
+  "kling-3.0-omni/transformation": {
+    "name": "Kling 3 Omni Transform",
+    "tagline": "Restyle an existing clip while keeping its motion."
+  }
+}

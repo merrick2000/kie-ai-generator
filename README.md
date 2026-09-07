@@ -1,7 +1,7 @@
 # Highfield
 
 A complete AI generation studio built on the [Kie.ai](https://kie.ai) API.
-Image, video, audio, text and enhancement across **56 models**, in one
+Image, video, audio, text and enhancement across **129 models**, in one
 interface, with every generation carried to completion server-side.
 
 ![stack](https://img.shields.io/badge/Next.js-15-black) ![stack](https://img.shields.io/badge/React-19-blue) ![stack](https://img.shields.io/badge/Tailwind-4-38bdf8)
@@ -158,7 +158,8 @@ src/
 │     ├─ types.ts    Wire types for the Kie job APIs
 │     ├─ client.ts   Server-only HTTP client (auth, retries, errors)
 │     ├─ chat.ts     The four language-model transports
-│     ├─ catalog.ts  56 models to declarative field schemas
+│     ├─ catalog.ts  Curated models as declarative field schemas
+│     ├─ catalog.generated.ts  The rest, derived from Kie's own schemas
 │     ├─ fields.ts   Field system: defaults, validation, input building
 │     ├─ tasks.ts    Adapter normalising market/veo/suno into one shape
 │     └─ reconciler.ts  Carries every running job to completion
@@ -295,6 +296,40 @@ empty answer", which sends you looking at your prompt instead of your key.
 A text run still becomes a job row. The request returns immediately and the
 answer is written when it arrives, so a browser is never left holding a
 connection open while a reasoning model thinks.
+
+### Where the models come from
+
+Kie documents 133 models on the job API. The catalog carries 129 of them, and
+most were not typed out by hand.
+
+They used to be. That is how four ended up with a slug Kie has never heard of,
+ten sent fields that do not exist, three left a required field off the form,
+and the speech models offered five voice IDs the API refuses. Every one of
+those failed silently until somebody tried to generate with it.
+
+So `scripts/kie/schemas.json` holds a snapshot of the OpenAPI document
+embedded in every model page on docs.kie.ai, and two things use it:
+
+```bash
+bun scripts/fetch-kie-schemas.mts                       # refresh the snapshot
+bun --preload ./scripts/preload.ts scripts/generate-models.mts <slugs…>
+```
+
+`test-schemas.mts` then checks the whole catalog against it on every run: that
+each slug exists, that no model sends a field its schema does not define, that
+every required field is on the form, and that no menu offers a value the model
+rejects. It also prints the coverage, so a gap is visible rather than assumed
+away.
+
+What a generator cannot decide is what a model is *for*. Names and taglines
+live in `scripts/curation.json`, and anything without one falls back to a line
+built from the schema: dull, but true.
+
+Four models are not carried. `elevenlabs/text-to-dialogue-v3`,
+`google/gemini-3-1-flash-tts`, `kling-3.0/video` and
+`pixverse-v6/reference-to-video` each require an array of objects, a cast of
+speakers or a shot list, and the form system has no repeatable sub-form to
+collect one. They need a new field kind rather than another catalog entry.
 
 ### Adding a model
 

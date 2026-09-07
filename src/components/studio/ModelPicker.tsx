@@ -20,6 +20,9 @@ interface ModelPickerProps {
   placeholder?: string
 }
 
+/** Everything a person can actually choose. */
+const LISTED = MODELS.filter((m) => !m.hidden)
+
 /** A model needs this many runs here before it counts as one you rely on. */
 const HABIT_THRESHOLD = 2
 
@@ -69,10 +72,7 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
   const results = useMemo(() => {
     const q = query.trim().toLowerCase()
 
-    return MODELS.filter((m) => {
-      // Variants reached by filling a reference field are not listed
-      // separately; showing both would present one model as two.
-      if (m.hidden) return false
+    return LISTED.filter((m) => {
       if (category !== 'all' && m.category !== category) return false
       if (!q) return true
       return (
@@ -152,7 +152,10 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={`Search ${MODELS.length} models…`}
+              // The listed count, not the catalog's. Hidden entries are the
+              // sibling slugs a reference routes to, and counting them
+              // promises models nobody can pick.
+              placeholder={`Search ${LISTED.length} models…`}
               className="min-w-0 flex-1 bg-transparent text-sm text-ink placeholder:text-ink-faint focus:outline-none"
             />
             {query && (
