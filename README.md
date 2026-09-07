@@ -1,7 +1,7 @@
 # Highfield
 
 A complete AI generation studio built on the [Kie.ai](https://kie.ai) API.
-Image, video, audio, text and enhancement across **156 models**, in one
+Image, video, audio, text and enhancement across **169 models**, in one
 interface, with every generation carried to completion server-side.
 
 ![stack](https://img.shields.io/badge/Next.js-15-black) ![stack](https://img.shields.io/badge/React-19-blue) ![stack](https://img.shields.io/badge/Tailwind-4-38bdf8)
@@ -130,10 +130,12 @@ Kling Motion Control, InfiniTalk · Suno, ElevenLabs · Claude Opus 5 and
 Sonnet 5, GPT 5.2 and 5.6, Gemini 3 Pro, Grok 4.6 · Topaz upscale, Recraft
 cutout.
 
-**Speed of use.** One-click rerun with a fresh seed, paste an image straight
-into a reference field, pinned models and an input-type filter over 156 of
-them, a balance check that refuses a batch before it spends rather than after,
-and a count in the tab title so a ten-minute render does not need watching.
+**Speed of use.** One-click rerun with a fresh seed, a side-by-side compare
+view for up to four results, paste an image straight into a reference field,
+pinned models and category and input-type filters over 169 of them, a balance
+check that refuses a batch before it spends rather than after, and a count in
+the tab title plus a desktop notification so a ten-minute render does not need
+watching.
 
 **The studio.** Model search across every family, schema-driven parameter forms,
 drag-and-drop asset upload, aspect-ratio tiles, seed control, live progress,
@@ -305,7 +307,7 @@ connection open while a reasoning model thinks.
 ### Where the models come from
 
 Kie documents 133 models on the job API and 34 more on its chat endpoints.
-The catalog carries 129 and all 34, and most were not typed out by hand.
+The catalog carries all 133 and all 34, and most were not typed out by hand.
 
 They used to be. That is how four ended up with a slug Kie has never heard of,
 ten sent fields that do not exist, three left a required field off the form,
@@ -336,11 +338,11 @@ What a generator cannot decide is what a model is *for*. Names and taglines
 live in `scripts/curation.json`, and anything without one falls back to a line
 built from the schema: dull, but true.
 
-Four models are not carried. `elevenlabs/text-to-dialogue-v3`,
-`google/gemini-3-1-flash-tts`, `kling-3.0/video` and
-`pixverse-v6/reference-to-video` each require an array of objects, a cast of
-speakers or a shot list, and the form system has no repeatable sub-form to
-collect one. They need a new field kind rather than another catalog entry.
+Four of them ask for an array of objects rather than a flat value:
+`elevenlabs/text-to-dialogue-v3` and `google/gemini-3-1-flash-tts` want a cast
+of speakers, `kling-3.0/video` and `pixverse-v6/reference-to-video` want a shot
+list. They are carried by a `list` field, which nests a small form and repeats
+it, so a dialogue is written line by line in the sidebar instead of as JSON.
 
 ### Adding a model
 

@@ -21,6 +21,14 @@ import { ModelPicker } from './ModelPicker'
 
 const EMPTY_VALUES: Record<string, unknown> = {}
 
+/** What one run of a model produces, for counting it in the footer. */
+const OUTPUT_NOUN: Record<'image' | 'video' | 'audio' | 'text', string> = {
+  image: 'image',
+  video: 'clip',
+  audio: 'track',
+  text: 'answer',
+}
+
 /** The left rail: pick a model, fill its schema, submit. */
 export function Composer() {
   const modelId = useStudio((s) => s.modelId)
@@ -253,7 +261,10 @@ export function Composer() {
         </p>
         {(runCount > 1 || perRun > 1) && (
           <p className="mt-1 text-center text-[11px] text-ink-faint">
-            {runCount * perRun} image{runCount * perRun === 1 ? '' : 's'} from this press
+            {/* The noun follows the model: "4 images" under a speech model
+                was simply wrong. */}
+            {runCount * perRun} {OUTPUT_NOUN[model.output]}
+            {runCount * perRun === 1 ? '' : 's'} from this press
             {perRun > 1 && runCount > 1 ? ` · ${runCount} runs of ${perRun}` : ''}
           </p>
         )}
