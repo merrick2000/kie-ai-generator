@@ -80,11 +80,22 @@ const AUDIO_INPUTS = new Set([
   'audio_url', 'audio_urls', 'driving_audio_url', 'voice_audio_url',
 ])
 
+/** Vendors whose whole catalogue on Kie is video. */
+const VIDEO_FAMILIES =
+  /^(kling|wan|hailuo|happyhorse|pixverse|minimax-h3|volcengine)/
+
 function guessOutput(slug: string, spec: ModelSpec): string {
   const s = `${slug} ${spec.path}`.toLowerCase()
   const names = Object.keys(spec.fields)
 
-  if (/video|animate|lip-sync|motion|clip/.test(s)) return 'video'
+  // "image-to-video" contains "image", so the destination is checked first.
+  if (/-to-video|video-to-|videoedit|video-edit|video$|\bvideo\b/.test(s)) return 'video'
+  if (/animate|lip-sync|motion|clip|transition|extend/.test(s)) return 'video'
+  if (/upscale/.test(s)) return /video/.test(s) ? 'video' : 'image'
+  if (/-to-image|image$|\bimage\b|segment/.test(s)) return 'image'
+
+  // Otherwise the family decides: everything Kling and Wan ship here moves.
+  if (VIDEO_FAMILIES.test(slug)) return 'video'
 
   // A duration alongside a resolution or a soundtrack switch means output
   // that runs in time. `kling-3.0-omni/transformation` says nothing about
@@ -151,22 +162,73 @@ function guessFamily(slug: string): string {
 }
 
 /** A readable name when the doc title is missing or unhelpful. */
-function guessName(slug: string, spec: ModelSpec): string {
-  // "Google - Nano Banana Pro" reads as "Nano Banana Pro" once the family is
-  // shown beside it, and "(openai)" is a routing detail.
-  const title = spec.title
-    .replace(/^[A-Za-z ]{3,18}\s+[-–]\s+/, '')
-    .replace(/\s*\((openai|response|beta|v\d[\w.]*)\)\s*$/i, '')
+/** How each vendor writes its own name. */
+const VENDOR_CASE: Record<string, string> = {
+  wan: 'Wan', qwen: 'Qwen', qwen2: 'Qwen 2', qwen3: 'Qwen 3',
+  'qwen3-pro': 'Qwen 3 Pro', bytedance: 'ByteDance', seedream: 'Seedream',
+  seedance: 'Seedance', kling: 'Kling', 'kling-2.6': 'Kling 2.6',
+  'kling-3.0': 'Kling 3', 'kling-3.0-omni': 'Kling 3 Omni', google: 'Google',
+  gemini: 'Gemini', ideogram: 'Ideogram', elevenlabs: 'ElevenLabs',
+  topaz: 'Topaz', recraft: 'Recraft', hailuo: 'Hailuo', 'minimax-h3': 'MiniMax H3',
+  flux: 'FLUX', 'flux-2': 'FLUX.2', gpt: 'GPT', 'gpt-image': 'GPT Image',
+  grok: 'Grok', 'grok-imagine': 'Grok Imagine',
+  'grok-imagine-image-2-0': 'Grok Imagine 2', omnihuman: 'OmniHuman',
+  'omnihuman-1-5': 'OmniHuman 1.5', infinitalk: 'InfiniTalk',
+  pixverse: 'PixVerse', 'pixverse-v6': 'PixVerse v6',
+  happyhorse: 'HappyHorse', 'happyhorse-1-1': 'HappyHorse 1.1',
+  volcengine: 'Volcengine',
+}
+
+/** Shorthand these slugs use for what a model takes in and puts out. */
+const ABBREVIATIONS: Record<string, string> = {
+  r2v: 'Reference to Video', i2v: 'Image to Video', t2v: 'Text to Video',
+  v2v: 'Video to Video', videoedit: 'Video Edit', tts: 'Speech',
+  a14b: 'A14B',
+}
+
+/**
+ * A name built from the slug.
+ *
+ * Not from the page title, which cannot be trusted: several pages carry a
+ * heading belonging to a neighbouring model. `kling/v2-1-master-image-to-video`
+ * is titled "V2.5 Turbo Image to Video Pro" and `qwen2/image-edit` is titled
+ * "Qwen2 - Text To Image". A name taken from the slug is sometimes plain, but
+ * it is never about a different model.
+ *
+ * Anything worth a better name gets one in curation.json.
+ */
+function guessName(slug: string): string {
+  const [vendor, ...rest] = slug.split('/')
+
+  // A vendor prefix only exists when there is something after it. `nano-
+  // banana-pro` and `gemini-omni-video` are whole names on their own, and
+  // treating the first segment as a vendor printed them twice.
+  const head = rest.length
+    ? (VENDOR_CASE[vendor] ?? VENDOR_CASE[vendor.replace(/-\d.*$/, '')])
+    : undefined
+
+  const words = (head ? rest : [slug])
+    .join(' ')
+    // In these slugs a dash between digits is a decimal point: 2-6 is 2.6.
+    .replace(/(\d)-(\d)/g, '$1.$2')
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((word) => {
+      const known = ABBREVIATIONS[word.toLowerCase()]
+      if (known) return known
+      if (word.toLowerCase() === 'to') return 'to'
+      if (/^v?\d/.test(word)) return word
+      return word.replace(/^./, (c) => c.toUpperCase())
+    })
+
+  const tail = words.join(' ').replace(/\bTo\b/g, 'to')
+  const name = [head, tail]
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
     .trim()
 
-  if (title && !/^#/.test(title) && title.length < 48) return title
-
-  return slug
-    .split('/')
-    .pop()!
-    .split(/[-_.]/)
-    .map((p) => (/^\d/.test(p) ? p : p.replace(/^./, (c) => c.toUpperCase())))
-    .join(' ')
+  return name || slug
 }
 
 /**
@@ -194,9 +256,9 @@ const MODE_WORDS: Record<string, string> = {
  * One line on what a model is for.
  *
  * The page's own description when it says something, since a borrowed
- * accurate line beats an invented one. Otherwise built from the schema:
- * what it takes in, what resolutions and durations it offers. Dull, but
- * every word of it is true, which a generated sales line would not be.
+ * accurate line beats an invented one. Otherwise built from the schema: what
+ * it takes in, what resolutions and durations it offers. Dull, but every word
+ * of it is true, which a generated sales line would not be.
  */
 function tagline(spec: ModelSpec, name: string, mode: string): string {
   // The prose runs straight into the boilerplate about polling a task, with
@@ -344,7 +406,7 @@ for (const slug of slugs) {
   const mode = c.mode ?? guessMode(slug, spec, output)
   const category = c.category ?? guessCategory(output, slug)
   const family = c.family ?? guessFamily(slug)
-  const name = c.name ?? guessName(slug, spec)
+  const name = c.name ?? guessName(slug)
 
   const required = new Set(spec.required)
   const fields: string[] = []

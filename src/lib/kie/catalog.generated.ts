@@ -205,7 +205,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'bytedance/seedance-2-mini',
-    name: 'Bytedance Seedance 2.0 Mini',
+    name: 'ByteDance Seedance 2 Mini',
     family: 'ByteDance',
     category: 'video',
     mode: 'image-to-video',
@@ -298,7 +298,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'bytedance/seedream',
-    name: 'Seedream3.0 - Text to Image',
+    name: 'ByteDance Seedream',
     family: 'ByteDance',
     category: 'image',
     mode: 'text-to-image',
@@ -338,7 +338,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'bytedance/v1-lite-image-to-video',
-    name: 'V1 Lite Image to Video',
+    name: 'ByteDance v1 Lite Image to Video',
     family: 'ByteDance',
     category: 'video',
     mode: 'image-to-video',
@@ -416,7 +416,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'bytedance/v1-lite-text-to-video',
-    name: 'V1 Lite Text to Video',
+    name: 'ByteDance v1 Lite Text to Video',
     family: 'ByteDance',
     category: 'video',
     mode: 'text-to-video',
@@ -486,7 +486,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'bytedance/v1-pro-fast-image-to-video',
-    name: 'Bytedance V1 Pro Fast Image to Video',
+    name: 'ByteDance v1 Pro Fast Image to Video',
     family: 'ByteDance',
     category: 'video',
     mode: 'image-to-video',
@@ -539,7 +539,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'bytedance/v1-pro-text-to-video',
-    name: 'V1 Pro Text to Video',
+    name: 'ByteDance v1 Pro Text to Video',
     family: 'ByteDance',
     category: 'video',
     mode: 'text-to-video',
@@ -609,7 +609,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'flux-2/flex-image-to-image',
-    name: 'Flux-2 - Image to Image',
+    name: 'FLUX.2 Flex Image to Image',
     family: 'Black Forest Labs',
     category: 'image',
     mode: 'image-to-image',
@@ -828,7 +828,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'gpt-image/1.5-image-to-image',
-    name: 'GPT Image-1.5 - Image to Image',
+    name: 'GPT Image 1.5 Image to Image',
     family: 'OpenAI',
     category: 'image',
     mode: 'image-to-image',
@@ -873,7 +873,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'grok-imagine-image-2-0/segment-edit',
-    name: 'Grok Imagine Image 2.0 Segment Edit',
+    name: 'Grok Imagine 2 Segment Edit',
     family: 'xAI',
     category: 'image',
     mode: 'text-to-image',
@@ -963,12 +963,12 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'grok-imagine/extend',
-    name: 'Video Extend',
+    name: 'Grok Imagine Extend',
     family: 'xAI',
-    category: 'image',
-    mode: 'text-to-image',
+    category: 'video',
+    mode: 'text-to-video',
     api: 'market',
-    output: 'image',
+    output: 'video',
     tagline: 'Task ID Source The task_id parameter should be obtained from the previously generated video…',
     speed: 'balanced',
     fields: [
@@ -1008,7 +1008,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'grok-imagine/image-to-image',
-    name: 'image to image',
+    name: 'Grok Imagine Image to Image',
     family: 'xAI',
     category: 'image',
     mode: 'image-to-image',
@@ -1046,7 +1046,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'grok-imagine/text-to-image',
-    name: 'Text to Image',
+    name: 'Grok Imagine Text to Image',
     family: 'xAI',
     category: 'image',
     mode: 'text-to-image',
@@ -1090,7 +1090,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'grok-imagine/upscale',
-    name: 'Video Upscale',
+    name: 'Grok Imagine Upscale',
     family: 'xAI',
     category: 'utility',
     mode: 'text-to-image',
@@ -1119,7 +1119,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'hailuo/02-image-to-video-pro',
-    name: 'Hailuo Pro Image to Video',
+    name: 'Hailuo 02 Image to Video Pro',
     family: 'MiniMax',
     category: 'video',
     mode: 'image-to-video',
@@ -1172,7 +1172,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'hailuo/02-image-to-video-standard',
-    name: 'Hailuo Standard Image to Video',
+    name: 'Hailuo 02 Image to Video Standard',
     family: 'MiniMax',
     category: 'video',
     mode: 'image-to-video',
@@ -1240,7 +1240,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'hailuo/02-text-to-video-standard',
-    name: 'Hailuo Standard Text to Video',
+    name: 'Hailuo 02 Text to Video Standard',
     family: 'MiniMax',
     category: 'video',
     mode: 'text-to-video',
@@ -1285,7 +1285,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'hailuo/2-3-image-to-video-standard',
-    name: 'Hailuo 2.3 Standard Image to Video',
+    name: 'Hailuo 2.3 Image to Video Standard',
     family: 'MiniMax',
     category: 'video',
     mode: 'image-to-video',
@@ -1339,7 +1339,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'happyhorse-1-1/image-to-video',
-    name: 'HappyHorse-1-1 image-to-video',
+    name: 'HappyHorse 1.1 Image to Video',
     family: 'HappyHorse',
     category: 'video',
     mode: 'image-to-video',
@@ -1387,7 +1387,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'happyhorse-1-1/reference-to-video',
-    name: 'HappyHorse-1-1 reference-to-video',
+    name: 'HappyHorse 1.1 Reference to Video',
     family: 'HappyHorse',
     category: 'video',
     mode: 'image-to-video',
@@ -1444,7 +1444,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'happyhorse-1-1/text-to-video',
-    name: 'HappyHorse-1-1 text-to-video',
+    name: 'HappyHorse 1.1 Text to Video',
     family: 'HappyHorse',
     category: 'video',
     mode: 'text-to-video',
@@ -1491,7 +1491,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'happyhorse/image-to-video',
-    name: 'image-to-video',
+    name: 'HappyHorse Image to Video',
     family: 'HappyHorse',
     category: 'video',
     mode: 'image-to-video',
@@ -1540,7 +1540,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'happyhorse/reference-to-video',
-    name: 'reference-to-video',
+    name: 'HappyHorse Reference to Video',
     family: 'HappyHorse',
     category: 'video',
     mode: 'image-to-video',
@@ -1598,7 +1598,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'happyhorse/text-to-video',
-    name: 'text-to-video',
+    name: 'HappyHorse Text to Video',
     family: 'HappyHorse',
     category: 'video',
     mode: 'text-to-video',
@@ -1646,7 +1646,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'happyhorse/video-edit',
-    name: 'video-edit',
+    name: 'HappyHorse Video Edit',
     family: 'HappyHorse',
     category: 'video',
     mode: 'video-to-video',
@@ -1702,7 +1702,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'ideogram/character-edit',
-    name: 'Character Edit',
+    name: 'Ideogram Character Edit',
     family: 'Ideogram',
     category: 'image',
     mode: 'image-to-image',
@@ -1781,7 +1781,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'ideogram/character-remix',
-    name: 'Character Remix',
+    name: 'Ideogram Character Remix',
     family: 'Ideogram',
     category: 'image',
     mode: 'image-to-image',
@@ -1893,7 +1893,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'ideogram/v3-edit',
-    name: 'Ideogram V3 Edit',
+    name: 'Ideogram v3 Edit',
     family: 'Ideogram',
     category: 'image',
     mode: 'image-to-image',
@@ -1947,7 +1947,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'ideogram/v3-remix',
-    name: 'Ideogram V3 Remix',
+    name: 'Ideogram v3 Remix',
     family: 'Ideogram',
     category: 'image',
     mode: 'image-to-image',
@@ -2082,7 +2082,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'kling-2.6/motion-control',
-    name: 'Kling 2.6 motion-control',
+    name: 'Kling 2.6 Motion Control',
     family: 'Kuaishou',
     category: 'video',
     mode: 'video-to-video',
@@ -2251,7 +2251,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'kling/v2-1-master-image-to-video',
-    name: 'V2.5 Turbo Image to Video Pro',
+    name: 'Kling v2.1 Master Image to Video',
     family: 'Kuaishou',
     category: 'video',
     mode: 'image-to-video',
@@ -2313,7 +2313,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'kling/v2-1-master-text-to-video',
-    name: 'Kling V2.1 Master Text to Video',
+    name: 'Kling v2.1 Master Text to Video',
     family: 'Kuaishou',
     category: 'video',
     mode: 'text-to-video',
@@ -2368,13 +2368,13 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'kling/v2-1-pro',
-    name: 'Kling V2.1 Pro',
+    name: 'Kling v2.1 Pro',
     family: 'Kuaishou',
-    category: 'image',
-    mode: 'image-to-image',
+    category: 'video',
+    mode: 'image-to-video',
     api: 'market',
-    output: 'image',
-    tagline: 'Image editing, 5 to 10s.',
+    output: 'video',
+    tagline: 'Image to video, 5 to 10s.',
     speed: 'balanced',
     fields: [
       {
@@ -2429,13 +2429,13 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'kling/v2-1-standard',
-    name: 'Kling V2.1 Standard',
+    name: 'Kling v2.1 Standard',
     family: 'Kuaishou',
-    category: 'image',
-    mode: 'image-to-image',
+    category: 'video',
+    mode: 'image-to-video',
     api: 'market',
-    output: 'image',
-    tagline: 'Image editing, 5 to 10s.',
+    output: 'video',
+    tagline: 'Image to video, 5 to 10s.',
     speed: 'balanced',
     fields: [
       {
@@ -2485,7 +2485,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'kling/v2-5-turbo-text-to-video-pro',
-    name: 'V2.5 Turbo Text to Video Pro',
+    name: 'Kling v2.5 Turbo Text to Video Pro',
     family: 'Kuaishou',
     category: 'video',
     mode: 'text-to-video',
@@ -2540,7 +2540,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'minimax-h3/reference-to-video',
-    name: 'MiniMax H3 Reference-to-Video',
+    name: 'MiniMax H3 Reference to Video',
     family: 'MiniMax',
     category: 'video',
     mode: 'text-to-video',
@@ -2732,13 +2732,13 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'pixverse-v6/transition',
-    name: 'PixVerse V6 First & Last Frame Transition',
+    name: 'PixVerse v6 Transition',
     family: 'PixVerse',
-    category: 'image',
-    mode: 'text-to-image',
+    category: 'video',
+    mode: 'text-to-video',
     api: 'market',
-    output: 'image',
-    tagline: 'Text to image, 1 to 15s.',
+    output: 'video',
+    tagline: 'Text to video, 1 to 15s.',
     speed: 'balanced',
     fields: [
       {
@@ -2794,7 +2794,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'qwen/image-edit',
-    name: 'Image Edit',
+    name: 'Qwen Image Edit',
     family: 'Alibaba',
     category: 'image',
     mode: 'image-to-image',
@@ -2908,7 +2908,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'qwen/image-to-image',
-    name: 'Image to Image',
+    name: 'Qwen Image to Image',
     family: 'Alibaba',
     category: 'image',
     mode: 'image-to-image',
@@ -3007,7 +3007,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'qwen/text-to-image',
-    name: 'Text to Image',
+    name: 'Qwen Text to Image',
     family: 'Alibaba',
     category: 'image',
     mode: 'text-to-image',
@@ -3096,7 +3096,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'qwen2/image-edit',
-    name: 'Qwen2 - Text To Image',
+    name: 'Qwen 2 Image Edit',
     family: 'Alibaba',
     category: 'image',
     mode: 'text-to-image',
@@ -3142,7 +3142,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'qwen3/pro-image-to-image',
-    name: 'Qwen3 Pro Image to Image',
+    name: 'Qwen 3 Pro Image to Image',
     family: 'Alibaba',
     category: 'image',
     mode: 'image-to-image',
@@ -3391,7 +3391,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'seedream/5-lite-image-to-image',
-    name: 'Seedream5.0 Lite - Image to Image',
+    name: 'Seedream 5 Lite Image to Image',
     family: 'ByteDance',
     category: 'image',
     mode: 'image-to-image',
@@ -3453,7 +3453,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'volcengine/video-to-video-lip-sync',
-    name: 'Volcengine video to video lip sync',
+    name: 'Volcengine Video to Video Lip Sync',
     family: 'Volcengine',
     category: 'video',
     mode: 'video-to-video',
@@ -3532,7 +3532,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-2-a14b-image-to-video-turbo',
-    name: '2.2 A14B Image to Video Turbo',
+    name: 'Wan 2.2 A14B Image to Video Turbo',
     family: 'Alibaba',
     category: 'video',
     mode: 'image-to-video',
@@ -3595,7 +3595,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-2-a14b-speech-to-video-turbo',
-    name: '2.2 A14B Speech to Video Turbo',
+    name: 'Wan 2.2 A14B Speech to Video Turbo',
     family: 'Alibaba',
     category: 'video',
     mode: 'audio-to-video',
@@ -3708,7 +3708,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-2-a14b-text-to-video-turbo',
-    name: '2.2 A14B Text to Video Turbo',
+    name: 'Wan 2.2 A14B Text to Video Turbo',
     family: 'Alibaba',
     category: 'video',
     mode: 'text-to-video',
@@ -3770,7 +3770,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-2-animate-move',
-    name: 'Animate Move',
+    name: 'Wan 2.2 Animate Move',
     family: 'Alibaba',
     category: 'video',
     mode: 'video-to-video',
@@ -3817,7 +3817,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-5-image-to-video',
-    name: 'Wan 2.5 - Image to Video',
+    name: 'Wan 2.5 Image to Video',
     family: 'Alibaba',
     category: 'video',
     mode: 'image-to-video',
@@ -3958,7 +3958,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-6-flash-image-to-video',
-    name: '2.6-flash-image-to-video',
+    name: 'Wan 2.6 Flash Image to Video',
     family: 'Alibaba',
     category: 'video',
     mode: 'image-to-video',
@@ -4028,7 +4028,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-6-flash-video-to-video',
-    name: '2-6-flash-video-to-video',
+    name: 'Wan 2.6 Flash Video to Video',
     family: 'Alibaba',
     category: 'video',
     mode: 'video-to-video',
@@ -4097,7 +4097,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-6-image-to-video',
-    name: 'Wan 2.6 - Image to Video',
+    name: 'Wan 2.6 Image to Video',
     family: 'Alibaba',
     category: 'video',
     mode: 'image-to-video',
@@ -4158,7 +4158,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-6-text-to-video',
-    name: 'Wan 2.6 - Text to Video',
+    name: 'Wan 2.6 Text to Video',
     family: 'Alibaba',
     category: 'video',
     mode: 'text-to-video',
@@ -4210,7 +4210,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-6-video-to-video',
-    name: 'Wan 2.6 - Video to Video',
+    name: 'Wan 2.6 Video to Video',
     family: 'Alibaba',
     category: 'video',
     mode: 'video-to-video',
@@ -4443,7 +4443,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-7-r2v',
-    name: 'Wan 2.7 - Reference to Video',
+    name: 'Wan 2.7 Reference to Video',
     family: 'Alibaba',
     category: 'video',
     mode: 'text-to-video',
@@ -4544,7 +4544,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/2-7-videoedit',
-    name: 'Wan 2.7 - Video Edit',
+    name: 'Wan 2.7 Video Edit',
     family: 'Alibaba',
     category: 'video',
     mode: 'video-to-video',
@@ -4648,7 +4648,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/3-0-video',
-    name: 'Wan 3.0 - Video',
+    name: 'Wan 3.0 Video',
     family: 'Alibaba',
     category: 'video',
     mode: 'image-to-video',
@@ -4734,7 +4734,7 @@ export const GENERATED: ModelDef[] = [
   },
   {
     id: 'wan/3-0-video-prime',
-    name: 'Wan 3.0 - Video Prime',
+    name: 'Wan 3.0 Video Prime',
     family: 'Alibaba',
     category: 'video',
     mode: 'image-to-video',
