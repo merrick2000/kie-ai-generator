@@ -1,14 +1,16 @@
 'use client'
 
-import { Check, ChevronDown, Search, Sparkles, TrendingUp, X } from 'lucide-react'
+import { Check, ChevronDown, Pin, Search, Sparkles, TrendingUp, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import {
   CATEGORIES,
   MODELS,
+  MODES,
   getModel,
   type ModelCategory,
   type ModelDef,
+  type ModelMode,
 } from '@/lib/kie/catalog'
 import { cn } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
@@ -43,9 +45,13 @@ const SPEED_TONE: Record<ModelDef['speed'], string> = {
 
 export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps) {
   const usage = useStudio((s) => s.usage)
+  const pinned = useStudio((s) => s.pinnedModels)
+  const togglePinned = useStudio((s) => s.togglePinnedModel)
+
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<ModelCategory | 'all'>('all')
+  const [mode, setMode] = useState<ModelMode | 'all'>('all')
   const panelRef = useRef<HTMLDivElement>(null)
 
   const active = getModel(modelId)
@@ -74,6 +80,7 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
 
     return LISTED.filter((m) => {
       if (category !== 'all' && m.category !== category) return false
+      if (mode !== 'all' && m.mode !== mode) return false
       if (!q) return true
       return (
         m.name.toLowerCase().includes(q) ||
@@ -83,12 +90,31 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
         m.mode.includes(q)
       )
     })
-  }, [category, query])
+  }, [category, mode, query])
 
   // Featured models lead each list; the rest keep catalog order.
   const ordered = useMemo(
     () => [...results].sort((a, b) => Number(b.featured ?? false) - Number(a.featured ?? false)),
     [results],
+  )
+
+  /**
+   * Only the modes that exist inside the chosen category.
+   *
+   * With sixty video models, "image to video" is the question people
+   * actually have, and offering "text to audio" while Video is selected
+   * would be a filter that always returns nothing.
+   */
+  const modes = useMemo(() => {
+    const available = new Set(
+      LISTED.filter((m) => category === 'all' || m.category === category).map((m) => m.mode),
+    )
+    return MODES.filter((m) => available.has(m.id))
+  }, [category])
+
+  const pinnedModels = useMemo(
+    () => results.filter((m) => pinned.includes(m.id)),
+    [results, pinned],
   )
 
   /**
@@ -178,7 +204,10 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
                 <button
                   key={id}
                   type="button"
-                  onClick={() => setCategory(id)}
+                  onClick={() => {
+                    setCategory(id)
+                    setMode('all')
+                  }}
                   className={cn(
                     'shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-medium transition-colors',
                     isActive
@@ -192,11 +221,69 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
             })}
           </div>
 
+          {modes.length > 1 && (
+            <div className="rule flex gap-1 overflow-x-auto px-2 py-2 no-scrollbar">
+              <button
+                type="button"
+                onClick={() => setMode('all')}
+                className={cn(
+                  'shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors',
+                  mode === 'all'
+                    ? 'bg-overlay text-ink'
+                    : 'text-ink-faint hover:bg-raised hover:text-ink',
+                )}
+              >
+                Any input
+              </button>
+              {modes.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setMode(m.id)}
+                  className={cn(
+                    'shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors',
+                    mode === m.id
+                      ? 'bg-overlay text-ink'
+                      : 'text-ink-faint hover:bg-raised hover:text-ink',
+                  )}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="max-h-[min(52vh,420px)] overflow-y-auto p-1.5">
             {ordered.length === 0 && (
               <p className="px-3 py-8 text-center text-sm text-ink-faint">
                 No model matches “{query}”.
               </p>
+            )}
+
+            {pinnedModels.length > 0 && !query && (
+              <>
+                <p className="flex items-center gap-1.5 px-2.5 pb-1 pt-2 text-[10px] font-medium uppercase tracking-[0.08em] text-ink-faint">
+                  <Pin className="size-3" />
+                  Pinned
+                </p>
+                {pinnedModels.map((m) => (
+                  <Row
+                    key={`pin-${m.id}`}
+                    model={m}
+                    selected={m.id === modelId}
+                    pinned
+                    onTogglePin={() => togglePinned(m.id)}
+                    onSelect={() => {
+                      onSelect(m.id)
+                      setOpen(false)
+                      setQuery('')
+                    }}
+                  />
+                ))}
+                <p className="px-2.5 pb-1 pt-3 text-[10px] font-medium uppercase tracking-[0.08em] text-ink-faint">
+                  Everything else
+                </p>
+              </>
             )}
 
             {shortlist.length > 0 && !query && (
@@ -210,6 +297,8 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
                     key={`top-${model.id}`}
                     model={model}
                     selected={model.id === modelId}
+                    pinned={pinned.includes(model.id)}
+                    onTogglePin={() => togglePinned(model.id)}
                     note={`${stats.succeeded} run${stats.succeeded === 1 ? '' : 's'} here`}
                     onSelect={() => {
                       onSelect(model.id)
@@ -229,6 +318,8 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
                 key={m.id}
                 model={m}
                 selected={m.id === modelId}
+                pinned={pinned.includes(m.id)}
+                onTogglePin={() => togglePinned(m.id)}
                 onSelect={() => {
                   onSelect(m.id)
                   setOpen(false)
@@ -246,20 +337,27 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
 interface RowProps {
   model: ModelDef
   selected: boolean
+  pinned?: boolean
+  onTogglePin?: () => void
   /** Replaces the speed hint when there is something better to say. */
   note?: string
   onSelect: () => void
 }
 
-function Row({ model, selected, note, onSelect }: RowProps) {
+function Row({ model, selected, pinned, onTogglePin, note, onSelect }: RowProps) {
   return (
+    // A row rather than a button, since the pin is a control of its own and
+    // one button cannot live inside another.
+    <div
+      className={cn(
+        'group/model flex items-start rounded-xl transition-colors',
+        selected ? 'bg-overlay' : 'hover:bg-raised',
+      )}
+    >
     <button
       type="button"
       onClick={onSelect}
-      className={cn(
-        'flex w-full items-start gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors',
-        selected ? 'bg-overlay' : 'hover:bg-raised',
-      )}
+      className="flex min-w-0 flex-1 items-start gap-3 px-2.5 py-2.5 text-left"
     >
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
@@ -293,5 +391,24 @@ function Row({ model, selected, note, onSelect }: RowProps) {
       </span>
       {selected && <Check className="mt-1 size-4 shrink-0 text-accent" />}
     </button>
+
+      {onTogglePin && (
+        <button
+          type="button"
+          onClick={onTogglePin}
+          aria-label={pinned ? `Unpin ${model.name}` : `Pin ${model.name}`}
+          aria-pressed={pinned}
+          title={pinned ? 'Unpin' : 'Keep at the top of this list'}
+          className={cn(
+            'mr-1.5 mt-2 grid size-7 shrink-0 place-items-center rounded-lg transition-all',
+            pinned
+              ? 'text-accent'
+              : 'text-ink-faint opacity-0 hover:text-ink focus-visible:opacity-100 group-hover/model:opacity-100 max-sm:opacity-100',
+          )}
+        >
+          <Pin className={cn('size-3.5', pinned && 'fill-current')} />
+        </button>
+      )}
+    </div>
   )
 }

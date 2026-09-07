@@ -3,6 +3,7 @@
 import { Sparkles, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { useCompletionAlerts } from '@/hooks/useCompletionAlerts'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { cn } from '@/lib/utils'
 import { Canvas } from './Canvas'
@@ -26,6 +27,10 @@ export function Studio() {
   // One sync loop for the whole studio. Mounted here rather than per card,
   // so the number of requests does not grow with the size of the gallery.
   useWorkspace()
+
+  // Says when a run finishes, in the tab title and in a toast, so a ten
+  // minute render does not have to be watched.
+  useCompletionAlerts()
 
   useEffect(() => {
     const query = window.matchMedia(NARROW)

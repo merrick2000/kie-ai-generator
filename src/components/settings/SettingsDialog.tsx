@@ -1,6 +1,7 @@
 'use client'
 
 import {
+  Bell,
   ExternalLink,
   KeyRound,
   Loader2,
@@ -16,6 +17,7 @@ import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 
 import { ApiKeyForm } from '@/components/onboarding/ApiKeyForm'
+import { requestCompletionAlerts } from '@/hooks/useCompletionAlerts'
 import { BillingTab } from './BillingTab'
 import { Button } from '@/components/ui/Button'
 import { useCredits } from '@/hooks/useCredits'
@@ -381,10 +383,12 @@ function DefaultsTab() {
   const selectModel = useStudio((s) => s.selectModel)
   const current = getModel(modelId)
 
-  const grouped = ['image', 'video', 'audio', 'utility'] as const
+  const grouped = ['image', 'video', 'audio', 'text', 'utility'] as const
 
   return (
     <div className="space-y-5">
+      <NotificationSetting />
+
       <div>
         <label
           htmlFor="default-model"
@@ -452,6 +456,50 @@ function Row({
       >
         {value}
       </dd>
+    </div>
+  )
+}
+
+/**
+ * Asking to be told when a render finishes.
+ *
+ * The permission prompt is fired from this button rather than on load. An
+ * unprompted one is the fastest way to have somebody deny it for good, and a
+ * denial cannot be undone from the page.
+ */
+function NotificationSetting() {
+  const [state, setState] = useState<NotificationPermission | 'unsupported'>(
+    () => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission),
+  )
+
+  if (state === 'unsupported') return null
+
+  return (
+    <div className="rounded-xl border border-line bg-raised p-4">
+      <p className="text-[13px] font-medium text-ink">When a run finishes</p>
+      <p className="mt-1 text-[12px] leading-relaxed text-ink-muted">
+        The tab title always carries the number still running. A system
+        notification goes further, and only fires while this tab is in the
+        background.
+      </p>
+
+      {state === 'granted' ? (
+        <p className="mt-3 text-[12px] text-ok">Notifications are on.</p>
+      ) : state === 'denied' ? (
+        <p className="mt-3 text-[12px] text-ink-faint">
+          Blocked for this site. Your browser's site settings can undo that;
+          this page cannot ask again.
+        </p>
+      ) : (
+        <Button
+          size="sm"
+          className="mt-3"
+          onClick={async () => setState(await requestCompletionAlerts())}
+        >
+          <Bell className="size-3.5" />
+          Notify me
+        </Button>
+      )}
     </div>
   )
 }

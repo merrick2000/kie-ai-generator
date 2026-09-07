@@ -2,6 +2,7 @@
 
 import {
   ChevronDown,
+  Columns2,
   ImageIcon,
   Loader2,
   PanelLeftOpen,
@@ -10,19 +11,21 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/Button'
 import { CATEGORIES, type ModelCategory } from '@/lib/kie/catalog'
 import { useGeneration } from '@/hooks/useGeneration'
 import { cn } from '@/lib/utils'
 import {
+  comparedJobs,
   selectActiveCount,
   selectFocusedJob,
   useStudio,
   type GallerySort,
   type GalleryStatus,
 } from '@/store/studio'
+import { CompareView } from './CompareView'
 import { JobCard } from './JobCard'
 import { ProjectBanner } from './ProjectSwitcher'
 import { Viewer } from './Viewer'
@@ -83,6 +86,17 @@ export function Canvas({
   const hasMore = useStudio((s) => s.hasMore)
   const loadMore = useStudio((s) => s.loadMore)
   const running = useStudio(selectActiveCount)
+
+  const selectedIds = useStudio((s) => s.selectedJobIds)
+  // Derived here rather than in a selector: a selector that builds an array
+  // gives Zustand a new snapshot every render and the page stops responding.
+  const compared = useMemo(() => comparedJobs(jobs, selectedIds), [jobs, selectedIds])
+  const comparing = useStudio((s) => s.comparing)
+  const toggleSelected = useStudio((s) => s.toggleSelected)
+  const selectJobs = useStudio((s) => s.selectJobs)
+  const clearSelection = useStudio((s) => s.clearSelection)
+  const setComparing = useStudio((s) => s.setComparing)
+
   const { cancel } = useGeneration()
 
   const [showFilters, setShowFilters] = useState(false)
@@ -103,7 +117,7 @@ export function Canvas({
     Boolean(filters.search)
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0 flex-col">
       <div className="rule flex shrink-0 flex-wrap items-center gap-2 px-3 py-2.5 sm:px-4">
         {showComposerButton && !composerOpen && (
           <button
@@ -168,6 +182,18 @@ export function Canvas({
         </span>
 
         <span className="flex-1" />
+
+        {jobs.length > 0 && selectedIds.length === 0 && (
+          <Button
+            size="sm"
+            variant="ghost"
+            title="Pick the four most recent results to compare"
+            onClick={() => selectJobs(jobs.slice(0, 4).map((j) => j.id))}
+          >
+            <Columns2 className="size-3.5" />
+            Compare
+          </Button>
+        )}
 
         {jobs.length > 0 && (
           <Button
@@ -277,6 +303,9 @@ export function Canvas({
                   job={job}
                   onOpen={() => focusJob(job.id)}
                   onCancel={cancel}
+                  selecting={selectedIds.length > 0}
+                  selected={selectedIds.includes(job.id)}
+                  onToggleSelected={() => toggleSelected(job.id)}
                 />
               ))}
             </div>
@@ -299,6 +328,50 @@ export function Canvas({
           </>
         )}
       </div>
+
+      {/*
+        A bar rather than a permanent toolbar: selection is a mode people
+        enter for a moment and leave, and a control that is always there for
+        something rarely done is clutter.
+      */}
+      {selectedIds.length > 0 && !comparing && (
+        <div className="animate-rise pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center p-4">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-full border border-line-bright bg-overlay/95 py-1.5 pl-4 pr-1.5 shadow-2xl shadow-black/50 backdrop-blur">
+            <span className="text-[12px] tabular-nums text-ink">
+              {selectedIds.length} selected
+            </span>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={clearSelection}
+              className="rounded-full"
+            >
+              Clear
+            </Button>
+
+            <Button
+              size="sm"
+              variant="primary"
+              className="rounded-full"
+              disabled={selectedIds.length < 2}
+              title={
+                selectedIds.length < 2
+                  ? 'Pick at least two to compare them'
+                  : 'Side by side, at matching size'
+              }
+              onClick={() => setComparing(true)}
+            >
+              <Columns2 className="size-3.5" />
+              Compare
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {comparing && compared.length > 0 && (
+        <CompareView jobs={compared} onClose={() => setComparing(false)} />
+      )}
 
       {focused && <Viewer job={focused} onClose={() => focusJob(null)} />}
     </div>

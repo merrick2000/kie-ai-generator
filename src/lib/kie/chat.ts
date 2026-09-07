@@ -58,6 +58,11 @@ export interface ChatResult {
 
 /** Where the request goes. Only two transports vary the path by model. */
 function urlFor(endpoint: ChatEndpoint): string {
+  // An explicit path wins: Kie serves the Codex models from
+  // /api/v1/responses while the rest of the Responses family sits under
+  // /codex/v1/responses.
+  if (endpoint.url) return `${API_BASE}${endpoint.url}`
+
   switch (endpoint.transport) {
     case 'openai-responses':
       return `${API_BASE}/codex/v1/responses`

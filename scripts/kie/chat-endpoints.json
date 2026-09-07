@@ -1,0 +1,172 @@
+{
+ "claude-fable-5": {
+  "doc": "market_claude_cluade-fable-5.md",
+  "path": "/claude/v1/messages",
+  "title": "Claude Fable 5"
+ },
+ "claude-haiku-4-5": {
+  "doc": "market_claude_claude-haiku-4-5.md",
+  "path": "/claude/v1/messages",
+  "title": "Claude Haiku 4.5"
+ },
+ "claude-opus-4-5": {
+  "doc": "market_claude_claude-opus-4-5.md",
+  "path": "/claude/v1/messages",
+  "title": "Claude Opus 4.5"
+ },
+ "claude-opus-4-6": {
+  "doc": "market_claude_claude-opus-4-6.md",
+  "path": "/claude/v1/messages",
+  "title": "Claude Opus 4.6"
+ },
+ "claude-opus-4-7": {
+  "doc": "market_claude_claude-opus-4-7.md",
+  "path": "/claude/v1/messages",
+  "title": "Claude Opus 4.7"
+ },
+ "claude-opus-4-8": {
+  "doc": "market_claude_claude-opus-4-8.md",
+  "path": "/claude/v1/messages",
+  "title": "Claude Opus 4.8"
+ },
+ "claude-opus-5": {
+  "doc": "market_claude_claude-opus-5.md",
+  "path": "/claude/v1/messages",
+  "title": "Claude Opus 5"
+ },
+ "claude-sonnet-4-5": {
+  "doc": "market_claude_claude-sonnet-4-5.md",
+  "path": "/claude/v1/messages",
+  "title": "Claude Sonnet 4.5"
+ },
+ "claude-sonnet-4-6": {
+  "doc": "market_claude_claude-sonnet-4-6.md",
+  "path": "/claude/v1/messages",
+  "title": "Claude Sonnet 4.6"
+ },
+ "claude-sonnet-5": {
+  "doc": "market_claude_cluade-sonnet-5.md",
+  "path": "/claude/v1/messages",
+  "title": "Claude Sonnet 5"
+ },
+ "gemini-2.5-flash": {
+  "doc": "market_gemini_gemini-2-5-flash.md",
+  "path": "/gemini-2.5-flash/v1/chat/completions",
+  "title": "Gemini 2.5 Flash (openai)"
+ },
+ "gemini-2.5-pro": {
+  "doc": "market_gemini_gemini-2-5-pro.md",
+  "path": "/gemini-2.5-pro/v1/chat/completions",
+  "title": "Gemini  2.5 Pro (openai)"
+ },
+ "gemini-3-5-flash-openai": {
+  "doc": "market_gemini_gemini-3-5-flash-openai.md",
+  "path": "/gemini-3-5-flash-openai/v1/chat/completions",
+  "title": "Gemini 3.5 Flash (openai)"
+ },
+ "gemini-3-6-flash-openai": {
+  "doc": "market_gemini_gemini-3-6-flash-openai.md",
+  "path": "/gemini-3-6-flash-openai/v1/chat/completions",
+  "title": "Gemini 3.6 Flash (openai)"
+ },
+ "gemini-3-7-flash-openai": {
+  "doc": "market_gemini_gemini-3-7-flash-openai.md",
+  "path": "/gemini-3-7-flash-openai/v1/chat/completions",
+  "title": "Gemini 3.7 Flash (openai)"
+ },
+ "gemini-3-8-flash-openai": {
+  "doc": "market_gemini_gemini-3-8-flash-openai.md",
+  "path": "/gemini-3-8-flash-openai/v1/chat/completions",
+  "title": "Gemini 3.8 Flash (openai)"
+ },
+ "gemini-3-flash": {
+  "doc": "market_gemini_gemini-3-flash.md",
+  "path": "/gemini-3-flash/v1/chat/completions",
+  "title": "Gemini 3 Flash (openai)"
+ },
+ "gemini-3-pro": {
+  "doc": "market_gemini_gemini-3-pro.md",
+  "path": "/gemini-3-pro/v1/chat/completions",
+  "title": "Gemini 3 Pro (openai)"
+ },
+ "gemini-3.1-pro": {
+  "doc": "market_gemini_gemini-3-1-pro.md",
+  "path": "/gemini-3.1-pro/v1/chat/completions",
+  "title": "Gemini 3.1 Pro (openai)"
+ },
+ "gpt-5-2": {
+  "doc": "market_chat_gpt-5-2.md",
+  "path": "/gpt-5-2/v1/chat/completions",
+  "title": "GPT 5.2"
+ },
+ "gpt-5-4": {
+  "doc": "market_chat_gpt-5-4.md",
+  "path": "/codex/v1/responses",
+  "title": "GPT 5.4 (response)"
+ },
+ "gpt-5-5": {
+  "doc": "market_chat_gpt-5-5.md",
+  "path": "/codex/v1/responses",
+  "title": "GPT 5.5 (response)"
+ },
+ "gpt-5-6-luna": {
+  "doc": "market_chat_gpt-5-6-luna.md",
+  "path": "/codex/v1/responses",
+  "title": "GPT 5.6 Luna"
+ },
+ "gpt-5-6-sol": {
+  "doc": "market_chat_gpt-5-6-sol.md",
+  "path": "/codex/v1/responses",
+  "title": "GPT 5.6 Sol"
+ },
+ "gpt-5-6-terra": {
+  "doc": "market_chat_gpt-5-6-terra.md",
+  "path": "/codex/v1/responses",
+  "title": "GPT 5.6 Terra"
+ },
+ "gpt-5-codex": {
+  "doc": "market_codex_gpt-codex.md",
+  "path": "/api/v1/responses",
+  "title": "GPT Codex"
+ },
+ "gpt-5.1-codex": {
+  "doc": "market_codex_gpt-codex.md",
+  "path": "/api/v1/responses",
+  "title": "GPT Codex"
+ },
+ "gpt-5.2-codex": {
+  "doc": "market_codex_gpt-codex.md",
+  "path": "/api/v1/responses",
+  "title": "GPT Codex"
+ },
+ "gpt-5.3-codex": {
+  "doc": "market_codex_gpt-codex.md",
+  "path": "/api/v1/responses",
+  "title": "GPT Codex"
+ },
+ "gpt-5.4-codex": {
+  "doc": "market_codex_gpt-codex.md",
+  "path": "/api/v1/responses",
+  "title": "GPT Codex"
+ },
+ "gpt-6-astra": {
+  "doc": "market_chat_gpt-6-astra.md",
+  "path": "/codex/v1/responses",
+  "title": "Gpt 6 Astra"
+ },
+ "grok-4-3": {
+  "doc": "market_grok_grok-4-3.md",
+  "path": "/grok/v1/responses",
+  "title": "Grok 4.3"
+ },
+ "grok-4-5": {
+  "doc": "market_grok_grok-4-5.md",
+  "path": "/grok/v1/responses",
+  "title": "Grok 4.5"
+ },
+ "grok-4-6": {
+  "doc": "market_grok_grok-4-6.md",
+  "path": "/grok/v1/responses",
+  "title": "Grok 4.6"
+ }
+}

@@ -10,6 +10,7 @@
  */
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 
 import { __internal } from '../src/lib/kie/chat'
 import type { ChatEndpoint } from '../src/lib/kie/chat-types'
@@ -53,7 +54,54 @@ const GROK: ChatEndpoint = {
   webSearch: 'web_search',
 }
 
+/**
+ * What Kie publishes, from the same pages the market snapshot comes from.
+ *
+ * Chat models put their parameters at the top level rather than under
+ * `input`, so `test-schemas.mts` cannot speak for them. This is the same
+ * guarantee for the other half of the catalog: a slug nobody documents is a
+ * request that gets refused.
+ */
+const endpoints = JSON.parse(
+  readFileSync(new URL('./kie/chat-endpoints.json', import.meta.url), 'utf8'),
+) as Record<string, { path: string; title: string }>
+
 console.log('\nchat catalog')
+
+check('every chat model reaches an endpoint Kie documents', () => {
+  // The URL is the identity here, not the model string. The OpenAI-shaped
+  // routes name the model in the path and omit it from the body entirely,
+  // so a wrong path is the failure that matters.
+  const documented = new Set(Object.values(endpoints).map((e) => e.path))
+  const wrong: string[] = []
+
+  for (const model of chatModels) {
+    const path = new URL(urlFor(model.chat!)).pathname
+    if (!documented.has(path)) wrong.push(`${model.id}: ${path}`)
+  }
+
+  assert.deepEqual(
+    wrong,
+    [],
+    `no documented endpoint serves these:\n  ${wrong.join('\n  ')}`,
+  )
+})
+
+check('a model named in the body is one Kie names too', () => {
+  // The transports that do send `model` are checked against the slugs their
+  // own pages list. openai-chat is exempt: it sends none.
+  const unknown = chatModels
+    .filter((m) => m.chat!.transport !== 'openai-chat')
+    .map((m) => m.chat!.model)
+    .filter((slug) => !(slug in endpoints))
+
+  assert.deepEqual(unknown, [], `not documented: ${unknown.join(', ')}`)
+})
+
+check('the catalog reports how much of the chat range it covers', () => {
+  console.log(`      ${chatModels.length} of ${Object.keys(endpoints).length} chat models`)
+  assert.ok(chatModels.length > 0)
+})
 
 check('every chat model carries an endpoint', () => {
   assert.ok(chatModels.length > 0, 'no chat models in the catalog')

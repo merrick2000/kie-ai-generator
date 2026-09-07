@@ -1,7 +1,7 @@
 'use client'
 
 import { Images, Link2, Loader2, Plus, X } from 'lucide-react'
-import { useCallback, useRef, useState, type DragEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/Button'
@@ -57,6 +57,7 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
     )
   })
   const inputRef = useRef<HTMLInputElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   const commit = useCallback(
     (next: string[]) => onChange(multiple ? next.slice(0, max) : (next[0] ?? '')),
@@ -112,7 +113,14 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
   const isVideo = field.kind === 'video' || field.kind === 'videos'
 
   return (
-    <div className="space-y-2.5">
+    // `data-paste-target` marks the controls that could take a pasted file.
+    // The handler above lets the first one in the document claim it, so a
+    // model with several reference fields does not fill them all at once.
+    <div
+      ref={rootRef}
+      data-paste-target={!full && isVisual ? 'true' : undefined}
+      className="space-y-2.5"
+    >
       {urls.length > 0 && (
         <div
           className={cn(

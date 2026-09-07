@@ -2001,6 +2001,128 @@ const AUDIO: ModelDef[] = [
   },
 ]
 
+/**
+ * Build a language model entry.
+ *
+ * These differ from each other in about four fields, and writing thirty-four
+ * of them out longhand would be thirty-four chances to mistype a slug. The
+ * form each one shows is decided by what its transport supports rather than
+ * by hand: only vision models get an attachment field, only models with
+ * reasoning levels get the effort menu.
+ */
+function chatModel(input: {
+  slug: string
+  name: string
+  family: string
+  tagline: string
+  chat: ChatEndpoint
+  speed?: ModelDef['speed']
+  featured?: boolean
+  badges?: string[]
+  /** Longest prompt the endpoint accepts. */
+  maxPrompt?: number
+}): ModelDef {
+  const { chat } = input
+  const badges = [
+    ...(input.badges ?? []),
+    ...(chat.vision ? ['Vision'] : []),
+    ...(chat.webSearch ? ['Search'] : []),
+  ]
+
+  return {
+    id: `chat/${input.slug}`,
+    name: input.name,
+    family: input.family,
+    category: 'text',
+    mode: 'text-to-text',
+    api: 'chat',
+    output: 'text',
+    tagline: input.tagline,
+    speed: input.speed ?? 'balanced',
+    ...(input.featured ? { featured: true } : {}),
+    ...(badges.length ? { badges } : {}),
+    chat,
+    fields: [
+      prompt({
+        maxLength: input.maxPrompt ?? 100000,
+        placeholder: 'Ask anything, or paste a document to work on…',
+      }),
+      systemPrompt(),
+      ...(chat.vision
+        ? [
+            optionalReference(6, {
+              name: 'image_urls',
+              label: 'Attachments',
+              description:
+                'Optional. Images, and on these endpoints also video, audio or PDF.',
+              accepts: 'JPEG, PNG, WebP, PDF, MP4, MP3',
+              maxSizeMb: 50,
+            }),
+          ]
+        : []),
+      ...(chat.effortLevels?.length
+        ? [reasoningEffort(chat.effortLevels, chat.effortLevels.at(-1))]
+        : []),
+      ...(chat.webSearch ? [webSearchToggle()] : []),
+      // Anthropic's endpoint has no default of its own and refuses a request
+      // without one, so the field is always present there.
+      ...(chat.transport === 'anthropic-messages'
+        ? [maxTokens(chat.maxTokens ?? 8192, 64000)]
+        : []),
+    ],
+  }
+}
+
+/** Every model on `/claude/v1/messages`, newest first. */
+const CLAUDE: [slug: string, name: string, tagline: string, speed?: ModelDef['speed']][] = [
+  ['claude-opus-5', 'Claude Opus 5', 'The strongest reasoning on offer. Long documents, hard problems.', 'slow'],
+  ['claude-sonnet-5', 'Claude Sonnet 5', 'The everyday workhorse. Nearly Opus quality at a fraction of the wait.'],
+  ['claude-fable-5', 'Claude Fable 5', 'Tuned for writing that has to read well rather than merely be correct.'],
+  ['claude-opus-4-8', 'Claude Opus 4.8', 'The previous Opus. Still the pick for work that must not be wrong.', 'slow'],
+  ['claude-opus-4-7', 'Claude Opus 4.7', 'An older Opus, kept for prompts already tuned against it.', 'slow'],
+  ['claude-opus-4-6', 'Claude Opus 4.6', 'An older Opus, kept for reproducibility.', 'slow'],
+  ['claude-opus-4-5', 'Claude Opus 4.5', 'The oldest Opus still served here.', 'slow'],
+  ['claude-sonnet-4-6', 'Claude Sonnet 4.6', 'The previous Sonnet. Cheap, quick, and good enough for most drafts.'],
+  ['claude-sonnet-4-5', 'Claude Sonnet 4.5', 'An older Sonnet, kept for prompts already tuned against it.'],
+  ['claude-haiku-4-5', 'Claude Haiku 4.5', 'Fast and cheap. Right for rewrites, extraction and short answers.', 'fast'],
+]
+
+/**
+ * Gemini through the OpenAI-shaped route.
+ *
+ * Kie also exposes a native streaming route for several of these. The
+ * OpenAI-shaped one is used because it answers in a single response, which is
+ * what a job row needs.
+ */
+const GEMINI: [slug: string, path: string, name: string, tagline: string, speed?: ModelDef['speed']][] = [
+  ['gemini-3.1-pro', 'gemini-3.1-pro', 'Gemini 3.1 Pro', 'Google\'s newest Pro. Very long context, grounded in Search on request.'],
+  ['gemini-3-pro', 'gemini-3-pro', 'Gemini 3 Pro', 'Very long context, grounded in Google Search when you ask for it.'],
+  ['gemini-3-8-flash', 'gemini-3-8-flash-openai', 'Gemini 3.8 Flash', 'The cheapest way to run text through a capable model at volume.', 'fast'],
+  ['gemini-3-7-flash', 'gemini-3-7-flash-openai', 'Gemini 3.7 Flash', 'The previous Flash. Cheaper still, and rarely worse for simple work.', 'fast'],
+  ['gemini-3-6-flash', 'gemini-3-6-flash-openai', 'Gemini 3.6 Flash', 'An older Flash, kept for prompts already tuned against it.', 'fast'],
+  ['gemini-3-5-flash', 'gemini-3-5-flash-openai', 'Gemini 3.5 Flash', 'An older Flash, kept for reproducibility.', 'fast'],
+  ['gemini-3-flash', 'gemini-3-flash', 'Gemini 3 Flash', 'The first of the 3 series. Fast, and cheap enough to batch.', 'fast'],
+  ['gemini-2.5-pro', 'gemini-2.5-pro', 'Gemini 2.5 Pro', 'Proven long-context reasoning, at a price the 3 series has undercut.'],
+  ['gemini-2.5-flash', 'gemini-2.5-flash', 'Gemini 2.5 Flash', 'Proven and inexpensive. A safe default for bulk text work.', 'fast'],
+]
+
+/** OpenAI's Responses models. Two paths, same shape. */
+const OPENAI_RESPONSES: [slug: string, name: string, tagline: string, url?: string, speed?: ModelDef['speed']][] = [
+  ['gpt-6-astra', 'GPT 6 Astra', 'OpenAI\'s newest. The one to reach for when the answer has to be right.', undefined, 'slow'],
+  ['gpt-5-6-sol', 'GPT 5.6 Sol', 'Four levels of deliberation, up to xhigh for the hardest asks.', undefined, 'slow'],
+  ['gpt-5-6-terra', 'GPT 5.6 Terra', 'The grounded 5.6. Steadier on factual work than its siblings.'],
+  ['gpt-5-6-luna', 'GPT 5.6 Luna', 'The lighter 5.6. Quick turnarounds without dropping to a mini model.'],
+  ['gpt-5-5', 'GPT 5.5', 'The previous generation, kept for prompts already tuned against it.'],
+  ['gpt-5-4', 'GPT 5.4', 'An older GPT 5, kept for reproducibility.'],
+  ['gpt-5.4-codex', 'GPT 5.4 Codex', 'Codex tuning: writes and reviews code rather than prose.', '/api/v1/responses'],
+  ['gpt-5.3-codex', 'GPT 5.3 Codex', 'The previous Codex.', '/api/v1/responses'],
+  ['gpt-5.2-codex', 'GPT 5.2 Codex', 'An older Codex, kept for reproducibility.', '/api/v1/responses'],
+  ['gpt-5.1-codex', 'GPT 5.1 Codex', 'An older Codex.', '/api/v1/responses'],
+  ['gpt-5-codex', 'GPT 5 Codex', 'The first Codex on this API.', '/api/v1/responses'],
+]
+
+const EFFORT_FOUR = ['low', 'medium', 'high', 'xhigh']
+
 /* ────────────────────────────────────────────────────────────────────────────
  * TEXT, language models
  *
@@ -2010,72 +2132,49 @@ const AUDIO: ModelDef[] = [
  * ──────────────────────────────────────────────────────────────────────────*/
 
 const TEXT: ModelDef[] = [
-  {
-    id: 'chat/claude-opus-5',
-    name: 'Claude Opus 5',
-    family: 'Anthropic',
-    category: 'text',
-    mode: 'text-to-text',
-    api: 'chat',
-    output: 'text',
-    tagline: 'The strongest reasoning on offer. Long documents, hard problems.',
-    speed: 'slow',
-    featured: true,
-    badges: ['Reasoning'],
-    chat: { transport: 'anthropic-messages', model: 'claude-opus-5', maxTokens: 16384 },
-    fields: [
-      prompt({ maxLength: 200000, placeholder: 'Ask anything, or paste a document to work on…' }),
-      systemPrompt(),
-      maxTokens(16384, 64000),
-    ],
-  },
-  {
-    id: 'chat/claude-sonnet-5',
-    name: 'Claude Sonnet 5',
-    family: 'Anthropic',
-    category: 'text',
-    mode: 'text-to-text',
-    api: 'chat',
-    output: 'text',
-    tagline: 'The everyday workhorse. Nearly Opus quality at a fraction of the wait.',
-    speed: 'balanced',
-    featured: true,
-    chat: { transport: 'anthropic-messages', model: 'claude-sonnet-5', maxTokens: 16384 },
-    fields: [
-      prompt({ maxLength: 200000, placeholder: 'Ask anything, or paste a document to work on…' }),
-      systemPrompt(),
-      maxTokens(16384, 64000),
-    ],
-  },
-  {
-    id: 'chat/claude-haiku-4-5',
-    name: 'Claude Haiku 4.5',
-    family: 'Anthropic',
-    category: 'text',
-    mode: 'text-to-text',
-    api: 'chat',
-    output: 'text',
-    tagline: 'Fast and cheap. Right for rewrites, extraction and short answers.',
-    speed: 'fast',
-    chat: { transport: 'anthropic-messages', model: 'claude-haiku-4-5', maxTokens: 8192 },
-    fields: [
-      prompt({ maxLength: 200000, placeholder: 'Ask anything…' }),
-      systemPrompt(),
-      maxTokens(8192, 32000),
-    ],
-  },
-  {
-    id: 'chat/gpt-5-2',
+  ...CLAUDE.map(([slug, name, tagline, speed], i) =>
+    chatModel({
+      slug,
+      name,
+      family: 'Anthropic',
+      tagline,
+      speed,
+      featured: i === 0 || i === 1,
+      maxPrompt: 200000,
+      chat: {
+        transport: 'anthropic-messages',
+        model: slug,
+        maxTokens: slug.includes('haiku') ? 8192 : 16384,
+      },
+    }),
+  ),
+
+  ...GEMINI.map(([slug, path, name, tagline, speed], i) =>
+    chatModel({
+      slug,
+      name,
+      family: 'Google',
+      tagline,
+      speed,
+      featured: i === 1,
+      maxPrompt: 200000,
+      chat: {
+        transport: 'openai-chat',
+        model: slug,
+        path,
+        effortLevels: slug.includes('flash') ? ['low', 'high'] : undefined,
+        webSearch: 'googleSearch',
+        vision: true,
+      },
+    }),
+  ),
+
+  chatModel({
+    slug: 'gpt-5-2',
     name: 'GPT 5.2',
     family: 'OpenAI',
-    category: 'text',
-    mode: 'text-to-text',
-    api: 'chat',
-    output: 'text',
     tagline: 'Reads images alongside the prompt, and can search the web.',
-    speed: 'balanced',
     featured: true,
-    badges: ['Vision', 'Search'],
     chat: {
       transport: 'openai-chat',
       model: 'gpt-5-2',
@@ -2084,190 +2183,43 @@ const TEXT: ModelDef[] = [
       webSearch: 'web_search',
       vision: true,
     },
-    fields: [
-      prompt({ maxLength: 100000, placeholder: 'Ask anything…' }),
-      systemPrompt(),
-      optionalReference(6, {
-        name: 'image_urls',
-        label: 'Attachments',
-        description: 'Optional. Images, and on this endpoint also video, audio or PDF.',
-        accepts: 'JPEG, PNG, WebP, PDF, MP4, MP3',
-        maxSizeMb: 50,
-      }),
-      reasoningEffort(['low', 'high'], 'high'),
-      webSearchToggle(),
-    ],
-  },
-  {
-    id: 'chat/gpt-5-6-sol',
-    name: 'GPT 5.6 Sol',
-    family: 'OpenAI',
-    category: 'text',
-    mode: 'text-to-text',
-    api: 'chat',
-    output: 'text',
-    tagline: 'Four levels of deliberation, up to xhigh for the hardest asks.',
-    speed: 'slow',
-    badges: ['Reasoning'],
-    chat: {
-      transport: 'openai-responses',
-      model: 'gpt-5-6-sol',
-      effortLevels: ['low', 'medium', 'high', 'xhigh'],
-      webSearch: 'web_search',
-    },
-    fields: [
-      prompt({ maxLength: 100000, placeholder: 'Ask anything…' }),
-      systemPrompt(),
-      reasoningEffort(['low', 'medium', 'high', 'xhigh'], 'medium'),
-      webSearchToggle(),
-    ],
-  },
-  {
-    id: 'chat/gpt-5-6-luna',
-    name: 'GPT 5.6 Luna',
-    family: 'OpenAI',
-    category: 'text',
-    mode: 'text-to-text',
-    api: 'chat',
-    output: 'text',
-    tagline: 'The lighter 5.6. Quick turnarounds without dropping to a mini model.',
-    speed: 'balanced',
-    chat: {
-      transport: 'openai-responses',
-      model: 'gpt-5-6-luna',
-      effortLevels: ['low', 'medium', 'high', 'xhigh'],
-      webSearch: 'web_search',
-    },
-    fields: [
-      prompt({ maxLength: 100000, placeholder: 'Ask anything…' }),
-      systemPrompt(),
-      reasoningEffort(['low', 'medium', 'high', 'xhigh'], 'low'),
-      webSearchToggle(),
-    ],
-  },
-  {
-    id: 'chat/gemini-3-pro',
-    name: 'Gemini 3 Pro',
-    family: 'Google',
-    category: 'text',
-    mode: 'text-to-text',
-    api: 'chat',
-    output: 'text',
-    tagline: 'Very long context, grounded in Google Search when you ask for it.',
-    speed: 'balanced',
-    featured: true,
-    badges: ['Vision', 'Search'],
-    chat: {
-      transport: 'openai-chat',
-      model: 'gemini-3-pro',
-      path: 'gemini-3-pro',
-      webSearch: 'googleSearch',
-      vision: true,
-    },
-    fields: [
-      prompt({ maxLength: 200000, placeholder: 'Ask anything, or paste a long document…' }),
-      systemPrompt(),
-      optionalReference(6, {
-        name: 'image_urls',
-        label: 'Attachments',
-        description: 'Optional. Images, video, audio or PDF, all through the same field.',
-        accepts: 'JPEG, PNG, WebP, PDF, MP4, MP3',
-        maxSizeMb: 50,
-      }),
-      webSearchToggle(),
-    ],
-  },
-  {
-    id: 'chat/gemini-3-8-flash',
-    name: 'Gemini 3.8 Flash',
-    family: 'Google',
-    category: 'text',
-    mode: 'text-to-text',
-    api: 'chat',
-    output: 'text',
-    tagline: 'The cheapest way to run text through a capable model at volume.',
-    speed: 'fast',
-    badges: ['Vision'],
-    chat: {
-      transport: 'openai-chat',
-      model: 'gemini-3-8-flash',
-      // Kie exposes the OpenAI-shaped route under its own slug, distinct from
-      // the native streaming one.
-      path: 'gemini-3-8-flash-openai',
-      effortLevels: ['low', 'high'],
-      webSearch: 'googleSearch',
-      vision: true,
-    },
-    fields: [
-      prompt({ maxLength: 200000, placeholder: 'Ask anything…' }),
-      systemPrompt(),
-      optionalReference(6, {
-        name: 'image_urls',
-        label: 'Attachments',
-        description: 'Optional. Images, video, audio or PDF, all through the same field.',
-        accepts: 'JPEG, PNG, WebP, PDF, MP4, MP3',
-        maxSizeMb: 50,
-      }),
-      reasoningEffort(['low', 'high'], 'high'),
-      webSearchToggle(),
-    ],
-  },
-  {
-    id: 'chat/gemini-2-5-flash',
-    name: 'Gemini 2.5 Flash',
-    family: 'Google',
-    category: 'text',
-    mode: 'text-to-text',
-    api: 'chat',
-    output: 'text',
-    tagline: 'Proven and inexpensive. A safe default for bulk text work.',
-    speed: 'fast',
-    chat: {
-      transport: 'openai-chat',
-      model: 'gemini-2.5-flash',
-      path: 'gemini-2.5-flash',
-      effortLevels: ['low', 'high'],
-      webSearch: 'googleSearch',
-      vision: true,
-    },
-    fields: [
-      prompt({ maxLength: 200000, placeholder: 'Ask anything…' }),
-      systemPrompt(),
-      optionalReference(6, {
-        name: 'image_urls',
-        label: 'Attachments',
-        description: 'Optional. Images, video, audio or PDF, all through the same field.',
-        accepts: 'JPEG, PNG, WebP, PDF, MP4, MP3',
-        maxSizeMb: 50,
-      }),
-      reasoningEffort(['low', 'high'], 'high'),
-      webSearchToggle(),
-    ],
-  },
-  {
-    id: 'chat/grok-4-6',
-    name: 'Grok 4.6',
-    family: 'xAI',
-    category: 'text',
-    mode: 'text-to-text',
-    api: 'chat',
-    output: 'text',
-    tagline: 'Blunt, current, and strong on anything that needs live search.',
-    speed: 'balanced',
-    badges: ['Search'],
-    chat: {
-      transport: 'grok-responses',
-      model: 'grok-4-6',
-      effortLevels: ['low', 'medium', 'high', 'xhigh'],
-      webSearch: 'web_search',
-    },
-    fields: [
-      prompt({ maxLength: 100000, placeholder: 'Ask anything…' }),
-      systemPrompt(),
-      reasoningEffort(['low', 'medium', 'high', 'xhigh'], 'medium'),
-      webSearchToggle(),
-    ],
-  },
+  }),
+
+  ...OPENAI_RESPONSES.map(([slug, name, tagline, url, speed], i) =>
+    chatModel({
+      slug,
+      name,
+      family: 'OpenAI',
+      tagline,
+      speed,
+      featured: i === 0,
+      chat: {
+        transport: 'openai-responses',
+        model: slug,
+        ...(url ? { url } : {}),
+        effortLevels: EFFORT_FOUR,
+        webSearch: 'web_search',
+      },
+    }),
+  ),
+
+  ...(['grok-4-6', 'grok-4-5', 'grok-4-3'] as const).map((slug, i) =>
+    chatModel({
+      slug,
+      name: `Grok ${slug.replace('grok-', '').replace('-', '.')}`,
+      family: 'xAI',
+      tagline:
+        i === 0
+          ? 'Blunt, current, and strong on anything that needs live search.'
+          : 'An earlier Grok, kept for prompts already tuned against it.',
+      chat: {
+        transport: 'grok-responses',
+        model: slug,
+        effortLevels: EFFORT_FOUR,
+        webSearch: 'web_search',
+      },
+    }),
+  ),
 ]
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -2406,6 +2358,309 @@ const UTILITY: ModelDef[] = [
  * Registry
  * ──────────────────────────────────────────────────────────────────────────*/
 
+/* ────────────────────────────────────────────────────────────────────────────
+ * STRUCTURED INPUT
+ *
+ * Four models want an array of objects rather than a flat value: a cast of
+ * speakers, a dialogue line by line, a shot list. They are written by hand
+ * rather than generated, because the generator has no way to guess how a
+ * repeatable group should read.
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+const STRUCTURED: ModelDef[] = [
+  {
+    id: 'elevenlabs/text-to-dialogue-v3',
+    name: 'ElevenLabs Dialogue v3',
+    family: 'ElevenLabs',
+    category: 'audio',
+    mode: 'text-to-audio',
+    api: 'market',
+    output: 'audio',
+    tagline: 'A conversation between several voices, not one narrator.',
+    speed: 'balanced',
+    badges: ['Multi-voice'],
+    fields: [
+      {
+        name: 'dialogue',
+        kind: 'list',
+        label: 'Dialogue',
+        description: 'Each line is spoken by the voice you give it, in order.',
+        required: true,
+        minItems: 1,
+        maxItems: 40,
+        itemLabel: 'Line',
+        item: [
+          elevenLabsVoice(),
+          {
+            name: 'text',
+            kind: 'textarea',
+            label: 'Line',
+            required: true,
+            maxLength: 2000,
+            placeholder: 'What this voice says…',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'google/gemini-3-1-flash-tts',
+    name: 'Gemini 3.1 Flash TTS',
+    family: 'Google',
+    category: 'audio',
+    mode: 'text-to-audio',
+    api: 'market',
+    output: 'audio',
+    tagline: 'Cast the speakers, then write the exchange between them.',
+    speed: 'fast',
+    badges: ['Multi-voice'],
+    fields: [
+      {
+        name: 'speakers',
+        kind: 'list',
+        label: 'Speakers',
+        description:
+          'The cast. Each one gets an id you then use in the turns below.',
+        required: true,
+        minItems: 1,
+        maxItems: 8,
+        itemLabel: 'Speaker',
+        item: [
+          {
+            name: 'speaker_id',
+            kind: 'text',
+            label: 'Id',
+            required: true,
+            placeholder: 'host',
+            description: 'Your own label. The turns below refer to it.',
+          },
+          {
+            name: 'voice_name',
+            kind: 'select',
+            label: 'Voice',
+            options: opts(
+              'Achernar', 'Achird', 'Algenib', 'Algieba', 'Alnilam', 'Aoede',
+              'Autonoe', 'Callirrhoe', 'Charon', 'Despina', 'Enceladus', 'Erinome',
+              'Fenrir', 'Gacrux', 'Iapetus', 'Kore', 'Laomedeia', 'Leda',
+              'Orus', 'Puck', 'Pulcherrima', 'Rasalgethi', 'Sadachbia',
+              'Sadaltager', 'Schedar', 'Sulafat', 'Umbriel', 'Vindemiatrix',
+              'Zephyr', 'Zubenelgenubi',
+            ),
+            default: 'Kore',
+          },
+          {
+            name: 'accent',
+            kind: 'select',
+            label: 'Accent',
+            options: opts(
+              'Neutral', 'American (Gen)', 'American (Valley)', 'American (South)',
+              'American (New York)', 'British (RP)', 'British (Cockney)',
+              'Australian', 'Irish', 'Scottish', 'Indian', 'French', 'German',
+              'Italian', 'Spanish', 'Russian', 'Japanese', 'Korean',
+            ),
+            default: 'Neutral',
+          },
+          {
+            name: 'style',
+            kind: 'select',
+            label: 'Style',
+            options: opts(
+              'Vocal Smile', 'Newscaster', 'Whisper', 'Empathetic', 'Promo/Hype',
+              'Deadpan', 'Storyteller', 'Instructional',
+            ),
+            default: 'Vocal Smile',
+            advanced: true,
+          },
+          {
+            name: 'pace',
+            kind: 'select',
+            label: 'Pace',
+            options: opts('Natural', 'Rapid Fire', 'The Drift', 'Staccato'),
+            default: 'Natural',
+            advanced: true,
+          },
+        ],
+      },
+      {
+        name: 'dialogue_turns',
+        kind: 'list',
+        label: 'Turns',
+        description: 'Who says what, in order.',
+        required: true,
+        minItems: 1,
+        maxItems: 60,
+        itemLabel: 'Turn',
+        item: [
+          {
+            name: 'speaker_id',
+            kind: 'text',
+            label: 'Speaker',
+            required: true,
+            placeholder: 'host',
+            description: 'One of the ids you gave above.',
+          },
+          {
+            name: 'text',
+            kind: 'textarea',
+            label: 'Line',
+            required: true,
+            maxLength: 2000,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'kling-3.0/video',
+    name: 'Kling 3',
+    family: 'Kuaishou',
+    category: 'video',
+    mode: 'text-to-video',
+    api: 'market',
+    output: 'video',
+    tagline: 'Kling 3 with a shot list: one prompt and duration per cut.',
+    speed: 'slow',
+    badges: ['4K', 'Sound'],
+    fields: [
+      prompt({ maxLength: 5000 }),
+      ratio(['16:9', '9:16', '1:1'], '16:9'),
+      {
+        name: 'mode',
+        kind: 'select',
+        label: 'Tier',
+        options: opts('std', 'pro', '4K'),
+        default: 'pro',
+      },
+      {
+        name: 'duration',
+        kind: 'select',
+        label: 'Duration',
+        options: opts(
+          '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15',
+        ),
+        default: '5',
+        description: 'Seconds.',
+      },
+      {
+        name: 'sound',
+        kind: 'toggle',
+        label: 'Generate sound',
+        default: false,
+      },
+      {
+        name: 'multi_shots',
+        kind: 'toggle',
+        label: 'Multiple shots',
+        description: 'Cut the result into the shots listed below.',
+        default: false,
+      },
+      imageUrls(4, {
+        label: 'Reference images',
+        required: false,
+        description: 'Optional. Anchors what the shots should look like.',
+        maxSizeMb: 20,
+      }),
+      {
+        name: 'multi_prompt',
+        kind: 'list',
+        label: 'Shot list',
+        description: 'One prompt and length per cut. Used when Multiple shots is on.',
+        required: true,
+        minItems: 1,
+        maxItems: 10,
+        itemLabel: 'Shot',
+        showWhen: { field: 'multi_shots', equals: [true] },
+        item: [
+          {
+            name: 'prompt',
+            kind: 'textarea',
+            label: 'Shot',
+            required: true,
+            maxLength: 2000,
+            placeholder: 'What happens in this cut…',
+          },
+          {
+            name: 'duration',
+            kind: 'slider',
+            label: 'Seconds',
+            min: 1,
+            max: 15,
+            step: 1,
+            default: 5,
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'pixverse-v6/reference-to-video',
+    name: 'PixVerse v6 Reference to Video',
+    family: 'PixVerse',
+    category: 'video',
+    mode: 'image-to-video',
+    api: 'market',
+    output: 'video',
+    tagline: 'Name a subject and a background, then describe the motion.',
+    speed: 'balanced',
+    fields: [
+      prompt({ maxLength: 2048 }),
+      {
+        name: 'image_references',
+        kind: 'list',
+        label: 'References',
+        description: 'Each image is either the subject or the background.',
+        required: true,
+        minItems: 1,
+        maxItems: 4,
+        itemLabel: 'Reference',
+        item: [
+          imageUrl({ label: 'Image', maxSizeMb: 20 }),
+          {
+            name: 'type',
+            kind: 'select',
+            label: 'Role',
+            options: opts('subject', 'background'),
+            default: 'subject',
+          },
+          {
+            name: 'ref_name',
+            kind: 'text',
+            label: 'Name',
+            maxLength: 60,
+            placeholder: 'the woman in red',
+            description: 'Optional. Lets the prompt refer to this image by name.',
+          },
+        ],
+      },
+      ratio(['16:9', '4:3', '1:1', '3:4', '9:16', '2:3', '3:2', '21:9'], '16:9'),
+      {
+        name: 'quality',
+        kind: 'select',
+        label: 'Quality',
+        options: opts('360p', '540p', '720p', '1080p'),
+        default: '720p',
+      },
+      {
+        name: 'duration',
+        kind: 'slider',
+        label: 'Duration',
+        description: 'Seconds.',
+        min: 1,
+        max: 15,
+        step: 1,
+        default: 5,
+      },
+      {
+        name: 'generate_audio_switch',
+        kind: 'toggle',
+        label: 'Generate audio',
+        default: false,
+      },
+      seed(),
+    ],
+  },
+]
+
 export const MODELS: ModelDef[] = [
   ...IMAGE_TEXT,
   ...IMAGE_EDIT,
@@ -2415,6 +2670,7 @@ export const MODELS: ModelDef[] = [
   ...AUDIO,
   ...TEXT,
   ...UTILITY,
+  ...STRUCTURED,
   // Derived from Kie's schemas rather than transcribed. See
   // catalog.generated.ts for why that distinction exists.
   ...GENERATED,

@@ -21,6 +21,7 @@ export type FieldKind =
   | 'audio' // single audio URL
   | 'video' // single video URL
   | 'videos' // list of video URLs
+  | 'list' // repeatable group of fields (a cast, a shot list)
 
 export interface FieldOption {
   value: string
@@ -86,12 +87,34 @@ export interface AssetField extends BaseField {
   maxSizeMb?: number
 }
 
+/**
+ * A repeatable group.
+ *
+ * Four models take an array of objects rather than a flat value: a cast of
+ * speakers, a line-by-line dialogue, a shot list. Without a control for it
+ * those models cannot be offered at all, since the array is required.
+ *
+ * `item` describes one entry, using the same field descriptors as everything
+ * else, so the row renders through the existing controls.
+ */
+export interface ListField extends BaseField {
+  kind: 'list'
+  item: Field[]
+  minItems?: number
+  maxItems?: number
+  /** Wording on the button that adds a row. */
+  addLabel?: string
+  /** Wording for one entry, used in the row heading. */
+  itemLabel?: string
+}
+
 export type Field =
   | PromptField
   | SelectField
   | ToggleField
   | NumberField
   | AssetField
+  | ListField
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Shared field builders
@@ -429,6 +452,14 @@ export function defaultsFor(fields: Field[]): Record<string, unknown> {
       case 'videos':
         out[f.name] = []
         break
+      case 'list': {
+        const list = f as ListField
+        const rows = Math.max(1, list.minItems ?? 1)
+        // At least one row, or the control opens as an empty box with no
+        // hint of what it wants.
+        out[f.name] = Array.from({ length: rows }, () => defaultsFor(list.item))
+        break
+      }
       default:
         out[f.name] = ''
     }
@@ -503,6 +534,21 @@ export function buildInput(
         if (typeof raw === 'string' && raw.trim()) input[f.name] = raw.trim()
         break
       }
+      case 'list': {
+        const list = f as ListField
+        const rows = Array.isArray(raw) ? raw : []
+
+        const built = rows
+          .map((row) =>
+            buildInput(list.item, (row ?? {}) as Record<string, unknown>),
+          )
+          // A row where every field was left blank is not an entry, it is an
+          // empty row the person never filled in.
+          .filter((row) => Object.keys(row).length > 0)
+
+        if (built.length) input[f.name] = built
+        break
+      }
     }
   }
 
@@ -528,6 +574,29 @@ export function validate(
 
     if (empty) {
       errors.push(`${f.label} is required.`)
+      continue
+    }
+
+    if (f.kind === 'list') {
+      const list = f as ListField
+      const rows = Array.isArray(raw) ? raw : []
+      const filled = rows.filter(
+        (row) => Object.keys(buildInput(list.item, (row ?? {}) as Record<string, unknown>)).length,
+      )
+
+      const least = Math.max(1, list.minItems ?? 1)
+      if (filled.length < least) {
+        errors.push(`${f.label} needs at least ${least} entr${least === 1 ? 'y' : 'ies'}.`)
+        continue
+      }
+
+      // Each entry is checked against the same rules as a top-level form, so
+      // a half-filled row is caught here rather than by the API.
+      filled.forEach((row, index) => {
+        for (const problem of validate(list.item, row as Record<string, unknown>)) {
+          errors.push(`${list.itemLabel ?? 'Entry'} ${index + 1}: ${problem}`)
+        }
+      })
       continue
     }
 

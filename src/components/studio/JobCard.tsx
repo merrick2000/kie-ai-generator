@@ -2,17 +2,20 @@
 
 import {
   AlertCircle,
+  Check,
   Download,
   FolderInput,
   Heart,
   MoreHorizontal,
   Pencil,
   RefreshCw,
+  RotateCw,
   Trash2,
   Type,
   X,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import { toast } from 'sonner'
 
 import { jobLabel, type Job } from '@/lib/jobs/types'
 import { formatCredits, creditsToUsd, formatUsd } from '@/lib/kie/pricing'
@@ -26,6 +29,10 @@ interface JobCardProps {
   job: Job
   onOpen: () => void
   onCancel?: (id: string) => void
+  /** True once anything is selected, which is when the boxes stay visible. */
+  selecting: boolean
+  selected: boolean
+  onToggleSelected: () => void
 }
 
 const STATE_LABEL: Record<Job['state'], string> = {
@@ -36,15 +43,24 @@ const STATE_LABEL: Record<Job['state'], string> = {
   fail: 'Failed',
 }
 
-export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
+export function JobCard({
+  job,
+  onOpen,
+  onCancel,
+  selecting,
+  selected,
+  onToggleSelected,
+}: JobCardProps) {
   const removeJob = useStudio((s) => s.removeJob)
   const toggleFavorite = useStudio((s) => s.toggleFavorite)
   const restoreJob = useStudio((s) => s.restoreJob)
   const renameJob = useStudio((s) => s.renameJob)
   const moveJob = useStudio((s) => s.moveJob)
+  const rerunJob = useStudio((s) => s.rerunJob)
   const projects = useStudio((s) => s.projects)
 
   const [menuOpen, setMenuOpen] = useState(false)
+  const [rerunning, setRerunning] = useState(false)
   const [movingOpen, setMovingOpen] = useState(false)
   const [renaming, setRenaming] = useState(false)
   const [draft, setDraft] = useState('')
@@ -65,6 +81,20 @@ export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
     setMenuOpen(false)
   }
 
+  const runAgain = async () => {
+    setRerunning(true)
+    try {
+      const next = await rerunJob(job.id)
+      if (next) {
+        toast.success('Running again', {
+          description: 'Same settings, a different seed.',
+        })
+      }
+    } finally {
+      setRerunning(false)
+    }
+  }
+
   const commitRename = () => {
     setRenaming(false)
     const next = draft.trim()
@@ -75,10 +105,34 @@ export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
   return (
     <div
       className={cn(
-        'group animate-rise relative overflow-hidden rounded-2xl border border-line bg-surface transition-colors',
-        'hover:border-line-bright',
+        'group animate-rise relative overflow-hidden rounded-2xl border bg-surface transition-colors',
+        selected ? 'border-accent' : 'border-line hover:border-line-bright',
       )}
     >
+      {/*
+        The checkbox sits above the thumbnail rather than inside its button,
+        so picking results to compare never opens one by accident.
+      */}
+      <button
+        type="button"
+        onClick={onToggleSelected}
+        role="checkbox"
+        aria-checked={selected}
+        aria-label={selected ? 'Remove from comparison' : 'Add to comparison'}
+        className={cn(
+          'absolute left-2 top-2 z-10 grid size-6 place-items-center rounded-md border transition-all',
+          selected
+            ? 'border-accent bg-accent text-black'
+            : 'border-line-bright bg-void/70 text-transparent backdrop-blur hover:border-ink-faint',
+          // Out of the way until there is a reason for it.
+          selecting || selected
+            ? 'opacity-100'
+            : 'opacity-0 focus-visible:opacity-100 group-hover:opacity-100',
+        )}
+      >
+        <Check className="size-3.5" />
+      </button>
+
       <button
         type="button"
         onClick={onOpen}
@@ -182,6 +236,19 @@ export function JobCard({ job, onOpen, onCancel }: JobCardProps) {
               className="grid size-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-danger sm:size-6"
             >
               <X className="size-3.5" />
+            </button>
+          )}
+
+          {(job.state === 'success' || job.state === 'fail') && (
+            <button
+              type="button"
+              onClick={() => void runAgain()}
+              disabled={rerunning}
+              aria-label="Run again"
+              title="Run again with the same settings and a new seed"
+              className="grid size-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-ink disabled:opacity-50 sm:size-6"
+            >
+              <RotateCw className={cn('size-3.5', rerunning && 'animate-spin')} />
             </button>
           )}
 

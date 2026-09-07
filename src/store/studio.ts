@@ -73,6 +73,14 @@ interface StudioState {
    * its own seed.
    */
   runCount: number
+  /**
+   * Models kept at the top of the picker.
+   *
+   * With 129 to choose from, the handful someone actually uses is a
+   * different list from the handful the catalog thinks are good, and
+   * "most used" only helps once there is history to draw on.
+   */
+  pinnedModels: string[]
 
   /* Workspace */
   projects: Project[]
@@ -84,6 +92,15 @@ interface StudioState {
   jobs: Job[]
   filters: Filters
   focusedJobId: string | null
+  /**
+   * Results picked out for a side-by-side look.
+   *
+   * A batch of four variations is four cards in a grid, which is the wrong
+   * shape for choosing between them: the differences are what matter and a
+   * grid puts them at arm's length from each other.
+   */
+  selectedJobIds: string[]
+  comparing: boolean
   loading: boolean
   /** True while an extra page is on its way. */
   loadingMore: boolean
@@ -108,6 +125,7 @@ interface StudioState {
 
   selectModel: (modelId: string) => void
   setRunCount: (count: number) => void
+  togglePinnedModel: (modelId: string) => void
   setValue: (name: string, value: unknown) => void
   setValues: (values: Record<string, unknown>) => void
   resetForm: () => void
@@ -145,12 +163,19 @@ interface StudioState {
   ) => Promise<{ project: Project; copiedJobs: number } | null>
   deleteProject: (id: string) => Promise<void>
 
+  /** Run a result again with its own settings and a new seed. */
+  rerunJob: (id: string) => Promise<Job | null>
   renameJob: (id: string, title: string | null) => Promise<void>
   toggleFavorite: (id: string) => Promise<void>
   moveJob: (id: string, projectId: string | null) => Promise<void>
   removeJob: (id: string) => Promise<void>
   /** Defaults to the open project; 'all' sweeps the whole account. */
   clearHistory: (scope?: 'project' | 'all') => Promise<void>
+
+  toggleSelected: (id: string) => void
+  selectJobs: (ids: string[]) => void
+  clearSelection: () => void
+  setComparing: (open: boolean) => void
 
   focusJob: (id: string | null) => void
   /** Load a past job's settings back into the composer. */
@@ -197,6 +222,7 @@ export const useStudio = create<StudioState>()(
       modelId: DEFAULT_MODEL_ID,
       formsByModel: { [DEFAULT_MODEL_ID]: initialValues(DEFAULT_MODEL_ID) },
       runCount: 1,
+      pinnedModels: [],
 
       projects: [],
       counts: {},
@@ -206,6 +232,8 @@ export const useStudio = create<StudioState>()(
       library: [],
       filters: DEFAULT_FILTERS,
       focusedJobId: null,
+      selectedJobIds: [],
+      comparing: false,
       loading: false,
       loadingMore: false,
       hasMore: false,
@@ -227,6 +255,13 @@ export const useStudio = create<StudioState>()(
 
       setRunCount: (count) =>
         setState({ runCount: Math.min(MAX_RUNS, Math.max(1, Math.round(count))) }),
+
+      togglePinnedModel: (modelId) =>
+        setState((s) => ({
+          pinnedModels: s.pinnedModels.includes(modelId)
+            ? s.pinnedModels.filter((id) => id !== modelId)
+            : [...s.pinnedModels, modelId],
+        })),
 
       setValue: (name, value) =>
         setState((s) => ({
@@ -294,9 +329,13 @@ export const useStudio = create<StudioState>()(
             syncedAt: number
           }
 
+          const visible = new Set(data.jobs.map((job) => job.id))
+
           setState((s) => ({
             jobs: data.jobs.slice(0, PAGE_SIZE),
             hasMore: data.jobs.length > PAGE_SIZE,
+            // A result that has left the view cannot stay selected in it.
+            selectedJobIds: s.selectedJobIds.filter((id) => visible.has(id)),
             counts: data.counts ?? s.counts,
             // Never move the mark backwards. A filtered read can return an
             // older newest-row than an unfiltered sync already saw, and
@@ -493,6 +532,24 @@ export const useStudio = create<StudioState>()(
 
       /* ── Jobs ───────────────────────────────────────────────────────── */
 
+      rerunJob: async (id) => {
+        const res = await fetch(`/api/jobs/${id}/rerun`, { method: 'POST' })
+        const data = (await res.json().catch(() => ({}))) as {
+          job?: Job
+          error?: string
+        }
+
+        if (!res.ok || !data.job) {
+          // The server records a failed job even when the submission is
+          // refused, so the attempt is still visible.
+          await getState().refresh()
+          return null
+        }
+
+        await getState().refresh()
+        return data.job
+      },
+
       renameJob: async (id, title) => {
         // Applied locally first: a rename that waits for a round trip feels
         // like the field ignored you.
@@ -553,6 +610,19 @@ export const useStudio = create<StudioState>()(
         void getState().loadProjects()
       },
 
+      toggleSelected: (id) =>
+        setState((s) => ({
+          selectedJobIds: s.selectedJobIds.includes(id)
+            ? s.selectedJobIds.filter((j) => j !== id)
+            : [...s.selectedJobIds, id],
+        })),
+
+      selectJobs: (ids) => setState({ selectedJobIds: ids }),
+
+      clearSelection: () => setState({ selectedJobIds: [], comparing: false }),
+
+      setComparing: (open) => setState({ comparing: open }),
+
       focusJob: (id) => setState({ focusedJobId: id }),
 
       restoreJob: (id) => {
@@ -580,6 +650,7 @@ export const useStudio = create<StudioState>()(
         modelId: s.modelId,
         formsByModel: s.formsByModel,
         runCount: s.runCount,
+        pinnedModels: s.pinnedModels,
         activeProjectId: s.activeProjectId,
         filters: s.filters,
       }),
@@ -606,6 +677,21 @@ export const selectActiveCount = (s: StudioState) =>
     (total, job) => (job.state !== 'success' && job.state !== 'fail' ? total + 1 : total),
     0,
   )
+
+/**
+ * The results picked out for comparison, in the order they were chosen.
+ *
+ * A plain function, not a selector. Passed to `useStudio` it would build a
+ * fresh array on every render, which hands Zustand a different snapshot each
+ * time and ends in "Maximum update depth exceeded". Call it inside a
+ * `useMemo` over the two pieces of state it reads.
+ */
+export function comparedJobs(jobs: Job[], selectedIds: string[]): Job[] {
+  return selectedIds.flatMap((id) => {
+    const job = jobs.find((j) => j.id === id)
+    return job ? [job] : []
+  })
+}
 
 /** Credits charged across every job in the current view. */
 export const selectSpentCredits = (s: StudioState) =>

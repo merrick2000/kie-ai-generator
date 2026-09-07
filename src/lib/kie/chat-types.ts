@@ -21,6 +21,13 @@ export interface ChatEndpoint {
    * back to `model` when the two agree.
    */
   path?: string
+  /**
+   * Complete path, when a transport does not follow its own convention.
+   *
+   * Kie serves the Codex models from `/api/v1/responses` while every other
+   * Responses model sits under `/codex/v1/responses`.
+   */
+  url?: string
   /** Reasoning effort levels this model accepts, if any. */
   effortLevels?: string[]
   /** The built-in search tool's name, when the model has one. */

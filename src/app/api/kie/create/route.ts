@@ -2,10 +2,14 @@ import { NextResponse } from 'next/server'
 
 import { requireUser } from '@/lib/api-auth'
 import { withLogging } from '@/lib/api-logging'
+import { apiKeyForUser } from '@/lib/auth'
 import { startGeneration, valuesForRun } from '@/lib/jobs/runner'
+import { canAfford, forgetBalance } from '@/lib/kie/balance'
 import { getModel } from '@/lib/kie/catalog'
+import { estimateFromReference } from '@/lib/kie/pricing'
 import type { Job } from '@/lib/jobs/types'
 import { getProject } from '@/lib/projects/store'
+import { KIE_CODE } from '@/lib/kie/types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -76,6 +80,31 @@ async function handlePOST(req: Request) {
   const model = getModel(body.modelId)
   const values = body.values ?? {}
 
+  // Checked before anything is submitted rather than one refusal at a time.
+  // Asking for eight variations on an empty account used to produce eight
+  // rows, eight failures and eight identical toasts.
+  const key = await apiKeyForUser(auth.user.id)
+  if (key) {
+    const estimate = estimateFromReference(body.modelId, values)
+    const affordable = await canAfford(
+      auth.user.id,
+      key,
+      estimate ? estimate.credits * count : null,
+    )
+
+    if (!affordable.ok) {
+      return NextResponse.json(
+        {
+          error: affordable.message,
+          code: KIE_CODE.INSUFFICIENT_CREDITS,
+          balance: affordable.balance,
+          needed: affordable.needed,
+        },
+        { status: 402 },
+      )
+    }
+  }
+
   const jobs: Job[] = []
   let failure: Awaited<ReturnType<typeof startGeneration>> | null = null
 
@@ -110,6 +139,9 @@ async function handlePOST(req: Request) {
       { status: failure.status },
     )
   }
+
+  // Whatever the outcome, credits have moved.
+  forgetBalance(auth.user.id)
 
   // Some started and some did not. Answering 200 with what happened beats
   // an error that hides the runs already under way and being paid for.

@@ -1,7 +1,7 @@
 # Highfield
 
 A complete AI generation studio built on the [Kie.ai](https://kie.ai) API.
-Image, video, audio, text and enhancement across **129 models**, in one
+Image, video, audio, text and enhancement across **156 models**, in one
 interface, with every generation carried to completion server-side.
 
 ![stack](https://img.shields.io/badge/Next.js-15-black) ![stack](https://img.shields.io/badge/React-19-blue) ![stack](https://img.shields.io/badge/Tailwind-4-38bdf8)
@@ -129,6 +129,11 @@ Turbo/Omni, Wan 2.7, Hailuo, MiniMax H3, PixVerse · OmniHuman 1.5, Kling Avatar
 Kling Motion Control, InfiniTalk · Suno, ElevenLabs · Claude Opus 5 and
 Sonnet 5, GPT 5.2 and 5.6, Gemini 3 Pro, Grok 4.6 · Topaz upscale, Recraft
 cutout.
+
+**Speed of use.** One-click rerun with a fresh seed, paste an image straight
+into a reference field, pinned models and an input-type filter over 156 of
+them, a balance check that refuses a batch before it spends rather than after,
+and a count in the tab title so a ten-minute render does not need watching.
 
 **The studio.** Model search across every family, schema-driven parameter forms,
 drag-and-drop asset upload, aspect-ratio tiles, seed control, live progress,
@@ -299,8 +304,8 @@ connection open while a reasoning model thinks.
 
 ### Where the models come from
 
-Kie documents 133 models on the job API. The catalog carries 129 of them, and
-most were not typed out by hand.
+Kie documents 133 models on the job API and 34 more on its chat endpoints.
+The catalog carries 129 and all 34, and most were not typed out by hand.
 
 They used to be. That is how four ended up with a slug Kie has never heard of,
 ten sent fields that do not exist, three left a required field off the form,
@@ -320,6 +325,12 @@ each slug exists, that no model sends a field its schema does not define, that
 every required field is on the form, and that no menu offers a value the model
 rejects. It also prints the coverage, so a gap is visible rather than assumed
 away.
+
+The chat models put their parameters at the top level rather than under
+`input`, so they carry their own snapshot in `scripts/kie/chat-endpoints.json`
+and `test-chat.mts` holds them to it. There the URL is the identity: the
+OpenAI-shaped routes name the model in the path and send no model field at
+all, so a wrong path is the failure that matters.
 
 What a generator cannot decide is what a model is *for*. Names and taglines
 live in `scripts/curation.json`, and anything without one falls back to a line

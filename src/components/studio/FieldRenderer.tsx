@@ -8,6 +8,7 @@ import { Segmented } from '@/components/ui/Segmented'
 import { Toggle } from '@/components/ui/Toggle'
 import type {
   AssetField,
+  ListField,
   Field,
   NumberField,
   PromptField,
@@ -16,6 +17,7 @@ import type {
 } from '@/lib/kie/fields'
 import { cn } from '@/lib/utils'
 import { AssetInput } from './AssetInput'
+import { ListInput } from './ListInput'
 import { RatioPicker } from './RatioPicker'
 
 interface FieldRendererProps {
@@ -301,6 +303,22 @@ export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
             value={(value as string | string[]) ?? (f.kind === 'images' || f.kind === 'videos' ? [] : '')}
             onChange={onChange}
           />
+        </FieldShell>
+      )
+    }
+
+    case 'list': {
+      const f = field as ListField
+      return (
+        <FieldShell
+          label={f.label}
+          description={f.description}
+          required={f.required}
+          aside={
+            Array.isArray(value) ? `${(value as unknown[]).length}` : undefined
+          }
+        >
+          <ListInput field={f} value={value} onChange={onChange} />
         </FieldShell>
       )
     }
