@@ -22,7 +22,7 @@
  */
 
 import type { ModelDef } from './catalog'
-import { opts, seed } from './fields'
+import { nsfwChecker, opts, seed } from './fields'
 
 export const GENERATED: ModelDef[] = [
   {
@@ -201,6 +201,7 @@ export const GENERATED: ModelDef[] = [
         advanced: true,
         description: 'Enable online search.',
       },
+      nsfwChecker(),
     ],
   },
   {
@@ -3099,10 +3100,10 @@ export const GENERATED: ModelDef[] = [
     name: 'Qwen 2 Image Edit',
     family: 'Alibaba',
     category: 'image',
-    mode: 'text-to-image',
+    mode: 'image-to-image',
     api: 'market',
     output: 'image',
-    tagline: 'Image generation by qwen2/text-to-image',
+    tagline: 'Image editing.',
     speed: 'balanced',
     fields: [
       {
@@ -3114,10 +3115,19 @@ export const GENERATED: ModelDef[] = [
         description: 'The prompt to generate the image with (Max length: 800 characters)',
       },
       {
+        name: 'image_url',
+        kind: 'image',
+        label: 'Image',
+        required: true,
+        accepts: 'JPEG, PNG, WebP',
+        maxSizeMb: 20,
+        description: 'The URL of the image to edit.',
+      },
+      {
         name: 'image_size',
         kind: 'select',
         label: 'Image size',
-        options: opts('1:1', '3:4', '4:3', '9:16', '16:9'),
+        options: opts('1:1', '2:3', '3:2', '3:4', '4:3', '9:16', '16:9', '21:9'),
         default: '16:9',
         description: 'The size of the generated image.',
       },
