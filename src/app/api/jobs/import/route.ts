@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { requireUser } from '@/lib/api-auth'
 import { withLogging } from '@/lib/api-logging'
+import { callerIp, record } from '@/lib/activity'
 import { importJobs, type ImportableJob } from '@/lib/jobs/store'
 import { DEFAULT_PROJECT_NAME, findOrCreateProject } from '@/lib/projects/store'
 
@@ -95,6 +96,17 @@ async function handlePOST(req: Request) {
   })
 
   const { imported, skipped } = await importJobs(auth.user.id, project.id, jobs)
+
+  if (imported > 0) {
+    await record({
+      kind: 'history_imported',
+      userId: auth.user.id,
+      email: auth.user.email,
+      summary: `${imported} result${imported === 1 ? '' : 's'}`,
+      meta: { imported, skipped, projectId: project.id },
+      ip: await callerIp(),
+    })
+  }
 
   return NextResponse.json({
     imported,

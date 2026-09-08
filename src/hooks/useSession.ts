@@ -11,6 +11,8 @@ export interface AccountUser {
 
 export interface SessionState {
   user: AccountUser | null
+  /** Whether this account may open /admin. Cosmetic: the server decides. */
+  isAdmin: boolean
   /** Where the active Kie key comes from. */
   source: 'user' | 'env' | 'none'
   /** Masked form of the stored key. */
@@ -24,6 +26,7 @@ export interface SessionState {
 
 const INITIAL: SessionState = {
   user: null,
+  isAdmin: false,
   source: 'none',
   masked: null,
   envAvailable: false,
@@ -42,7 +45,7 @@ export function useSession() {
         fetch('/api/kie/session', { cache: 'no-store' }),
       ])
 
-      const me = (await meRes.json()) as { user: AccountUser | null }
+      const me = (await meRes.json()) as { user: AccountUser | null; isAdmin?: boolean }
       // 401 here just means no session; the key fields stay at their defaults.
       const key = keyRes.ok
         ? ((await keyRes.json()) as Omit<SessionState, 'loading' | 'user'>)
@@ -50,6 +53,7 @@ export function useSession() {
 
       setState({
         user: me.user,
+        isAdmin: me.isAdmin ?? false,
         source: key?.source ?? 'none',
         masked: key?.masked ?? null,
         envAvailable: key?.envAvailable ?? false,

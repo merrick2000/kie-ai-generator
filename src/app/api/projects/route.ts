@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { requireUser } from '@/lib/api-auth'
 import { withLogging } from '@/lib/api-logging'
 import { projectCounts } from '@/lib/jobs/store'
+import { callerIp, record } from '@/lib/activity'
 import { createProject, listProjects } from '@/lib/projects/store'
 
 export const runtime = 'nodejs'
@@ -44,6 +45,15 @@ async function handlePOST(req: Request) {
     name: body.name,
     description: body.description,
     color: body.color,
+  })
+
+  await record({
+    kind: 'project_created',
+    userId: auth.user.id,
+    email: auth.user.email,
+    summary: project.name,
+    meta: { projectId: project.id },
+    ip: await callerIp(),
   })
 
   return NextResponse.json({ project }, { status: 201 })

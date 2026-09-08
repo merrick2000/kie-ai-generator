@@ -103,7 +103,6 @@ safe by construction and no future rendering path can forget.
 Set `ARTICLE_WEBHOOK_SECRET`, or the endpoint refuses every delivery with
 `503` rather than accepting unsigned HTML.
 
-### Configuration### Configuration
 ### Configuration
 
 Every variable is optional.
@@ -115,6 +114,7 @@ Every variable is optional.
 | `KIE_WEBHOOK_HMAC_KEY` | Verifies webhook callbacks. |
 | `NEXT_PUBLIC_APP_URL` | Public origin for `callBackUrl`. Without it, the studio polls. |
 | `SIGNUPS_ENABLED` | `false` closes registration after the first account. See [DEPLOY.md](DEPLOY.md). |
+| `ADMIN_EMAILS` | Comma-separated addresses that may open `/admin`. Unset, the first account created is the admin. |
 | `DATABASE_URL` | **Required.** Postgres connection string. |
 | `ARTICLE_WEBHOOK_SECRET` | Signing secret for the blog webhook. |
 | `ARTICLE_WEBHOOK_TOKEN` | Optional bearer token, checked in addition to the signature. |
@@ -142,6 +142,12 @@ drag-and-drop asset upload, aspect-ratio tiles, seed control, live progress,
 a full-screen viewer with the run's parameters, projects with their own
 defaults, a searchable gallery, and a ranking of the models that actually work
 on this account.
+
+**Watching the instance.** `/admin` answers who signed up, when each account
+was last here and what it has been running, with spend by day and by model, a
+live feed that interleaves every generation with every sign-in, and a count of
+the sign-ins that were refused. It is one person's page: everyone else gets a
+404, including on the endpoints behind it.
 
 **Generations survive the browser.** A run is recorded server-side before it is
 submitted and polled there until it finishes, so reloading the page, closing
@@ -367,6 +373,56 @@ and result rendering all derive from it: no UI code to touch.
   ],
 }
 ```
+
+---
+
+## Admin
+
+`/admin` is the answer to "what is actually happening on this instance".
+
+Most of it needed no new storage. `users` already knew who joined and when
+they last signed in, and `jobs` already held every generation with its model,
+its outcome and what it cost, so the accounts table and the spend figures are
+aggregates over tables that were there all along.
+
+What was missing was everything that is not a generation. A sign-in overwrites
+`last_login_at` and leaves no trace of the eleven before it; a password change
+leaves none at all; a stranger spending an evening guessing passwords leaves
+nothing but a line in stdout that scrolls away. So `activity` records the
+events that would otherwise vanish, and nothing else:
+
+```
+signup · signup_blocked · signin · signin_failed · signout
+password_changed · api_key_set · api_key_cleared
+project_created · project_deleted · history_imported · history_cleared
+```
+
+Runs are deliberately absent from it. Writing a generation to both tables
+would create two records of one fact, free to disagree the first time one of
+them was missed, and the trail's copy would freeze at the state the job had
+when it was logged. The feed reads both sources and interleaves them, so a run
+still in flight shows what it is doing now rather than what it was doing then.
+
+The trail is written on a best-effort basis: `record()` catches its own
+failures, because a signup that fails because the audit insert deadlocked is a
+far worse outcome than a gap in the feed. Rows carry no foreign key to the
+account they name, so deleting a user does not erase the record of what they
+did, and events with no account at all (a sign-in attempt against an address
+that was never here) still have somewhere to go. Anything older than ninety
+days is dropped at startup.
+
+### Who gets in
+
+`ADMIN_EMAILS`, a comma-separated list, when it is set. When it is not, the
+oldest account is the admin, which is a bootstrap rather than a security
+model: the person who installed the instance is the person who created the
+first account on it, and a page nobody can reach until they redeploy is a page
+nobody uses. The fallback matches on account id, not on address, so signing up
+again as the owner's email does not inherit anything.
+
+Refusals are `404`, not `403`, on the page and on all three endpoints behind
+it. A signed-in user who is not the admin has no business learning that this
+surface exists, and `403` tells them precisely that.
 
 ---
 

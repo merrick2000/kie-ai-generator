@@ -3,6 +3,7 @@
 import {
   Bell,
   ExternalLink,
+  Gauge,
   KeyRound,
   Loader2,
   Lock,
@@ -153,10 +154,24 @@ function AccountTab() {
           </div>
         </div>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={() => setChanging((v) => !v)}>
             {changing ? 'Cancel' : 'Change password'}
           </Button>
+          {/*
+            Only drawn for the owner. A plain link rather than a router push,
+            because /admin is a server-rendered page with its own guard and
+            there is nothing here worth keeping alive across the navigation.
+          */}
+          {session.isAdmin && (
+            <a
+              href="/admin"
+              className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-line bg-raised px-3 text-[13px] text-ink transition-colors hover:border-line-bright hover:bg-overlay"
+            >
+              <Gauge className="size-3.5" />
+              Admin
+            </a>
+          )}
           <Button
             size="sm"
             variant="ghost"

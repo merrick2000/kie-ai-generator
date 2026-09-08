@@ -174,6 +174,44 @@ const MIGRATIONS: Migration[] = [
          ON jobs(user_id, updated_at DESC)`,
     ],
   },
+  {
+    version: 4,
+    name: 'activity',
+    statements: [
+      // What happened, as opposed to what exists.
+      //
+      // The other tables hold current state: who has an account, which jobs
+      // are running. Neither can answer "who signed up this week" or "what
+      // did this person do before they stopped coming back", because state is
+      // overwritten and history is not kept anywhere.
+      //
+      // Runs are not written here. The jobs table already records every
+      // generation with its model, cost and outcome, and duplicating that
+      // would leave two versions of the same fact free to disagree. This
+      // carries only the events that would otherwise vanish into stdout.
+      `CREATE TABLE IF NOT EXISTS activity (
+         id      BIGSERIAL PRIMARY KEY,
+         at      BIGINT NOT NULL,
+
+         -- No foreign key, deliberately. A failed sign-in has no account to
+         -- point at, and deleting a user must not erase the record of what
+         -- they did: an audit trail that disappears with its subject is not
+         -- an audit trail. The email is denormalised for the same reason.
+         user_id TEXT,
+         email   TEXT,
+
+         kind    TEXT NOT NULL,
+         summary TEXT NOT NULL DEFAULT '',
+         meta    TEXT NOT NULL DEFAULT '{}',
+         ip      TEXT
+       )`,
+
+      // The feed reads newest first, and one person's history is read by id.
+      `CREATE INDEX IF NOT EXISTS activity_at_idx ON activity(at DESC)`,
+      `CREATE INDEX IF NOT EXISTS activity_user_idx ON activity(user_id, at DESC)`,
+      `CREATE INDEX IF NOT EXISTS activity_kind_idx ON activity(kind, at DESC)`,
+    ],
+  },
 ]
 
 export async function migrate(db: DatabaseClient): Promise<void> {
@@ -260,6 +298,7 @@ const REQUIRED: Record<string, string[]> = {
     'id', 'user_id', 'name', 'description', 'color', 'settings', 'archived',
     'created_at', 'updated_at',
   ],
+  activity: ['id', 'at', 'user_id', 'email', 'kind', 'summary', 'meta', 'ip'],
   jobs: [
     'id', 'user_id', 'project_id', 'task_id', 'api', 'model_id',
     'submitted_model_id', 'model_name', 'category', 'output', 'title',

@@ -12,6 +12,7 @@ import { createHash, randomBytes } from 'node:crypto'
 
 import { cookies } from 'next/headers'
 
+import { callerIp, record } from '@/lib/activity'
 import { decryptValue, deriveKey, encryptValue } from '@/lib/kie/session-crypto'
 import { createLogger } from '@/lib/logger'
 import {
@@ -95,8 +96,8 @@ async function issueSession(userId: string): Promise<void> {
 
 /** The signed-in user for this request, or null. */
 export async function currentUser(): Promise<CurrentUser | null> {
-  const record = await currentUserRecord()
-  return record ? publicUser(record) : null
+  const found = await currentUserRecord()
+  return found ? publicUser(found) : null
 }
 
 /** Internal variant that keeps the encrypted API key. */
@@ -115,9 +116,22 @@ export async function signOut(): Promise<void> {
   const store = await cookies()
   const token = store.get(COOKIE_NAME)?.value
 
+  // Read before the session is destroyed: afterwards there is no way left to
+  // say whose sign-out this was.
+  const user = token ? await findUserBySessionToken(hashToken(token)) : null
+
   if (token) await deleteSession(hashToken(token))
 
   store.delete(COOKIE_NAME)
+
+  if (user) {
+    await record({
+      kind: 'signout',
+      userId: user.id,
+      email: user.email,
+      ip: await callerIp(),
+    })
+  }
 }
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -167,6 +181,12 @@ export async function signUp(
 
   if (!created.ok) {
     log.info('signup rejected, email already registered', { email })
+    await record({
+      kind: 'signup_blocked',
+      email,
+      summary: 'this email already has an account',
+      ip: await callerIp(),
+    })
     return {
       ok: false,
       error: 'An account already exists for this email. Sign in instead.',
@@ -176,6 +196,12 @@ export async function signUp(
 
   await issueSession(created.user.id)
   log.info('account created', { userId: created.user.id, email })
+  await record({
+    kind: 'signup',
+    userId: created.user.id,
+    email,
+    ip: await callerIp(),
+  })
   return { ok: true, user: publicUser(created.user) }
 }
 
@@ -194,13 +220,25 @@ export async function signIn(
 
   if (!user || !valid) {
     // Logged at warn: a burst of these is the signal for credential stuffing.
-    log.warn('failed sign-in', { email, reason: user ? 'bad password' : 'unknown email' })
+    const reason = user ? 'bad password' : 'unknown email'
+    log.warn('failed sign-in', { email, reason })
+    // Recorded with the account id when there is one, so the attempts against
+    // a real account can be told apart from noise against addresses that were
+    // never here.
+    await record({
+      kind: 'signin_failed',
+      userId: user?.id ?? null,
+      email,
+      summary: reason,
+      ip: await callerIp(),
+    })
     return { ok: false, error: 'Incorrect email or password.' }
   }
 
   await touchLastLogin(user.id)
   await issueSession(user.id)
   log.info('signed in', { userId: user.id, email })
+  await record({ kind: 'signin', userId: user.id, email, ip: await callerIp() })
   return { ok: true, user: publicUser(user) }
 }
 
@@ -238,8 +276,14 @@ export async function setApiKey(value: string): Promise<boolean> {
 
   const sealed = encryptValue(value.trim(), deriveKey(await encryptionSecret()))
   await updateApiKey(user.id, sealed)
-  // The key itself is never logged, only that one was set.
+  // The key itself is never logged or recorded, only that one was set.
   log.info('api key set', { userId: user.id })
+  await record({
+    kind: 'api_key_set',
+    userId: user.id,
+    email: user.email,
+    ip: await callerIp(),
+  })
   return true
 }
 
@@ -249,6 +293,12 @@ export async function clearApiKey(): Promise<boolean> {
 
   await updateApiKey(user.id, null)
   log.info('api key removed', { userId: user.id })
+  await record({
+    kind: 'api_key_cleared',
+    userId: user.id,
+    email: user.email,
+    ip: await callerIp(),
+  })
   return true
 }
 
@@ -268,6 +318,13 @@ export async function changePassword(
 
   const passwordHash = await hashPassword(nextPassword)
   await updatePasswordHash(user.id, passwordHash)
+
+  await record({
+    kind: 'password_changed',
+    userId: user.id,
+    email: user.email,
+    ip: await callerIp(),
+  })
 
   return { ok: true, user: publicUser(user) }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { requireUser } from '@/lib/api-auth'
 import { withLogging } from '@/lib/api-logging'
+import { callerIp, record } from '@/lib/activity'
 import {
   clearJobs,
   latestUpdatedAt,
@@ -101,6 +102,17 @@ async function handleDELETE(req: Request) {
   const removed = await clearJobs(auth.user.id, {
     projectId: project === 'unfiled' ? null : project || undefined,
   })
+
+  if (removed > 0) {
+    await record({
+      kind: 'history_cleared',
+      userId: auth.user.id,
+      email: auth.user.email,
+      summary: `${removed} result${removed === 1 ? '' : 's'}`,
+      meta: { removed, projectId: project ?? null },
+      ip: await callerIp(),
+    })
+  }
 
   return NextResponse.json({ removed })
 }

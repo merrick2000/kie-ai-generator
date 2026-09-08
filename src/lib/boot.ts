@@ -18,11 +18,15 @@
 
 import 'server-only'
 
+import { trimActivity } from '@/lib/activity'
 import { getDb, isConfigured } from '@/lib/db'
 import { startReconciler } from '@/lib/kie/reconciler'
 import { createLogger } from '@/lib/logger'
 
 const log = createLogger('boot')
+
+/** Ninety days, well past the point where "what did they do" is still asked. */
+const ACTIVITY_RETENTION_MS = 90 * 24 * 60 * 60 * 1000
 
 /** Held so concurrent first requests do not each start their own loop. */
 let booting: Promise<void> | null = null
@@ -51,6 +55,13 @@ async function start(): Promise<void> {
   }
 
   startReconciler()
+
+  // An append-only table with nothing deleting from it is a slow leak. Once at
+  // startup is enough: the trail grows by a handful of rows a day, and a
+  // process that runs for a month between deploys is not the shape of this
+  // deployment. Not awaited, and failures are swallowed inside, so a full disk
+  // cannot stop the reconciler from having started.
+  void trimActivity(ACTIVITY_RETENTION_MS).catch(() => {})
 }
 
 /**

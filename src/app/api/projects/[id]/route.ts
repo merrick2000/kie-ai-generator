@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { callerIp, record } from '@/lib/activity'
 import { requireUser } from '@/lib/api-auth'
 import { withLogging } from '@/lib/api-logging'
 import {
@@ -68,8 +69,20 @@ async function handleDELETE(_req: Request, context: Context) {
   if (!auth.ok) return auth.response
 
   const { id } = await context.params
+  // Read before the delete so the trail can name what went, not just its id.
+  const project = await getProject(auth.user.id, id)
+
   const deleted = await deleteProject(auth.user.id, id)
   if (!deleted) return NextResponse.json({ error: 'Not found.' }, { status: 404 })
+
+  await record({
+    kind: 'project_deleted',
+    userId: auth.user.id,
+    email: auth.user.email,
+    summary: project?.name ?? id,
+    meta: { projectId: id },
+    ip: await callerIp(),
+  })
 
   return NextResponse.json({ deleted: true })
 }
