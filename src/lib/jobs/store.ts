@@ -320,8 +320,18 @@ export interface JobQuery {
 
 const MAX_LIMIT = 500
 
-export async function listJobs(userId: string, query: JobQuery = {}): Promise<Job[]> {
-  const db = await getDb()
+/**
+ * The filter half of a gallery read, shared by the listing and its count.
+ *
+ * Extracted because the two have to agree: a total built from a second,
+ * hand-kept copy of these clauses drifts the first time one of them gains a
+ * filter, and then the footer says "120 of 847" over a list that can only
+ * ever reach 300.
+ */
+function galleryFilter(
+  userId: string,
+  query: JobQuery,
+): { where: string[]; params: SqlValue[] } {
   const where: string[] = ['user_id = ?']
   const params: SqlValue[] = [userId]
 
@@ -363,6 +373,13 @@ export async function listJobs(userId: string, query: JobQuery = {}): Promise<Jo
     params.push(like, like, like)
   }
 
+  return { where, params }
+}
+
+export async function listJobs(userId: string, query: JobQuery = {}): Promise<Job[]> {
+  const db = await getDb()
+  const { where, params } = galleryFilter(userId, query)
+
   const order =
     query.sort === 'oldest'
       ? 'created_at ASC'
@@ -385,6 +402,24 @@ export async function listJobs(userId: string, query: JobQuery = {}): Promise<Jo
 }
 
 /** Everything still in flight, so a client can resume tracking on load. */
+/**
+ * How many rows the same filter matches, ignoring limit and offset.
+ *
+ * Lets the gallery say where it is in the history rather than only whether
+ * there is more, which is the difference between "120 of 847" and a button
+ * that might be hiding ten results or ten thousand.
+ */
+export async function countJobs(userId: string, query: JobQuery = {}): Promise<number> {
+  const db = await getDb()
+  const { where, params } = galleryFilter(userId, query)
+
+  const row = await db.get<{ n: number | string }>(
+    `SELECT COUNT(*) AS n FROM jobs WHERE ${where.join(' AND ')}`,
+    params,
+  )
+  return Number(row?.n ?? 0)
+}
+
 export async function listRunningJobs(userId: string): Promise<Job[]> {
   return listJobs(userId, { status: 'running', limit: 100 })
 }

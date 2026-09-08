@@ -1,7 +1,7 @@
 'use client'
 
 import { Sparkles, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import { useCompletionAlerts } from '@/hooks/useCompletionAlerts'
 import { useWorkspace } from '@/hooks/useWorkspace'
@@ -12,6 +12,26 @@ import { TopBar } from './TopBar'
 
 /** Below this the composer is a slide-over rather than a second pane. */
 const NARROW = '(max-width: 1023px)'
+
+/**
+ * Remembered per browser.
+ *
+ * Someone who works with the rail collapsed wants it collapsed tomorrow too,
+ * and re-collapsing it on every load is the kind of small friction that is
+ * only noticed after the fiftieth time.
+ */
+const RAIL_KEY = 'highfield:rail-open'
+
+function storedRailOpen(): boolean | null {
+  try {
+    const raw = localStorage.getItem(RAIL_KEY)
+    return raw === null ? null : raw === '1'
+  } catch {
+    // Private windows and blocked site data both throw here rather than
+    // returning null, and the studio must still open.
+    return null
+  }
+}
 
 /**
  * Studio shell.
@@ -37,12 +57,30 @@ export function Studio() {
     const sync = () => {
       setIsNarrow(query.matches)
       // Start collapsed on a phone so results are visible on first paint.
-      setRailOpen(!query.matches)
+      // On desktop the last choice wins, defaulting to open.
+      setRailOpen(query.matches ? false : (storedRailOpen() ?? true))
     }
     sync()
     query.addEventListener('change', sync)
     return () => query.removeEventListener('change', sync)
   }, [])
+
+  /** Collapse or expand, remembering the choice when it is a real preference. */
+  const setRail = useCallback(
+    (open: boolean) => {
+      setRailOpen(open)
+      // A phone closing its sheet is not a statement about how the desktop
+      // should look, so only the two-pane layout writes here.
+      if (isNarrow) return
+      try {
+        localStorage.setItem(RAIL_KEY, open ? '1' : '0')
+      } catch {
+        // Nothing to do: the session still works, it just will not be
+        // remembered.
+      }
+    },
+    [isNarrow],
+  )
 
   // Escape closes the sheet, which is what a sheet over content should do.
   useEffect(() => {
@@ -90,7 +128,7 @@ export function Studio() {
             </div>
           )}
 
-          <Composer />
+          <Composer onCollapse={isNarrow ? undefined : () => setRail(false)} />
         </aside>
 
         {isNarrow && railOpen && (
@@ -109,7 +147,7 @@ export function Studio() {
           */}
           <Canvas
             composerOpen={railOpen}
-            onOpenComposer={() => setRailOpen(true)}
+            onOpenComposer={() => setRail(true)}
             showComposerButton={!isNarrow}
           />
 

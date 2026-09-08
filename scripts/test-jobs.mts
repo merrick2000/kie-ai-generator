@@ -574,6 +574,58 @@ await check('the default project is reused, not duplicated', async () => {
   assert.equal(first.id, second.id)
 })
 
+console.log('\npaging the gallery')
+
+await check('the count matches what the same filter lists', async () => {
+  // The whole point of sharing one filter builder. If these two ever disagree
+  // the gallery footer promises results the list can never reach.
+  const queries = [
+    {},
+    { category: 'video' as const },
+    { status: 'success' as const },
+    { favorite: true },
+    { search: 'quiet' },
+  ]
+
+  for (const query of queries) {
+    const listed = await store.listJobs(USER, { ...query, limit: 500 })
+    const counted = await store.countJobs(USER, query)
+    assert.equal(
+      counted,
+      listed.length,
+      `count and list disagree for ${JSON.stringify(query)}`,
+    )
+  }
+})
+
+await check('the count ignores limit and offset', async () => {
+  const all = await store.countJobs(USER, {})
+  assert.equal(await store.countJobs(USER, { limit: 1 }), all)
+  assert.equal(await store.countJobs(USER, { offset: 2 }), all)
+})
+
+await check('the count is scoped to one account', async () => {
+  const mine = await store.countJobs(USER, {})
+  const theirs = await store.countJobs(OTHER, {})
+  const combined = await db.get<{ n: string }>('SELECT COUNT(*) AS n FROM jobs')
+  assert.equal(mine + theirs, Number(combined!.n))
+})
+
+await check('paging returns every row once and none twice', async () => {
+  const all = await store.listJobs(USER, { limit: 500 })
+  const seen: string[] = []
+
+  // Walked in pages of three, which is small enough that the fixture spans
+  // several and any off-by-one in the offset shows up immediately.
+  for (let offset = 0; offset < all.length; offset += 3) {
+    const page = await store.listJobs(USER, { limit: 3, offset })
+    seen.push(...page.map((job) => job.id))
+  }
+
+  assert.deepEqual(seen, all.map((job) => job.id))
+  assert.equal(new Set(seen).size, seen.length, 'a row was returned twice')
+})
+
 console.log('\nhistory and usage')
 
 await check('clearing keeps pinned and running work', async () => {

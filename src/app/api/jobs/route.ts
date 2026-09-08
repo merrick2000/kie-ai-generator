@@ -5,6 +5,7 @@ import { withLogging } from '@/lib/api-logging'
 import { callerIp, record } from '@/lib/activity'
 import {
   clearJobs,
+  countJobs,
   latestUpdatedAt,
   listJobs,
   projectCounts,
@@ -72,12 +73,18 @@ async function handleGET(req: Request) {
   const offset = Number(params.get('offset'))
   if (Number.isFinite(offset) && offset > 0) query.offset = offset
 
-  const [jobs, syncedAt] = await Promise.all([
+  // Asked for alongside the counters rather than on every sync tick: the
+  // total only matters when the gallery is being read, and COUNT(*) over a
+  // long history is not free.
+  const wantsTotal = params.get('counts') === 'true'
+
+  const [jobs, syncedAt, total] = await Promise.all([
     listJobs(auth.user.id, query),
     // Account-wide, deliberately. Deriving it from the rows above would let a
     // filtered read leave the mark behind a job the filter excluded, and the
     // client would then re-fetch that same job on every tick forever.
     latestUpdatedAt(auth.user.id),
+    wantsTotal ? countJobs(auth.user.id, query) : Promise.resolve(undefined),
   ])
 
   // The sync loop does not need counters on every pass.
@@ -85,7 +92,7 @@ async function handleGET(req: Request) {
     ? await projectCounts(auth.user.id)
     : undefined
 
-  return NextResponse.json({ jobs, counts, syncedAt })
+  return NextResponse.json({ jobs, counts, syncedAt, total })
 }
 
 /**

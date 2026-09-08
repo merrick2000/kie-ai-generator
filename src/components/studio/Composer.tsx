@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, RotateCcw, Sparkles, Wand2 } from 'lucide-react'
+import { ChevronDown, PanelLeftClose, RotateCcw, Sparkles, Wand2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/Button'
@@ -29,8 +29,13 @@ const OUTPUT_NOUN: Record<'image' | 'video' | 'audio' | 'text', string> = {
   text: 'answer',
 }
 
+interface ComposerProps {
+  /** Collapses the rail. Absent on a phone, where the sheet closes instead. */
+  onCollapse?: () => void
+}
+
 /** The left rail: pick a model, fill its schema, submit. */
-export function Composer() {
+export function Composer({ onCollapse }: ComposerProps) {
   const modelId = useStudio((s) => s.modelId)
   const selectModel = useStudio((s) => s.selectModel)
   const setValue = useStudio((s) => s.setValue)
@@ -102,8 +107,27 @@ export function Composer() {
     // this, and 100% of the sheet would then be taller than what is left,
     // pushing the Generate button off the bottom of the screen.
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="rule shrink-0 p-4">
-        <ModelPicker modelId={modelId} onSelect={selectModel} />
+      <div className="rule flex shrink-0 items-center gap-2 p-4">
+        <div className="min-w-0 flex-1">
+          <ModelPicker modelId={modelId} onSelect={selectModel} />
+        </div>
+
+        {/*
+          Only on desktop, where the rail is a pane beside the results rather
+          than a sheet over them. The sheet has a close button of its own in
+          the header above this.
+        */}
+        {onCollapse && (
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-label="Hide the composer"
+            title="Hide the composer and give the results the full width"
+            className="grid size-8 shrink-0 place-items-center self-end rounded-lg border border-line bg-raised text-ink-faint transition-colors hover:border-line-bright hover:text-ink"
+          >
+            <PanelLeftClose className="size-4" />
+          </button>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4">

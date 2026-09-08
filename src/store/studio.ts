@@ -85,6 +85,8 @@ interface StudioState {
   /* Workspace */
   projects: Project[]
   counts: ProjectCounts
+  /** How many results the current filter matches, across every page. */
+  total: number
   /** null is "All work": the gallery shows everything, new runs stay unfiled. */
   activeProjectId: string | null
 
@@ -228,6 +230,7 @@ export const useStudio = create<StudioState>()(
 
       projects: [],
       counts: {},
+      total: 0,
       activeProjectId: null,
 
       jobs: [],
@@ -329,6 +332,7 @@ export const useStudio = create<StudioState>()(
             jobs: Job[]
             counts?: ProjectCounts
             syncedAt: number
+            total?: number
           }
 
           const visible = new Set(data.jobs.map((job) => job.id))
@@ -339,6 +343,7 @@ export const useStudio = create<StudioState>()(
             // A result that has left the view cannot stay selected in it.
             selectedJobIds: s.selectedJobIds.filter((id) => visible.has(id)),
             counts: data.counts ?? s.counts,
+            total: data.total ?? data.jobs.length,
             // Never move the mark backwards. A filtered read can return an
             // older newest-row than an unfiltered sync already saw, and
             // rewinding would replay changes that were already applied.

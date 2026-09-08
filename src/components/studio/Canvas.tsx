@@ -11,7 +11,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/Button'
 import { CATEGORIES, type ModelCategory } from '@/lib/kie/catalog'
@@ -53,6 +53,9 @@ const SEARCH_DEBOUNCE_MS = 280
  * 200px minimum leaves no room for a second. Two smaller thumbnails are more
  * useful than one big one when the point is scanning what you have made.
  */
+/** Below this many results, saying "all N shown" is noise rather than news. */
+const PAGE_HINT = 24
+
 const GRID =
   'mt-3 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(200px,1fr))]'
 
@@ -85,6 +88,32 @@ export function Canvas({
   const loadingMore = useStudio((s) => s.loadingMore)
   const hasMore = useStudio((s) => s.hasMore)
   const loadMore = useStudio((s) => s.loadMore)
+  const total = useStudio((s) => s.total)
+
+  /*
+   * Loads the next page when the end of the list comes into view.
+   *
+   * The button below stays: an observer that never fires, because the browser
+   * restored a scroll position past it or the list is shorter than the
+   * viewport, would otherwise leave no way forward at all.
+   */
+  const sentinel = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const node = sentinel.current
+    if (!node || !hasMore) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void loadMore()
+      },
+      // Fires a screenful early, so the next page is usually already there by
+      // the time the bottom is reached.
+      { rootMargin: '600px' },
+    )
+
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [hasMore, loadMore, jobs.length])
   const running = useStudio(selectActiveCount)
 
   const selectedIds = useStudio((s) => s.selectedJobIds)
@@ -175,7 +204,13 @@ export function Canvas({
             <Loader2 className="size-3.5 animate-spin" />
           ) : (
             <>
-              {jobs.length} result{jobs.length === 1 ? '' : 's'}
+              {/*
+                The filter's total, not how much of it has been fetched.
+                Saying "120 results" over a history of three hundred reads as
+                a number that is wrong rather than a page that is partial.
+              */}
+              {Math.max(total, jobs.length).toLocaleString()} result
+              {Math.max(total, jobs.length) === 1 ? '' : 's'}
               {running > 0 && <span className="text-accent"> · {running} running</span>}
             </>
           )}
@@ -313,8 +348,8 @@ export function Canvas({
             {/* The history is one long list rather than numbered pages: it is
                 read by scrolling back through it, and a page number is a
                 worse answer to "where was that thing from last week". */}
-            {hasMore && (
-              <div className="mt-4 flex justify-center">
+            <div ref={sentinel} className="mt-4 flex flex-col items-center gap-2">
+              {hasMore && (
                 <Button
                   size="sm"
                   variant="secondary"
@@ -323,8 +358,20 @@ export function Canvas({
                 >
                   Load older results
                 </Button>
-              </div>
-            )}
+              )}
+
+              {total > jobs.length ? (
+                <p className="text-[11px] tabular-nums text-ink-faint">
+                  {jobs.length.toLocaleString()} of {total.toLocaleString()}
+                </p>
+              ) : (
+                jobs.length > PAGE_HINT && (
+                  <p className="text-[11px] tabular-nums text-ink-faint">
+                    All {jobs.length.toLocaleString()} shown
+                  </p>
+                )
+              )}
+            </div>
           </>
         )}
       </div>
