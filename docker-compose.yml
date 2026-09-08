@@ -28,6 +28,8 @@ services:
       ARTICLE_WEBHOOK_SECRET: ${ARTICLE_WEBHOOK_SECRET:-}
       ARTICLE_WEBHOOK_TOKEN: ${ARTICLE_WEBHOOK_TOKEN:-}
       SIGNUPS_ENABLED: ${SIGNUPS_ENABLED:-}
+      # Who may open /admin. Blank falls back to the oldest account.
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
     depends_on:
       postgres:
         condition: service_healthy

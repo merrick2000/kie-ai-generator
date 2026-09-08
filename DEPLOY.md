@@ -56,6 +56,7 @@ present in the image.
 | `KIE_WEBHOOK_HMAC_KEY` | no | Verifies Kie webhook callbacks |
 | `NEXT_PUBLIC_APP_URL` | no | Public origin. Lets Kie call back, which cuts the wait for a finished result |
 | `SIGNUPS_ENABLED` | recommended | `false` closes registration after the first account |
+| `ADMIN_EMAILS` | recommended | Comma-separated addresses that may open `/admin`. Blank means the oldest account |
 | `ARTICLE_WEBHOOK_SECRET` | for the blog | Signing secret shared with the publisher |
 | `ARTICLE_WEBHOOK_TOKEN` | no | Optional bearer token, checked as well as the signature |
 
