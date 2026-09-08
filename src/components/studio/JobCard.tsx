@@ -10,6 +10,7 @@ import {
   Pencil,
   RefreshCw,
   RotateCw,
+  StepForward,
   Trash2,
   Type,
   X,
@@ -17,12 +18,14 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 
+import { getModel } from '@/lib/kie/catalog'
 import { jobLabel, type Job } from '@/lib/jobs/types'
 import { formatCredits, creditsToUsd, formatUsd } from '@/lib/kie/pricing'
 import { colorOf } from '@/lib/projects/colors'
 import { cn, proxied, timeAgo, truncate } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
 import { AssetView } from './AssetView'
+import { ExtendDialog } from './ExtendDialog'
 import { stripMarkdown } from './Markdown'
 
 interface JobCardProps {
@@ -57,6 +60,17 @@ export function JobCard({
   const renameJob = useStudio((s) => s.renameJob)
   const moveJob = useStudio((s) => s.moveJob)
   const rerunJob = useStudio((s) => s.rerunJob)
+  const [extending, setExtending] = useState(false)
+
+  /*
+   * Only a finished run that Kie still has a task for can be continued. An
+   * imported result has the video but no task id, so the button would open a
+   * dialog whose only possible outcome is a refusal.
+   */
+  const canExtend =
+    job.state === 'success' &&
+    Boolean(job.taskId) &&
+    Boolean(getModel(job.modelId)?.extend)
   const projects = useStudio((s) => s.projects)
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -252,6 +266,18 @@ export function JobCard({
             </button>
           )}
 
+          {canExtend && (
+            <button
+              type="button"
+              onClick={() => setExtending(true)}
+              aria-label="Extend"
+              title="Continue this clip past the length one generation allows"
+              className="grid size-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-ink sm:size-6"
+            >
+              <StepForward className="size-3.5" />
+            </button>
+          )}
+
           {job.state === 'success' && (
             <button
               type="button"
@@ -384,6 +410,10 @@ export function JobCard({
           </div>
         </div>
       </div>
+
+      {extending && (
+        <ExtendDialog job={job} onClose={() => setExtending(false)} />
+      )}
     </div>
   )
 }

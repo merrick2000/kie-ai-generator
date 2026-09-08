@@ -12,7 +12,7 @@
 import assert from 'node:assert/strict'
 
 import { MODELS, getModel } from '../src/lib/kie/catalog'
-import { buildInput, validate } from '../src/lib/kie/fields'
+import { buildInput, defaultsFor, validate } from '../src/lib/kie/fields'
 
 let passed = 0
 function check(name: string, fn: () => void) {
@@ -75,9 +75,87 @@ check('every routed target is hidden from the picker', () => {
 })
 
 check('no hidden model is left unreachable', () => {
-  const reachable = new Set(routed.map((m) => m.routeWithAssets!.modelId))
+  // Two ways in now: a reference routes to a sibling slug, and a finished
+  // result is continued by an extension model. Either counts; neither does
+  // means the entry exists and nothing can ever submit it.
+  const reachable = new Set([
+    ...routed.map((m) => m.routeWithAssets!.modelId),
+    ...MODELS.filter((m) => m.extend).map((m) => m.extend!.with),
+  ])
   for (const model of MODELS.filter((m) => m.hidden)) {
-    assert.ok(reachable.has(model.id), `${model.id} is hidden but nothing routes to it`)
+    assert.ok(reachable.has(model.id), `${model.id} is hidden but nothing reaches it`)
+  }
+})
+
+console.log('\nextension')
+
+const extendable = MODELS.filter((m) => m.extend)
+
+check('every model that can be extended names one that exists', () => {
+  for (const model of extendable) {
+    const target = getModel(model.extend!.with)
+    assert.ok(target, `${model.id} extends with a missing model`)
+    assert.ok(
+      target!.continuation,
+      `${target!.id} is used as an extension but is not marked as one`,
+    )
+  }
+})
+
+check('an extension carries the field that receives the source task', () => {
+  for (const model of extendable) {
+    const target = getModel(model.extend!.with)!
+    const field = target.fields.find((f) => f.name === target.continuation!.taskIdField)
+    assert.ok(field, `${target.id} has no ${target.continuation!.taskIdField} field`)
+    // Filled from the job, so it must be required: a continuation submitted
+    // without one is a request Kie refuses.
+    assert.equal(field!.required, true, `${target.id}'s source task must be required`)
+  }
+})
+
+check('only a video model is extended, and only into a video', () => {
+  for (const model of extendable) {
+    const target = getModel(model.extend!.with)!
+    assert.equal(model.output, 'video', `${model.id} is not a video model`)
+    assert.equal(target.output, 'video', `${target.id} does not produce video`)
+  }
+})
+
+check('every extension model is hidden', () => {
+  for (const model of MODELS.filter((m) => m.continuation)) {
+    // Its required task id cannot be typed from memory, so offering it in the
+    // picker is offering a form nobody can complete.
+    assert.equal(model.hidden, true, `${model.id} would appear in the picker`)
+  }
+})
+
+check('a continuation validates once the task id is filled in', () => {
+  for (const model of MODELS.filter((m) => m.continuation)) {
+    const values = {
+      ...defaultsFor(model.fields),
+      prompt: 'the camera pulls back to reveal the whole street',
+      [model.continuation!.taskIdField]: 'task-from-the-source-run',
+    }
+
+    assert.deepEqual(
+      validate(model.fields, values),
+      [],
+      `${model.id} rejects a continuation the Extend action would build`,
+    )
+
+    const input = buildInput(model.fields, values)
+    assert.equal(input[model.continuation!.taskIdField], 'task-from-the-source-run')
+  }
+})
+
+check('a continuation is refused when nothing says what to continue', () => {
+  for (const model of MODELS.filter((m) => m.continuation)) {
+    const values = { ...defaultsFor(model.fields), prompt: 'keep going' }
+    assert.notDeepEqual(
+      validate(model.fields, values),
+      [],
+      `${model.id} accepts a continuation with no source task`,
+    )
   }
 })
 

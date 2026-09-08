@@ -25,6 +25,7 @@ import {
   type SunoGenerateRequest,
   type SunoRecordInfoData,
   type UploadResultData,
+  type VeoExtendRequest,
   type VeoGenerateRequest,
   type VeoRecordInfoData,
 } from './types'
@@ -295,6 +296,20 @@ export function getTask(taskId: string, signal?: AbortSignal) {
 
 export function createVeoTask(body: VeoGenerateRequest, signal?: AbortSignal) {
   return request<CreateTaskData>('/api/v1/veo/generate', {
+    method: 'POST',
+    body,
+    signal,
+  })
+}
+
+/**
+ * Continue a finished Veo generation.
+ *
+ * The result is a new task, polled through the same record-info endpoint as
+ * any other Veo run, so nothing downstream needs to know it was an extension.
+ */
+export function extendVeoTask(body: VeoExtendRequest, signal?: AbortSignal) {
+  return request<CreateTaskData>('/api/v1/veo/extend', {
     method: 'POST',
     body,
     signal,

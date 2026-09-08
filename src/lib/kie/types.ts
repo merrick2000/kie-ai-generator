@@ -130,6 +130,24 @@ export interface VeoGenerateRequest {
   callBackUrl?: string
 }
 
+/**
+ * POST /api/v1/veo/extend
+ *
+ * Continues a finished generation rather than starting one, so it takes the
+ * source task id and none of the shot parameters: aspect ratio, resolution
+ * and duration are inherited from the clip being continued. Kie's own note:
+ * a video already taken to 1080p cannot be extended.
+ */
+export interface VeoExtendRequest {
+  taskId: string
+  prompt: string
+  model?: 'fast' | 'quality' | 'lite'
+  /** Kie's range is 10000-99999, unlike the generate endpoint. */
+  seeds?: number
+  watermark?: string
+  callBackUrl?: string
+}
+
 /** GET /api/v1/veo/record-info */
 export interface VeoRecordInfoData {
   taskId: string

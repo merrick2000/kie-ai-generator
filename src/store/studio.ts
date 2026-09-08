@@ -165,6 +165,8 @@ interface StudioState {
 
   /** Run a result again with its own settings and a new seed. */
   rerunJob: (id: string) => Promise<Job | null>
+  /** Continue a finished clip. `values` are the extension model's fields. */
+  extendJob: (id: string, values: Record<string, unknown>) => Promise<Job | null>
   renameJob: (id: string, title: string | null) => Promise<void>
   toggleFavorite: (id: string) => Promise<void>
   moveJob: (id: string, projectId: string | null) => Promise<void>
@@ -548,6 +550,23 @@ export const useStudio = create<StudioState>()(
 
         await getState().refresh()
         return data.job
+      },
+
+      extendJob: async (id, values) => {
+        const res = await fetch(`/api/jobs/${id}/extend`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(values),
+        })
+        const data = (await res.json().catch(() => ({}))) as {
+          job?: Job
+          error?: string
+        }
+
+        // Same as a rerun: a refused submission is still recorded server-side,
+        // so refreshing shows the attempt rather than losing it.
+        await getState().refresh()
+        return res.ok && data.job ? data.job : null
       },
 
       renameJob: async (id, title) => {

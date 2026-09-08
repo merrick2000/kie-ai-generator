@@ -101,10 +101,37 @@ export interface ModelDef {
   }
 
   /**
+   * How a finished run of this model is continued past its length limit.
+   *
+   * Every video model here caps a single generation: Veo at 8 seconds, Grok
+   * at 30. Kie's answer is a second call that takes the *task id* of the
+   * finished run and appends to it, which means the only way to reach a
+   * longer clip is to already have a shorter one. That is a relationship
+   * between two runs rather than a parameter on one, so it does not fit in
+   * the field system and lives here.
+   */
+  extend?: {
+    /** Catalog id of the model that performs the continuation. */
+    with: string
+  }
+
+  /**
+   * Marks a model that continues an existing run rather than starting one.
+   *
+   * Such a model is useless on its own, because its required task id is not
+   * something anyone can type from memory, so it is hidden and reached only
+   * through the Extend action on a finished result. The field named here is
+   * the one that receives the source task id.
+   */
+  continuation?: {
+    taskIdField: string
+  }
+
+  /**
    * Kept out of the model picker.
    *
-   * Used for a variant reachable by routing, so the list shows one entry per
-   * model rather than one per Kie slug.
+   * Used for a variant reachable by routing or by continuation, so the list
+   * shows one entry per model rather than one per Kie slug.
    */
   hidden?: boolean
 }
@@ -873,6 +900,62 @@ const VIDEO_TEXT: ModelDef[] = [
         advanced: true,
       },
     ],
+    extend: { with: 'veo3-extend' },
+  },
+  {
+    /*
+     * Not a Kie model id. Kie's extension is a separate endpoint rather than
+     * a model slug, so this entry exists to give it a form, a price and a
+     * place in the catalog like everything else. `submitTask` recognises the
+     * continuation and posts to /api/v1/veo/extend instead of /generate.
+     */
+    id: 'veo3-extend',
+    name: 'Veo 3.1 Extend',
+    family: 'Google',
+    category: 'video',
+    mode: 'video-to-video',
+    api: 'veo',
+    output: 'video',
+    tagline: 'Continue a finished Veo clip past its eight-second ceiling.',
+    speed: 'slow',
+    hidden: true,
+    continuation: { taskIdField: 'taskId' },
+    fields: [
+      prompt({
+        maxLength: 5000,
+        label: 'What happens next',
+        placeholder: 'The camera pulls back to reveal…',
+        required: true,
+      }),
+      {
+        name: 'model',
+        kind: 'select',
+        label: 'Tier',
+        options: [
+          { value: 'fast', label: 'Fast', hint: 'Quickest, lowest cost' },
+          { value: 'quality', label: 'Quality', hint: 'Full Veo 3.1' },
+          { value: 'lite', label: 'Lite', hint: 'Draft tier' },
+        ],
+        default: 'fast',
+      },
+      {
+        name: 'watermark',
+        kind: 'text',
+        label: 'Watermark text',
+        advanced: true,
+        placeholder: 'Optional',
+      },
+      // Kie's range, not ours: outside 10000-99999 the seed is refused.
+      seed({ min: 10000, max: 99999 }),
+      {
+        name: 'taskId',
+        kind: 'text',
+        label: 'Source task',
+        required: true,
+        // Filled from the job being extended. Never typed.
+        advanced: true,
+      },
+    ],
   },
   {
     id: 'bytedance/seedance-2',
@@ -1163,6 +1246,7 @@ const VIDEO_TEXT: ModelDef[] = [
       resolution(['480p', '720p', '1080p'], '720p'),
       nsfwChecker(),
     ],
+    extend: { with: 'grok-imagine/extend' },
   },
   {
     id: 'minimax-h3/text-to-video',
@@ -1378,6 +1462,7 @@ const VIDEO_IMAGE: ModelDef[] = [
       ratio(['2:3', '3:2', '1:1', '16:9', '9:16'], '16:9'),
       nsfwChecker(),
     ],
+    extend: { with: 'grok-imagine/extend' },
   },
   {
     id: 'minimax-h3/image-to-video',

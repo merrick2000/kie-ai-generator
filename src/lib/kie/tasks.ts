@@ -12,6 +12,7 @@ import {
   createSunoTask,
   createTask,
   createVeoTask,
+  extendVeoTask,
   extractUrls,
   getSunoTask,
   getTask,
@@ -24,6 +25,7 @@ import {
   VEO_FLAG,
   type KieTaskState,
   type SunoGenerateRequest,
+  type VeoExtendRequest,
   type VeoGenerateRequest,
 } from './types'
 
@@ -80,6 +82,14 @@ export async function submitTask(
 
   switch (model.api) {
     case 'veo': {
+      // A continuation goes to a different endpoint with a different body:
+      // it names the run it follows and inherits that run's framing, so none
+      // of the shot parameters apply.
+      if (model.continuation) {
+        const { taskId } = await extendVeoTask(toVeoExtendRequest(input, cb))
+        return { taskId, api: 'veo' }
+      }
+
       const body = toVeoRequest(input, cb)
       const { taskId } = await createVeoTask(body)
       return { taskId, api: 'veo' }
@@ -132,6 +142,26 @@ function toVeoRequest(
     ...(duration === 4 || duration === 6 || duration === 8 ? { duration } : {}),
     ...(input.watermark ? { watermark: String(input.watermark) } : {}),
     enableTranslation: input.enableTranslation !== false,
+    ...(cb ? { callBackUrl: cb } : {}),
+  }
+}
+
+function toVeoExtendRequest(
+  input: Record<string, unknown>,
+  cb: string | undefined,
+): VeoExtendRequest {
+  const seeds = Number(input.seed)
+
+  return {
+    taskId: String(input.taskId ?? ''),
+    prompt: String(input.prompt ?? ''),
+    model: (input.model as VeoExtendRequest['model']) ?? 'fast',
+    // Out of range is refused rather than clamped, so an unusable value is
+    // dropped and Kie picks its own.
+    ...(Number.isFinite(seeds) && seeds >= 10000 && seeds <= 99999
+      ? { seeds }
+      : {}),
+    ...(input.watermark ? { watermark: String(input.watermark) } : {}),
     ...(cb ? { callBackUrl: cb } : {}),
   }
 }
