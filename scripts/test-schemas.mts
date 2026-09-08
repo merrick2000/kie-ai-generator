@@ -170,6 +170,33 @@ check('enum options match what the model accepts', () => {
   assert.deepEqual(problems, [], `values Kie rejects:\n  ${problems.join('\n  ')}`)
 })
 
+check('a model that can turn Kie’s filter off says so on the form', () => {
+  // The check above only stops the catalog sending a field Kie does not know.
+  // Nothing stopped it quietly omitting one, which is how two models ended up
+  // accepting `nsfw_checker` while offering no way to reach it: the setting
+  // was simply unreachable, and the omission was invisible because leaving a
+  // field out is never an error.
+  const GATES = ['nsfw_checker', 'enable_safety_checker']
+  const missing: string[] = []
+
+  for (const model of market) {
+    const spec = schemas[model.id]
+    if (!spec) continue
+
+    for (const gate of GATES) {
+      if (!(gate in spec.fields)) continue
+      if (model.fields.some((f) => f.name === gate)) continue
+      missing.push(`${model.id}.${gate}`)
+    }
+  }
+
+  assert.deepEqual(
+    missing,
+    [],
+    `accepted by Kie but absent from the form:\n  ${missing.join('\n  ')}`,
+  )
+})
+
 console.log('\ncoverage')
 
 check('the catalog reports how much of Kie it covers', () => {

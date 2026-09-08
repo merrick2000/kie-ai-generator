@@ -1492,6 +1492,17 @@ const VIDEO_IMAGE: ModelDef[] = [
         default: '5',
       },
       seed(),
+      {
+        // Kie's own filter is `nsfw_checker`; this is ByteDance's, and the
+        // three sibling entries all offer it. Shape copied from them.
+        name: 'enable_safety_checker',
+        kind: 'toggle',
+        label: 'Enable safety checker',
+        default: false,
+        advanced: true,
+        description: 'The safety checker is always enabled in Playground.',
+      },
+      nsfwChecker(),
     ],
   },
   {
@@ -1711,6 +1722,7 @@ const VIDEO_AVATAR: ModelDef[] = [
         maxSizeMb: 50,
       },
       resolution(['480p', '720p'], '720p'),
+      nsfwChecker(),
     ],
   },
   {

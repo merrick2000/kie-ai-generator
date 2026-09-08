@@ -25,6 +25,21 @@ interface ModelPickerProps {
 /** Everything a person can actually choose. */
 const LISTED = MODELS.filter((m) => !m.hidden)
 
+/**
+ * Models whose content filter can be turned off from the form.
+ *
+ * Kie exposes `nsfw_checker` on some models and the vendor's own
+ * `enable_safety_checker` on a few others, and neither is discoverable: both
+ * sit under Advanced, on sixty of the hundred and thirty-three. Finding them
+ * meant opening models one at a time to see whether the switch was there.
+ *
+ * The switch is not a promise about output. It stops Kie screening the result
+ * and hands back whatever the model produced, which still depends entirely on
+ * what that model was trained to produce.
+ */
+const GATES = ['nsfw_checker', 'enable_safety_checker']
+const unfiltered = (m: ModelDef) => m.fields.some((f) => GATES.includes(f.name))
+
 /** A model needs this many runs here before it counts as one you rely on. */
 const HABIT_THRESHOLD = 2
 
@@ -52,6 +67,7 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<ModelCategory | 'all'>('all')
   const [mode, setMode] = useState<ModelMode | 'all'>('all')
+  const [onlyUnfiltered, setOnlyUnfiltered] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
   const active = getModel(modelId)
@@ -81,6 +97,7 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
     return LISTED.filter((m) => {
       if (category !== 'all' && m.category !== category) return false
       if (mode !== 'all' && m.mode !== mode) return false
+      if (onlyUnfiltered && !unfiltered(m)) return false
       if (!q) return true
       return (
         m.name.toLowerCase().includes(q) ||
@@ -90,7 +107,7 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
         m.mode.includes(q)
       )
     })
-  }, [category, mode, query])
+  }, [category, mode, onlyUnfiltered, query])
 
   // Featured models lead each list; the rest keep catalog order.
   const ordered = useMemo(
@@ -221,37 +238,61 @@ export function ModelPicker({ modelId, onSelect, placeholder }: ModelPickerProps
             })}
           </div>
 
-          {modes.length > 1 && (
-            <div className="rule flex gap-1 overflow-x-auto px-2 py-2 no-scrollbar">
-              <button
-                type="button"
-                onClick={() => setMode('all')}
-                className={cn(
-                  'shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors',
-                  mode === 'all'
-                    ? 'bg-overlay text-ink'
-                    : 'text-ink-faint hover:bg-raised hover:text-ink',
-                )}
-              >
-                Any input
-              </button>
-              {modes.map((m) => (
+          <div className="rule flex items-center gap-1 overflow-x-auto px-2 py-2 no-scrollbar">
+            {modes.length > 1 && (
+              <>
                 <button
-                  key={m.id}
                   type="button"
-                  onClick={() => setMode(m.id)}
+                  onClick={() => setMode('all')}
                   className={cn(
-                    'shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors',
-                    mode === m.id
+                    'shrink-0 rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors',
+                    mode === 'all'
                       ? 'bg-overlay text-ink'
                       : 'text-ink-faint hover:bg-raised hover:text-ink',
                   )}
                 >
-                  {m.label}
+                  Any input
                 </button>
-              ))}
-            </div>
-          )}
+                {modes.map((m) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => setMode(m.id)}
+                    className={cn(
+                      'shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors',
+                      mode === m.id
+                        ? 'bg-overlay text-ink'
+                        : 'text-ink-faint hover:bg-raised hover:text-ink',
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+                <span className="mx-1 h-4 w-px shrink-0 bg-line" aria-hidden />
+              </>
+            )}
+
+            {/*
+              Pushed to the end and worded as what it filters on rather than
+              what it is for: the switch controls Kie's screening step, and a
+              label promising anything about the output would be a label that
+              lies.
+            */}
+            <button
+              type="button"
+              onClick={() => setOnlyUnfiltered((v) => !v)}
+              title="Only models whose content filter can be switched off"
+              aria-pressed={onlyUnfiltered}
+              className={cn(
+                'ml-auto shrink-0 whitespace-nowrap rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors',
+                onlyUnfiltered
+                  ? 'bg-overlay text-ink'
+                  : 'text-ink-faint hover:bg-raised hover:text-ink',
+              )}
+            >
+              Filter off-switch
+            </button>
+          </div>
 
           <div className="max-h-[min(52vh,420px)] overflow-y-auto p-1.5">
             {ordered.length === 0 && (
