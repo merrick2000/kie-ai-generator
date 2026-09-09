@@ -12,6 +12,8 @@
 import assert from 'node:assert/strict'
 
 import { MODELS, getModel } from '../src/lib/kie/catalog'
+import { alertDescription } from '../src/hooks/useCompletionAlerts'
+import { explainUpstream } from '../src/lib/kie/errors-upstream'
 import { buildInput, defaultsFor, validate } from '../src/lib/kie/fields'
 
 let passed = 0
@@ -159,6 +161,23 @@ check('a continuation is refused when nothing says what to continue', () => {
   }
 })
 
+check('a continuation sends its durations the way Kie wants them', () => {
+  // Kie documents extend_times as a number and refuses one, answering
+  // "extend_times it must be a string". Every other duration in this API is
+  // a string, so the schema is the outlier and this is the regression guard.
+  const model = getModel('grok-imagine/extend')!
+  const input = buildInput(model.fields, {
+    ...defaultsFor(model.fields),
+    prompt: 'the camera keeps moving',
+    task_id: 'source-task',
+    extend_times: '10',
+  })
+
+  assert.equal(typeof input.extend_times, 'string', 'extend_times must be a string')
+  assert.equal(input.extend_times, '10')
+  assert.equal(typeof input.extend_at, 'string', 'extend_at must be a string')
+})
+
 console.log('\ninput mapping')
 
 check('text-only submissions stay on the text model', () => {
@@ -223,6 +242,105 @@ check('a route lands on a field the target really has', () => {
       `${route.modelId}.${route.to} is not an asset field`,
     )
   }
+})
+
+console.log('\nlength limits')
+
+check('text past a model’s limit is refused before it is submitted', () => {
+  // The counter above the box turned red and nothing else happened, so the
+  // request went to Kie and came back rejected.
+  const model = getModel('veo3')!
+  const field = model.fields.find((f) => f.name === 'prompt')!
+  const limit = (field as { maxLength?: number }).maxLength!
+
+  assert.deepEqual(validate(model.fields, { prompt: 'a'.repeat(limit) }), [])
+
+  const [problem] = validate(model.fields, { prompt: 'a'.repeat(limit + 12) })
+  assert.match(problem ?? '', /12 characters over/)
+})
+
+check('the limit is checked on optional fields too', () => {
+  // The old loop skipped anything not required, and a project's prompt suffix
+  // is folded in after the box has already accepted the text.
+  const optional = MODELS.find((m) =>
+    m.fields.some(
+      (f) => !f.required && 'maxLength' in f && typeof f.maxLength === 'number',
+    ),
+  )!
+  const field = optional.fields.find(
+    (f) => !f.required && 'maxLength' in f && typeof f.maxLength === 'number',
+  )! as { name: string; maxLength: number }
+
+  const errors = validate(optional.fields, {
+    [field.name]: 'a'.repeat(field.maxLength + 1),
+  })
+  assert.ok(
+    errors.some((e) => /over the/.test(e)),
+    `${optional.id}.${field.name} accepted text past its limit`,
+  )
+})
+
+console.log('\ncompletion alerts')
+
+check('a toast repeats enough of a prompt to recognise it, and no more', () => {
+  // The description was the whole prompt, so a long one turned the toast into
+  // a column of text from the top of the screen to the bottom.
+  const prompt = 'une image dune femme tenant ce produit entre les mains '.repeat(20)
+  const line = alertDescription({
+    title: null,
+    promptPreview: prompt,
+    modelName: 'Seedream 5 Pro',
+    state: 'success',
+    error: null,
+  })
+
+  assert.ok(line.length <= 110, `a toast line of ${line.length} characters is a paragraph`)
+  assert.ok(line.endsWith('…'), 'a cut line has to say it was cut')
+  assert.ok(prompt.startsWith(line.slice(0, 40)), 'it is the start of the prompt')
+})
+
+check('a failure shows the reason rather than the prompt', () => {
+  const line = alertDescription({
+    title: null,
+    promptPreview: 'a quiet street',
+    modelName: 'Veo 3.1',
+    state: 'fail',
+    error: 'The provider refused this.',
+  })
+  assert.equal(line, 'The provider refused this.')
+})
+
+check('a long failure reason is cut too', () => {
+  const line = alertDescription({
+    title: null,
+    promptPreview: 'x',
+    modelName: 'Veo 3.1',
+    state: 'fail',
+    error: 'because '.repeat(60),
+  })
+  assert.ok(line.length <= 110)
+})
+
+console.log('\nupstream refusals')
+
+check('a bare provider code is explained, and kept', () => {
+  const out = explainUpstream('PUBLIC_ERROR_PROMINENT_PEOPLE_FILTER_FAILED')!
+  // The sentence is what a person reads; the code is what they would quote to
+  // support, so neither is thrown away.
+  assert.match(out, /recognisable person/)
+  assert.match(out, /PUBLIC_ERROR_PROMINENT_PEOPLE_FILTER_FAILED/)
+})
+
+check('an unfamiliar message is passed through untouched', () => {
+  // A wrong paraphrase is worse than an unfamiliar string.
+  const raw = 'Something nobody has seen before'
+  assert.equal(explainUpstream(raw), raw)
+})
+
+check('nothing in, nothing out', () => {
+  assert.equal(explainUpstream(null), null)
+  assert.equal(explainUpstream(''), null)
+  assert.equal(explainUpstream('   '), null)
 })
 
 console.log(`\n${passed} passed`)

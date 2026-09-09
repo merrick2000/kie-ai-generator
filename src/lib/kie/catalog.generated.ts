@@ -991,6 +991,14 @@ export const GENERATED: ModelDef[] = [
         // The generator wrote this as a free number defaulting to 1, which
         // Kie rejects. The documented values are six and ten, and the name is
         // a duration rather than a count of repeats.
+        /*
+         * Sent as a string, against what the schema says.
+         *
+         * Kie documents this as a number and refuses one: "extend_times it
+         * must be a string". Every other duration in this API is a string
+         * too, `wan/2-6-text-to-video` even declares the enum as ['5','10',
+         * '15'], so the schema is the outlier here, not the convention.
+         */
         name: 'extend_times',
         kind: 'select',
         label: 'Add',
@@ -998,7 +1006,6 @@ export const GENERATED: ModelDef[] = [
           { value: '6', label: '6s' },
           { value: '10', label: '10s' },
         ],
-        asNumber: true,
         default: '6',
         description: 'How much video to append. Longer takes longer to generate.',
       },
@@ -1009,6 +1016,9 @@ export const GENERATED: ModelDef[] = [
         min: 2,
         step: 1,
         default: 2,
+        // Same story as extend_times above: documented as a number, wanted
+        // as a string.
+        asString: true,
         advanced: true,
         description: 'Second of the source clip the continuation starts at.',
       },

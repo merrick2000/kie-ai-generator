@@ -38,6 +38,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       */}
       <body className="antialiased">
         {children}
+        {/*
+          The height cap is not cosmetic. A toast's description is often a
+          prompt, and a long one turned it into a column of text running the
+          full height of the screen, on top of the gallery it was announcing.
+          Callers trim their own text; this is the floor under all of them,
+          including the ones that forget.
+        */}
         <Toaster
           theme="dark"
           position="bottom-right"
@@ -46,6 +53,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               background: 'var(--color-overlay)',
               border: '1px solid var(--color-line-bright)',
               color: 'var(--color-ink)',
+              maxHeight: 'min(40vh, 320px)',
+              overflowY: 'auto',
+              // A pasted URL or a prompt written without spaces would
+              // otherwise push the toast wider than the window.
+              overflowWrap: 'anywhere',
             },
           }}
         />

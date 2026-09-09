@@ -21,6 +21,7 @@ import {
   callbackUrl,
 } from './client'
 import { getModel, type ModelApi } from './catalog'
+import { explainUpstream } from './errors-upstream'
 import {
   VEO_FLAG,
   type KieTaskState,
@@ -275,7 +276,7 @@ function normalizeMarket(
         : impliedProgress(state),
     assets,
     text,
-    error: state === 'fail' ? data.failMsg || 'Generation failed.' : undefined,
+    error: state === 'fail' ? explainUpstream(data.failMsg) ?? 'Generation failed.' : undefined,
     errorCode: data.failCode ?? null,
     costTimeMs: data.costTime ?? null,
     creditsConsumed: data.creditsConsumed ?? null,
@@ -303,7 +304,7 @@ function normalizeVeo(
     state,
     progress: impliedProgress(state),
     assets: urls.map((url) => ({ url, kind: 'video' as const })),
-    error: state === 'fail' ? data.errorMessage || 'Veo generation failed.' : undefined,
+    error: state === 'fail' ? explainUpstream(data.errorMessage) ?? 'Veo generation failed.' : undefined,
     errorCode: data.errorCode ?? null,
     createdAt: data.createTime ?? null,
     completedAt: data.completeTime ?? null,
@@ -361,7 +362,7 @@ function normalizeSuno(
     state,
     progress: failed ? 100 : progress,
     assets,
-    error: failed ? data.errorMessage || `Suno task ${status}.` : undefined,
+    error: failed ? explainUpstream(data.errorMessage) ?? `Suno task ${status}.` : undefined,
     errorCode: data.errorCode ?? null,
   }
 }

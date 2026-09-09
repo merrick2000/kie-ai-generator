@@ -49,7 +49,17 @@ export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
           aside={
             <span className="flex items-center gap-2">
               {f.maxLength && (
-                <span className={cn(text.length > f.maxLength && 'text-danger')}>
+                // Amber near the ceiling, red at it. Reaching the limit now
+                // stops the typing rather than merely colouring a number, so
+                // the warning has to arrive before that.
+                <span
+                  className={cn(
+                    text.length >= f.maxLength && 'text-danger',
+                    text.length >= f.maxLength * 0.9 &&
+                      text.length < f.maxLength &&
+                      'text-warn',
+                  )}
+                >
                   {text.length.toLocaleString()}/{f.maxLength.toLocaleString()}
                 </span>
               )}
@@ -81,6 +91,13 @@ export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
             value={text}
             onChange={(e) => onChange(e.target.value)}
             placeholder={f.placeholder}
+            /*
+              Enforced, not merely counted. The counter turning red was the
+              only thing that happened past the limit, so an over-long prompt
+              reached Kie and came back refused. The browser also trims a
+              paste to fit, which is the case that actually produced them.
+            */
+            maxLength={f.maxLength}
             rows={isPrompt ? (expanded ? 16 : 4) : 2}
             className={cn(
               inputClass,

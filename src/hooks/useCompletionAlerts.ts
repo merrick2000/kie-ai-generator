@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 
 import { isRunning, jobLabel, type Job } from '@/lib/jobs/types'
+import { truncate } from '@/lib/utils'
 import { selectActiveCount, useStudio } from '@/store/studio'
 
 /**
@@ -58,16 +59,34 @@ export function useCompletionAlerts(): void {
   }, [running])
 }
 
-function announce(job: Job): void {
+/**
+ * How much of a prompt a toast is allowed to repeat.
+ *
+ * The description was the prompt, whole. A long one turned the toast into a
+ * column of text from the top of the screen to the bottom, over the gallery it
+ * was announcing. This is enough to recognise which run finished, which is all
+ * a toast is for.
+ */
+const TOAST_CHARS = 110
+
+/**
+ * The line under a toast's title.
+ *
+ * Exported so the bound is something a test can hold rather than something
+ * this file merely intends. A toast is a glance, not a document.
+ */
+export function alertDescription(job: Pick<Job, 'title' | 'promptPreview' | 'modelName' | 'state' | 'error'>): string {
   const label = jobLabel(job)
+  return truncate(job.state === 'fail' ? (job.error ?? label) : label, TOAST_CHARS)
+}
+
+function announce(job: Job): void {
+  const description = alertDescription(job)
 
   if (job.state === 'fail') {
-    toast.error(`${job.modelName} failed`, {
-      description: job.error ?? label,
-      duration: 9_000,
-    })
+    toast.error(`${job.modelName} failed`, { description, duration: 9_000 })
   } else {
-    toast.success('Generation complete', { description: label })
+    toast.success('Generation complete', { description })
   }
 
   // Only when the tab is not in front of them: a system notification for
@@ -80,7 +99,7 @@ function announce(job: Job): void {
     const notification = new Notification(
       job.state === 'fail' ? `${job.modelName} failed` : `${job.modelName} finished`,
       {
-        body: label,
+        body: description,
         // One notification per job, so a batch of eight does not stack.
         tag: job.id,
         icon: '/icon.svg',

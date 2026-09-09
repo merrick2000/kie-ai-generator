@@ -563,8 +563,29 @@ export function validate(
   const errors: string[] = []
 
   for (const f of fields) {
-    if (!f.required || !isVisible(f, values)) continue
+    if (!isVisible(f, values)) continue
     const raw = values[f.name]
+
+    /*
+     * Length, before anything else, and for optional fields too.
+     *
+     * The counter above the box turned red past the limit and nothing else
+     * happened: the request went to Kie and came back refused. Text can also
+     * arrive from somewhere the box never saw, a rerun of an older job or a
+     * project's prompt prefix folded in afterwards, so the check belongs here
+     * rather than only on the input.
+     */
+    if ('maxLength' in f && f.maxLength && typeof raw === 'string') {
+      const over = raw.trim().length - f.maxLength
+      if (over > 0) {
+        errors.push(
+          `${f.label} is ${over.toLocaleString()} character${over === 1 ? '' : 's'} over the ${f.maxLength.toLocaleString()} this model accepts.`,
+        )
+        continue
+      }
+    }
+
+    if (!f.required) continue
 
     const empty =
       raw === undefined ||
