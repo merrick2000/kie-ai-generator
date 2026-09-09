@@ -25,6 +25,7 @@ import {
   type GallerySort,
   type GalleryStatus,
 } from '@/store/studio'
+import { ClearDialog } from './ClearDialog'
 import { CompareView } from './CompareView'
 import { JobCard } from './JobCard'
 import { ProjectBanner } from './ProjectSwitcher'
@@ -82,13 +83,13 @@ export function Canvas({
   const clearFilters = useStudio((s) => s.clearFilters)
   const focusJob = useStudio((s) => s.focusJob)
   const focused = useStudio(selectFocusedJob)
-  const clearHistory = useStudio((s) => s.clearHistory)
   const hydrated = useStudio((s) => s.hydrated)
   const loading = useStudio((s) => s.loading)
   const loadingMore = useStudio((s) => s.loadingMore)
   const hasMore = useStudio((s) => s.hasMore)
   const loadMore = useStudio((s) => s.loadMore)
   const total = useStudio((s) => s.total)
+  const [clearing, setClearing] = useState(false)
 
   /*
    * Loads the next page when the end of the list comes into view.
@@ -230,15 +231,24 @@ export function Canvas({
           </Button>
         )}
 
+        {/*
+          Named for what it destroys, and styled like it.
+          
+          As "Clear" in a ghost button beside Compare, sitting above a row of
+          filter chips, it read as "clear the filters" and deleted the gallery
+          instead. It is the only irreversible control in this toolbar, so it
+          is the only one that looks dangerous, and it now asks first.
+        */}
         {jobs.length > 0 && (
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => void clearHistory()}
-            title="Delete finished, unpinned results. Running jobs and pinned ones stay."
+            onClick={() => setClearing(true)}
+            title="Permanently delete finished, unpinned results"
+            className="text-ink-faint hover:bg-danger/10 hover:text-danger"
           >
             <Trash2 className="size-3.5" />
-            Clear
+            Delete history
           </Button>
         )}
       </div>
@@ -419,6 +429,8 @@ export function Canvas({
       {comparing && compared.length > 0 && (
         <CompareView jobs={compared} onClose={() => setComparing(false)} />
       )}
+
+      {clearing && <ClearDialog onClose={() => setClearing(false)} />}
 
       {focused && <Viewer job={focused} onClose={() => focusJob(null)} />}
     </div>

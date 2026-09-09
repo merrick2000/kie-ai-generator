@@ -653,6 +653,73 @@ await check('clearing keeps pinned and running work', async () => {
   assert.ok(left.some((j) => j.id === pinned.id))
 })
 
+await check('the count offered is the number actually taken', async () => {
+  // The whole point of the confirmation dialog. A count that overstates
+  // frightens people out of a harmless sweep; one that understates deletes
+  // work they never agreed to lose.
+  await db.run('DELETE FROM jobs')
+
+  for (const suffix of ['n-1', 'n-2', 'n-3']) {
+    const job = await store.insertJob(base)
+    await store.attachTask(job.id, suffix, Date.now())
+    await store.applyTaskResult(job.id, task(), Date.now())
+  }
+
+  const pinned = await store.insertJob(base)
+  await store.attachTask(pinned.id, 'n-4', Date.now())
+  await store.applyTaskResult(pinned.id, task(), Date.now())
+  await store.patchJob(USER, pinned.id, { favorite: true })
+
+  const running = await store.insertJob(base)
+  await store.attachTask(running.id, 'n-5', Date.now())
+
+  const promised = await store.countClearable(USER)
+  assert.equal(promised, 3, 'the pinned and the running one are not offered')
+
+  assert.equal(await store.clearJobs(USER), promised)
+
+  // Zero afterwards, so the dialog can say there is nothing to do rather than
+  // offering a button that deletes nothing.
+  assert.equal(await store.countClearable(USER), 0)
+  assert.equal((await store.listJobs(USER)).length, 2)
+  void running
+})
+
+await check('counting removes nothing', async () => {
+  await db.run('DELETE FROM jobs')
+
+  const job = await store.insertJob(base)
+  await store.attachTask(job.id, 'n-6', Date.now())
+  await store.applyTaskResult(job.id, task(), Date.now())
+
+  for (let i = 0; i < 3; i++) assert.equal(await store.countClearable(USER), 1)
+  assert.equal((await store.listJobs(USER)).length, 1)
+})
+
+await check('the count is scoped exactly as the sweep is', async () => {
+  await db.run('DELETE FROM jobs')
+
+  const project = await projects.createProject(USER, { name: 'Sweepable' })
+
+  const filed = await store.insertJob({ ...base, projectId: project.id })
+  await store.attachTask(filed.id, 'n-7', Date.now())
+  await store.applyTaskResult(filed.id, task(), Date.now())
+
+  const unfiled = await store.insertJob(base)
+  await store.attachTask(unfiled.id, 'n-8', Date.now())
+  await store.applyTaskResult(unfiled.id, task(), Date.now())
+
+  // Naming a project must not reach outside it, and the unfiled scope must
+  // not reach into one. This is the difference between clearing a folder and
+  // clearing the account, which is the mistake the dialog exists to prevent.
+  assert.equal(await store.countClearable(USER, { projectId: project.id }), 1)
+  assert.equal(await store.countClearable(USER, { projectId: null }), 1)
+  assert.equal(await store.countClearable(USER), 2, 'no scope sweeps everything')
+
+  assert.equal(await store.clearJobs(USER, { projectId: project.id }), 1)
+  assert.equal((await store.listJobs(USER)).length, 1)
+})
+
 await check('usage counts successes, failures and spend per model', async () => {
   await db.run('DELETE FROM jobs')
 

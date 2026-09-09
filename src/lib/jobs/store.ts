@@ -498,11 +498,26 @@ export async function deleteJob(userId: string, id: string): Promise<void> {
  * running jobs: deleting one would abandon a task that is still being paid
  * for upstream.
  */
-export async function clearJobs(
+export interface ClearScope {
+  /** undefined sweeps every project, null sweeps only unfiled work. */
+  projectId?: string | null
+}
+
+/**
+ * What a sweep would take.
+ *
+ * Shared with `clearJobs` so the number shown in the confirmation is the same
+ * number that gets deleted. Kept in one place because a count built from a
+ * second copy of these clauses is worse than no count at all: it would be
+ * believed, and it would be wrong the first time either side gained a rule.
+ *
+ * Pinned work and anything still running are never in it. Deleting a running
+ * job abandons a task that is already being paid for upstream.
+ */
+function clearableFilter(
   userId: string,
-  options: { projectId?: string | null } = {},
-): Promise<number> {
-  const db = await getDb()
+  options: ClearScope,
+): { where: string[]; params: SqlValue[] } {
   const where = ['user_id = ?', 'favorite = FALSE', `state IN ('success', 'fail')`]
   const params: SqlValue[] = [userId]
 
@@ -513,6 +528,31 @@ export async function clearJobs(
       params.push(options.projectId)
     }
   }
+
+  return { where, params }
+}
+
+/** How many results a sweep would remove, without removing them. */
+export async function countClearable(
+  userId: string,
+  options: ClearScope = {},
+): Promise<number> {
+  const db = await getDb()
+  const { where, params } = clearableFilter(userId, options)
+
+  const row = await db.get<{ n: number | string }>(
+    `SELECT COUNT(*) AS n FROM jobs WHERE ${where.join(' AND ')}`,
+    params,
+  )
+  return Number(row?.n ?? 0)
+}
+
+export async function clearJobs(
+  userId: string,
+  options: ClearScope = {},
+): Promise<number> {
+  const db = await getDb()
+  const { where, params } = clearableFilter(userId, options)
 
   const doomed = await db.all<{ id: string }>(
     `SELECT id FROM jobs WHERE ${where.join(' AND ')}`,
