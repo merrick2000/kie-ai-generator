@@ -42,6 +42,22 @@ RUN npm run build
 # ==============================================================================
 # Stage 3: runner
 # ==============================================================================
+# ── sharp ────────────────────────────────────────────────────────────────────
+# Installed alone so npm resolves its dependency tree, and on this image so the
+# native binaries are the musl build. Version read from the manifest, so it can
+# never drift from what the application was built against.
+FROM node:22-alpine AS sharpdeps
+
+RUN apk add --no-cache libc6-compat
+
+WORKDIR /sharp
+
+COPY package.json ./manifest.json
+
+RUN npm init -y > /dev/null \
+ && npm install --omit=dev "sharp@$(node -p "require('./manifest.json').dependencies.sharp")" \
+ && rm manifest.json package.json
+
 FROM node:22-alpine AS runner
 
 RUN apk add --no-cache dumb-init libc6-compat
@@ -65,8 +81,23 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
-# All state lives in Postgres, so the container is stateless and needs no
-# volume: a redeploy replaces it wholesale with nothing to preserve.
+# Next loads sharp at runtime rather than importing it, so output file tracing
+# never sees it and the standalone bundle ships without it. Without it the
+# image optimiser fails on the first request and every thumbnail falls back to
+# the multi-megabyte original, which is the problem it exists to fix.
+#
+# Copied from a stage that installed it on its own rather than cherry-picked
+# out of the full tree: sharp has runtime dependencies of its own, and taking
+# the directory alone shipped it without semver, which failed at require time
+# with nothing in the logs but a 500 from /_next/image.
+COPY --from=sharpdeps --chown=nextjs:nodejs /sharp/node_modules ./node_modules
+
+# Where optimised variants are written. Created here with the right owner
+# because the server runs unprivileged and cannot make it itself.
+RUN mkdir -p .next/cache/images && chown -R nextjs:nodejs .next
+
+# Application state lives in Postgres, so the container is still stateless: a
+# redeploy replaces it wholesale, and the image cache simply refills.
 
 USER nextjs
 

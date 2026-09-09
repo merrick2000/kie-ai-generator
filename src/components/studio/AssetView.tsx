@@ -1,6 +1,7 @@
 'use client'
 
-import { Music } from 'lucide-react'
+import { Music, Play } from 'lucide-react'
+import NextImage from 'next/image'
 import { useState } from 'react'
 
 import type { TaskAsset } from '@/lib/kie/tasks'
@@ -16,6 +17,67 @@ interface AssetViewProps {
   className?: string
 }
 
+/**
+ * What width the browser should ask the optimiser for.
+ *
+ * `sizes` is not decoration: without it Next assumes the image spans the
+ * viewport and serves a 1920px variant into a 300px tile, which is most of
+ * the weight this change exists to remove.
+ */
+const GRID_SIZES = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 320px'
+const FULL_SIZES = '100vw'
+
+/**
+ * An asset drawn through Next's image optimiser.
+ *
+ * Points at the provider's URL rather than at `/api/kie/proxy`. The optimiser
+ * fetches it server side, so the CDN's missing CORS headers never reach the
+ * browser, and what does reach it is a resized WebP rather than the original.
+ * The proxy is still the download path, where the original is the point.
+ */
+function OptimisedImage({
+  src,
+  fit,
+  className,
+  onError,
+}: {
+  src: string
+  fit: 'cover' | 'contain'
+  className?: string
+  onError: () => void
+}) {
+  /*
+   * Optimisation is an enhancement, never a dependency.
+   *
+   * The optimiser fetches the origin itself and can fail on its own terms: a
+   * slow CDN, a timeout, a format it cannot encode. None of that means the
+   * asset is gone, so a failure here retries the original rather than showing
+   * "asset expired" over a picture that is perfectly fine. Only when the
+   * original fails too has anything actually been lost.
+   */
+  const [degraded, setDegraded] = useState(false)
+
+  return (
+    <span className={cn('relative block size-full', className)}>
+      <NextImage
+        // Keyed so React rebuilds the element rather than reusing the failed
+        // one, which would keep its error state and never retry.
+        key={degraded ? 'direct' : 'optimised'}
+        src={src}
+        alt=""
+        fill
+        sizes={fit === 'cover' ? GRID_SIZES : FULL_SIZES}
+        className={fit === 'cover' ? 'object-cover' : 'object-contain'}
+        onError={degraded ? onError : () => setDegraded(true)}
+        // Lazy for thumbnails: the grid scrolls, and eagerly decoding a
+        // hundred tiles is the other half of why it stuttered.
+        loading={fit === 'cover' ? 'lazy' : 'eager'}
+        unoptimized={degraded}
+      />
+    </span>
+  )
+}
+
 /** Renders one generated asset, dispatching on its media kind. */
 export function AssetView({
   asset,
@@ -25,6 +87,8 @@ export function AssetView({
   className,
 }: AssetViewProps) {
   const [failed, setFailed] = useState(false)
+  /** True once a grid video has replaced its poster. */
+  const [playing, setPlaying] = useState(false)
   const src = proxied(asset.url)
   const objectFit = fit === 'cover' ? 'object-cover' : 'object-contain'
 
@@ -44,6 +108,41 @@ export function AssetView({
   }
 
   if (asset.kind === 'video') {
+    /*
+     * In the grid, a poster stands in for the video until it is wanted.
+     *
+     * Every card used to mount a real <video preload="metadata">, so opening
+     * the studio with thirty clips opened thirty connections before anything
+     * was played. The poster is one small optimised image, and the video is
+     * mounted on hover, which is the moment it is about to be watched.
+     *
+     * Only when a poster exists. Without one the element is the only thing
+     * that can show a frame at all, so nothing changes there.
+     */
+    if (!controls && asset.poster && !playing) {
+      return (
+        <span
+          className={cn('group/vid relative block size-full', className)}
+          onMouseEnter={hoverPlay ? () => setPlaying(true) : undefined}
+        >
+          <NextImage
+            src={asset.poster}
+            alt=""
+            fill
+            sizes={GRID_SIZES}
+            className={objectFit}
+            loading="lazy"
+            onError={() => setFailed(true)}
+          />
+          <span className="pointer-events-none absolute inset-0 grid place-items-center">
+            <span className="grid size-9 place-items-center rounded-full bg-void/60 backdrop-blur-sm">
+              <Play className="size-4 translate-x-px fill-ink text-ink" />
+            </span>
+          </span>
+        </span>
+      )
+    }
+
     return (
       <video
         src={src}
@@ -53,7 +152,8 @@ export function AssetView({
         muted={!controls}
         loop
         playsInline
-        preload="metadata"
+        preload={controls ? 'metadata' : 'auto'}
+        autoPlay={playing}
         onError={() => setFailed(true)}
         onMouseEnter={
           hoverPlay
@@ -66,6 +166,9 @@ export function AssetView({
                 const el = e.currentTarget as HTMLVideoElement
                 el.pause()
                 el.currentTime = 0
+                // Back to the poster, so leaving the card also releases the
+                // connection rather than keeping it for the rest of the visit.
+                if (asset.poster) setPlaying(false)
               }
             : undefined
         }
@@ -82,12 +185,15 @@ export function AssetView({
         )}
       >
         {asset.poster ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={proxied(asset.poster)}
-            alt=""
-            className="absolute inset-0 size-full object-cover opacity-30"
-          />
+          <span className="absolute inset-0 block opacity-30">
+            <NextImage
+              src={asset.poster}
+              alt=""
+              fill
+              sizes={GRID_SIZES}
+              className="object-cover"
+            />
+          </span>
         ) : (
           <Music className="size-8 text-ink-faint" />
         )}
@@ -109,12 +215,10 @@ export function AssetView({
   }
 
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt=""
-      loading="lazy"
-      className={cn('size-full', objectFit, className)}
+    <OptimisedImage
+      src={asset.url}
+      fit={fit}
+      className={className}
       onError={() => setFailed(true)}
     />
   )

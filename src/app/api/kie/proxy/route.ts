@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { withLogging } from '@/lib/api-logging'
+import { isAssetHost } from '@/lib/kie/asset-hosts'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,41 +15,6 @@ export const dynamic = 'force-dynamic'
  * Restricted to known Kie/provider hosts so this cannot be used as an open
  * relay for arbitrary URLs.
  */
-const ALLOWED_HOST_SUFFIXES = [
-  'kie.ai',
-  'redpandaai.co',
-  'aiquickdraw.com',
-  'tempfile.aiquickdraw.com',
-  'sunoapi.org',
-  'suno.ai',
-  'cdn1.suno.ai',
-  'replicate.delivery',
-  'googleapis.com',
-  'googleusercontent.com',
-  'bytedance.com',
-  'byteintlapi.com',
-  'volccdn.com',
-  'klingai.com',
-  'kwaicdn.com',
-  'elevenlabs.io',
-  'openai.com',
-  'oaiusercontent.com',
-  'bfl.ai',
-  'ideogram.ai',
-  'minimaxi.com',
-  'minimax.io',
-  'aliyuncs.com',
-  'x.ai',
-  'pixverse.ai',
-  'topazlabs.com',
-]
-
-function isAllowed(hostname: string): boolean {
-  const host = hostname.toLowerCase()
-  return ALLOWED_HOST_SUFFIXES.some(
-    (suffix) => host === suffix || host.endsWith(`.${suffix}`),
-  )
-}
 
 async function handleGET(req: Request) {
   const raw = new URL(req.url).searchParams.get('url')
@@ -69,7 +35,7 @@ async function handleGET(req: Request) {
   if (target.protocol !== 'https:' && target.protocol !== 'http:') {
     return NextResponse.json({ error: 'Unsupported protocol.' }, { status: 400 })
   }
-  if (!isAllowed(target.hostname)) {
+  if (!isAssetHost(target.hostname)) {
     return NextResponse.json(
       { error: `Host not allowed: ${target.hostname}` },
       { status: 403 },
