@@ -22,6 +22,7 @@ export type FieldKind =
   | 'video' // single video URL
   | 'videos' // list of video URLs
   | 'list' // repeatable group of fields (a cast, a shot list)
+  | 'voice' // a voice cloned on this account, picked by id
 
 export interface FieldOption {
   value: string
@@ -108,6 +109,17 @@ export interface ListField extends BaseField {
   itemLabel?: string
 }
 
+/**
+ * A voice this account has cloned.
+ *
+ * Its options cannot live in the catalog, which is static and shared: they are
+ * whatever the signed-in account has built, so the renderer fetches them. The
+ * value sent is the provider's voice id, or nothing.
+ */
+export interface VoiceField extends BaseField {
+  kind: 'voice'
+}
+
 export type Field =
   | PromptField
   | SelectField
@@ -115,6 +127,7 @@ export type Field =
   | NumberField
   | AssetField
   | ListField
+  | VoiceField
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Shared field builders
@@ -530,7 +543,8 @@ export function buildInput(
       }
       case 'image':
       case 'audio':
-      case 'video': {
+      case 'video':
+      case 'voice': {
         if (typeof raw === 'string' && raw.trim()) input[f.name] = raw.trim()
         break
       }

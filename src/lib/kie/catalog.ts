@@ -1855,17 +1855,21 @@ const AUDIO: ModelDef[] = [
           'In simple mode, describe the song. In custom mode, paste your lyrics.',
       }),
       {
+        /*
+         * The V6 family only. Kie marks every older version Discontinued,
+         * including V5, which was the default here, so the menu was offering
+         * five ways to be refused and none that worked. V6 is also the only
+         * family that takes a cloned voice.
+         */
         name: 'model',
         kind: 'select',
         label: 'Version',
         options: [
-          { value: 'V5_5', label: 'v5.5', hint: 'Latest, duration control' },
-          { value: 'V5', label: 'v5' },
-          { value: 'V4_5PLUS', label: 'v4.5+' },
-          { value: 'V4_5', label: 'v4.5' },
-          { value: 'V4', label: 'v4' },
+          { value: 'V6', label: 'v6', hint: 'Richest vocals and detail' },
+          { value: 'V6_MINI', label: 'v6 mini', hint: 'Fastest' },
+          { value: 'V6_WILD', label: 'v6 wild', hint: 'Boldest, least predictable' },
         ],
-        default: 'V5',
+        default: 'V6',
       },
       {
         name: 'customMode',
@@ -1887,6 +1891,8 @@ const AUDIO: ModelDef[] = [
         label: 'Style',
         description: 'Required in custom mode.',
         placeholder: 'dream pop, analog synths, brushed drums',
+        // V6's documented ceiling.
+        maxLength: 1000,
         showWhen: { field: 'customMode', equals: [true] },
       },
       {
@@ -1894,6 +1900,15 @@ const AUDIO: ModelDef[] = [
         kind: 'text',
         label: 'Title',
         maxLength: 80,
+        showWhen: { field: 'customMode', equals: [true] },
+      },
+      {
+        // Sent as Suno's personaId with personaModel voice_persona. Kie
+        // documents both as custom-mode and V6-family only, hence the showWhen.
+        name: 'voiceId',
+        kind: 'voice',
+        label: 'Cloned voice',
+        description: 'Sing with a voice cloned in Voices.',
         showWhen: { field: 'customMode', equals: [true] },
       },
       {
@@ -1919,7 +1934,7 @@ const AUDIO: ModelDef[] = [
         name: 'duration',
         kind: 'number',
         label: 'Duration',
-        description: 'Seconds. v5.5 + custom mode only.',
+        description: 'Seconds. Custom mode only.',
         min: 10,
         max: 360,
         step: 5,

@@ -25,7 +25,7 @@ async function runSuite(db: DatabaseClient, label: string) {
     const rows = await db.all<{ version: number }>(
       'SELECT version FROM schema_migrations',
     )
-    assert.equal(rows.length, 4)
+    assert.equal(rows.length, 5)
   })
 
   await check('round-trips a user', async () => {

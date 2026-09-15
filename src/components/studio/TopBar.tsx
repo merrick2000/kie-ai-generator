@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, BarChart3, Coins, ExternalLink, Settings } from 'lucide-react'
+import { AlertTriangle, BarChart3, Coins, ExternalLink, Mic, Settings } from 'lucide-react'
 import { useState } from 'react'
 
 import { SettingsDialog } from '@/components/settings/SettingsDialog'
@@ -53,6 +53,22 @@ export function TopBar() {
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+          {/*
+            A page of its own rather than a model in the picker: cloning is a
+            few steps with a recording in the middle, and the result is an
+            asset reused across songs, not a generation that lands in the
+            gallery.
+          */}
+          <a
+            href="/voices"
+            aria-label="Voices"
+            title="Clone a voice and use it in Suno"
+            className="flex size-8 shrink-0 items-center justify-center gap-1.5 rounded-lg text-ink-faint transition-colors hover:bg-raised hover:text-ink sm:w-auto sm:px-2"
+          >
+            <Mic className="size-4" />
+            <span className="hidden text-[12px] sm:inline">Voices</span>
+          </a>
+
           <button
             type="button"
             onClick={() => setInsightsOpen(true)}

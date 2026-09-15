@@ -40,6 +40,9 @@ export type ActivityKind =
   | 'project_deleted'
   | 'history_imported'
   | 'history_cleared'
+  | 'voice_started'
+  | 'voice_created'
+  | 'voice_deleted'
 
 export interface ActivityEvent {
   id: number

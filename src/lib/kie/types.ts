@@ -182,7 +182,7 @@ export interface SunoGenerateRequest {
   prompt: string
   customMode: boolean
   instrumental: boolean
-  model: 'V4' | 'V4_5' | 'V4_5PLUS' | 'V4_5ALL' | 'V5' | 'V5_5'
+  model: 'V4' | 'V4_5' | 'V4_5PLUS' | 'V4_5ALL' | 'V5' | 'V5_5' | 'V6' | 'V6_MINI' | 'V6_WILD'
   callBackUrl?: string
   style?: string
   title?: string

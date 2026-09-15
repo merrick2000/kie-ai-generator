@@ -212,6 +212,63 @@ const MIGRATIONS: Migration[] = [
       `CREATE INDEX IF NOT EXISTS activity_kind_idx ON activity(kind, at DESC)`,
     ],
   },
+  {
+    version: 5,
+    name: 'voices',
+    statements: [
+      // A cloned voice is not a job. A job is submitted once and polled to an
+      // end; a voice is a reusable asset built across several calls with a
+      // person in the middle, who has to read a phrase aloud before the last
+      // step can run. That can take a minute or a day, so the state lives
+      // here between steps rather than in a poll loop.
+      `CREATE TABLE IF NOT EXISTS voices (
+         id                 TEXT PRIMARY KEY,
+         user_id            TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+         name               TEXT NOT NULL,
+         description        TEXT,
+         style              TEXT,
+         language           TEXT NOT NULL DEFAULT 'en',
+         singer_skill_level TEXT,
+
+         -- The recording the voice is taken from, and the stretch of it used.
+         source_url         TEXT NOT NULL,
+         vocal_start_s      INTEGER NOT NULL,
+         vocal_end_s        INTEGER NOT NULL,
+
+         -- Step one: Kie listens to the source and writes a phrase for the
+         -- owner of the voice to read back.
+         phrase_task_id     TEXT,
+         phrase             TEXT,
+
+         -- Step two: the reading, and the task that turns it into a voice.
+         verify_url         TEXT,
+         create_task_id     TEXT,
+
+         -- A regenerated phrase is polled under its own task, while the
+         -- final step is still sent the original one: Kie's docs ask for "the
+         -- original validation task ID" there.
+         regenerate_task_id TEXT,
+
+         -- The result: what Suno is given as a persona id.
+         voice_id           TEXT,
+         check_task_id      TEXT,
+         available          BOOLEAN,
+
+         status             TEXT NOT NULL,
+         error              TEXT,
+
+         -- When the account holder confirmed they own this voice or have
+         -- permission to clone it. Not null: there is no voice without it.
+         consent_at         BIGINT NOT NULL,
+
+         created_at         BIGINT NOT NULL,
+         updated_at         BIGINT NOT NULL
+       )`,
+
+      `CREATE INDEX IF NOT EXISTS voices_user_idx ON voices(user_id, created_at DESC)`,
+    ],
+  },
 ]
 
 export async function migrate(db: DatabaseClient): Promise<void> {
@@ -299,6 +356,13 @@ const REQUIRED: Record<string, string[]> = {
     'created_at', 'updated_at',
   ],
   activity: ['id', 'at', 'user_id', 'email', 'kind', 'summary', 'meta', 'ip'],
+  voices: [
+    'id', 'user_id', 'name', 'description', 'style', 'language',
+    'singer_skill_level', 'source_url', 'vocal_start_s', 'vocal_end_s',
+    'phrase_task_id', 'phrase', 'verify_url', 'create_task_id',
+    'regenerate_task_id', 'voice_id', 'check_task_id', 'available', 'status',
+    'error', 'consent_at', 'created_at', 'updated_at',
+  ],
   jobs: [
     'id', 'user_id', 'project_id', 'task_id', 'api', 'model_id',
     'submitted_model_id', 'model_name', 'category', 'output', 'title',

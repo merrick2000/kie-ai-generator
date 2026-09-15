@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { AssetInput } from './AssetInput'
 import { ListInput } from './ListInput'
 import { RatioPicker } from './RatioPicker'
+import { VoicePicker } from './VoicePicker'
 
 interface FieldRendererProps {
   field: Field
@@ -320,6 +321,19 @@ export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
             value={(value as string | string[]) ?? (f.kind === 'images' || f.kind === 'videos' ? [] : '')}
             onChange={onChange}
           />
+        </FieldShell>
+      )
+    }
+
+    case 'voice': {
+      return (
+        <FieldShell
+          label={field.label}
+          htmlFor={id}
+          description={field.description}
+          required={field.required}
+        >
+          <VoicePicker id={id} value={(value as string) ?? ''} onChange={onChange} />
         </FieldShell>
       )
     }

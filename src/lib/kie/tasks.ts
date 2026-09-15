@@ -167,16 +167,24 @@ function toVeoExtendRequest(
   }
 }
 
+/** Versions Kie documents duration control for (V5_5 is discontinued). */
+const SUNO_DURATION_VERSIONS = new Set<string>(['V5_5', 'V6', 'V6_MINI', 'V6_WILD'])
+
+/** Versions Kie documents persona and voice ids for. */
+const SUNO_PERSONA_VERSIONS = new Set<string>(['V6', 'V6_MINI', 'V6_WILD'])
+
 /**
  * Suno is also top-level, and rejects custom-mode fields when customMode is
  * off: so they are stripped rather than sent empty.
  */
-function toSunoRequest(
+export function toSunoRequest(
   input: Record<string, unknown>,
   cb: string | undefined,
 ): SunoGenerateRequest {
   const customMode = input.customMode !== false
-  const model = (input.model as SunoGenerateRequest['model']) ?? 'V5'
+  // V6 when nothing says otherwise: every older version is discontinued
+  // upstream, so falling back to one would turn a missing field into a refusal.
+  const model = (input.model as SunoGenerateRequest['model']) || 'V6'
 
   const body: SunoGenerateRequest = {
     prompt: String(input.prompt ?? ''),
@@ -191,9 +199,16 @@ function toSunoRequest(
   if (customMode) {
     if (input.style) body.style = String(input.style)
     if (input.title) body.title = String(input.title).slice(0, 80)
-    // Duration control exists on v5.5 only.
-    if (model === 'V5_5' && input.duration != null) {
+    if (SUNO_DURATION_VERSIONS.has(model) && input.duration != null) {
       body.duration = Number(input.duration)
+    }
+
+    // A cloned voice rides on Suno's persona fields. Custom mode only, and the
+    // V6 family only: everything older is discontinued upstream.
+    const voiceId = typeof input.voiceId === 'string' ? input.voiceId.trim() : ''
+    if (voiceId && SUNO_PERSONA_VERSIONS.has(model)) {
+      body.personaId = voiceId
+      body.personaModel = 'voice_persona'
     }
   }
 

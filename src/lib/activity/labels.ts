@@ -32,6 +32,12 @@ export function labelFor(kind: string): string {
       return 'imported history'
     case 'history_cleared':
       return 'cleared history'
+    case 'voice_started':
+      return 'started cloning a voice'
+    case 'voice_created':
+      return 'cloned a voice'
+    case 'voice_deleted':
+      return 'deleted a voice'
     default:
       return kind.replace(/_/g, ' ')
   }
@@ -41,6 +47,7 @@ export function labelFor(kind: string): string {
 export function toneFor(kind: string): 'normal' | 'good' | 'warn' {
   switch (kind) {
     case 'signup':
+    case 'voice_created':
       return 'good'
     case 'signin_failed':
     case 'signup_blocked':

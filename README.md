@@ -143,6 +143,9 @@ a full-screen viewer with the run's parameters, projects with their own
 defaults, a searchable gallery, and a ranking of the models that actually work
 on this account.
 
+**Voices.** Clone a singing voice once, read one sentence back to prove it
+is yours, and pick it in any Suno song.
+
 **Watching the instance.** `/admin` answers who signed up, when each account
 was last here and what it has been running, with spend by day and by model, a
 live feed that interleaves every generation with every sign-in, and a count of
@@ -373,6 +376,53 @@ and result rendering all derive from it: no UI code to touch.
   ],
 }
 ```
+
+---
+
+## Voices
+
+`/voices` clones a voice and makes it available in Suno.
+
+It goes through **Suno Voice**, which is the only voice cloning Kie offers.
+It clones a *singing* voice for songs, not a speaking voice for text to speech.
+MiniMax voice cloning and MiniMax Speech 2.6 HD are not on Kie at all: not in
+the API docs, not in `llms.txt`, not on the marketplace. Reaching them would
+mean calling MiniMax directly, with a MiniMax account and key.
+
+The flow has a person in the middle, by design:
+
+| Step | Kie model | What goes in | What comes back |
+|---|---|---|---|
+| 1 | `ai-music-api/validation-phrase` | a recording, the stretch of it to learn from, a language | a phrase |
+| 2 | *(the owner reads that phrase aloud)* | | |
+| 3 | `ai-music-api/create-voice` | the reading, and the **original** task id | a `voiceId` |
+| 4 | `ai-music-api/check-voice` | the create task | whether the voice is available |
+
+`regenerate-phrase` replaces a phrase that expired or was misread. Anyone can
+find a clip of someone singing; far fewer can get that person to read a
+sentence they have never seen, which is the point of step 2. The account
+holder also confirms in words that the voice is theirs or used with
+permission, and the moment is stored with the voice.
+
+A voice is not a job. It is built across calls with a wait for a human in the
+middle, so its state lives in its own table and a step is advanced when the
+voice is read rather than by the reconciler. Waiting on a person costs no
+requests.
+
+A ready voice appears in the composer under **Cloned voice**, on Suno in
+custom mode, and is sent as `personaId` with `personaModel: voice_persona`.
+Kie documents both as V6-family only, and marks every older Suno version
+Discontinued, so Suno now offers V6, V6 mini and V6 wild.
+
+Microphone takes are converted to WAV in the browser before upload: Chrome,
+Firefox and Safari each record a different container, and Kie documents none
+of them.
+
+**Not yet confirmed against a live key.** The callback payloads are documented
+(`validateInfo`, `voiceId`, `isAvailable`); the polled `resultJson` is not. The
+reader looks for those names at any depth and in either casing, and logs the
+raw payload whenever one is missing, so the first real run shows where they
+actually land.
 
 ---
 
