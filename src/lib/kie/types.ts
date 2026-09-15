@@ -148,6 +148,47 @@ export interface VeoExtendRequest {
   callBackUrl?: string
 }
 
+/**
+ * POST /api/v1/omni/audio/create
+ *
+ * Designs a voice, it does not clone one: a base voice from Gemini's thirty,
+ * shaped by a written description. Answers in the request with the id, no
+ * task to poll.
+ */
+export interface OmniAudioRequest {
+  audio_id: string
+  name: string
+  voice_description?: string
+  example_dialogue?: string
+}
+
+export interface OmniAudioData {
+  kieAudioId: string
+  name?: string
+}
+
+/**
+ * POST /api/v1/omni/character/create
+ *
+ * A face, a description and optionally designed voices, bound into one id
+ * that Gemini Omni video takes as `character_ids`.
+ */
+export interface OmniCharacterRequest {
+  descriptions: string
+  /** The docs' example spells it singular while the schema requires plural. */
+  description?: string
+  image_urls: string[]
+  audio_ids?: string[]
+  character_name?: string
+}
+
+export interface OmniCharacterData {
+  characterId: string
+  characterName?: string
+  imageUrl?: string
+  bodyImageUrl?: string
+}
+
 /** GET /api/v1/veo/record-info */
 export interface VeoRecordInfoData {
   taskId: string

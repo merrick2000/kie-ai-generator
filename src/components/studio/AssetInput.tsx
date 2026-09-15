@@ -21,6 +21,7 @@ const ACCEPT: Record<string, string> = {
   image: 'image/*',
   images: 'image/*',
   audio: 'audio/*',
+  audios: 'audio/*',
   video: 'video/*',
   videos: 'video/*',
 }
@@ -32,7 +33,7 @@ const ACCEPT: Record<string, string> = {
  * the returned public URL is what lands in the form value.
  */
 export function AssetInput({ field, value, onChange }: AssetInputProps) {
-  const multiple = field.kind === 'images' || field.kind === 'videos'
+  const multiple = field.kind === 'images' || field.kind === 'videos' || field.kind === 'audios'
   const urls = multiple ? ((value as string[]) ?? []) : value ? [value as string] : []
   const max = multiple ? (field.maxItems ?? 10) : 1
   const full = urls.length >= max
@@ -47,7 +48,7 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
   // field could take, otherwise the button leads to an empty dialog.
   const libraryCount = useStudio((s) => {
     const wanted =
-      field.kind === 'audio' ? 'audio' : field.kind.startsWith('video') ? 'video' : 'image'
+      field.kind.startsWith('audio') ? 'audio' : field.kind.startsWith('video') ? 'video' : 'image'
     return s.library.reduce(
       (total, job) =>
         job.state === 'success'
@@ -111,6 +112,7 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
 
   const isVisual = field.kind === 'image' || field.kind === 'images'
   const isVideo = field.kind === 'video' || field.kind === 'videos'
+  const isAudio = field.kind === 'audio' || field.kind === 'audios'
 
   return (
     // `data-paste-target` marks the controls that could take a pasted file.
@@ -125,7 +127,8 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
         <div
           className={cn(
             'grid gap-2',
-            multiple ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-1',
+            // Audio players need a full row each; a square tile crushes them.
+            multiple && !isAudio ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-1',
           )}
         >
           {urls.map((url, i) => (
@@ -133,7 +136,7 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
               key={`${url}-${i}`}
               className={cn(
                 'group relative overflow-hidden rounded-xl border border-line bg-raised',
-                multiple ? 'aspect-square' : 'aspect-video',
+                isAudio ? 'py-1' : multiple ? 'aspect-square' : 'aspect-video',
               )}
             >
               {isVisual && (
@@ -154,7 +157,7 @@ export function AssetInput({ field, value, onChange }: AssetInputProps) {
                   preload="metadata"
                 />
               )}
-              {field.kind === 'audio' && (
+              {isAudio && (
                 <div className="flex size-full items-center px-3">
                   <audio src={proxied(url)} controls className="w-full" />
                 </div>

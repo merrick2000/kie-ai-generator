@@ -19,10 +19,12 @@ export type FieldKind =
   | 'image' // single asset URL (upload or paste)
   | 'images' // list of asset URLs
   | 'audio' // single audio URL
+  | 'audios' // list of audio URLs
   | 'video' // single video URL
   | 'videos' // list of video URLs
   | 'list' // repeatable group of fields (a cast, a shot list)
   | 'voice' // a voice cloned on this account, picked by id
+  | 'library' // saved Omni voices or characters, picked by id
 
 export interface FieldOption {
   value: string
@@ -42,6 +44,14 @@ export interface BaseField {
   advanced?: boolean
   /** Only show this field when another field holds one of these values. */
   showWhen?: { field: string; equals: unknown[] }
+  /**
+   * Fields that cannot be filled at the same time as this one.
+   *
+   * Several models refuse a combination outright, Gemini Omni Flash with a
+   * first frame and characters, Seedance 2.5 with a first frame and reference
+   * audio. Saying so before submission beats a refusal after it.
+   */
+  excludes?: string[]
 }
 
 export interface PromptField extends BaseField {
@@ -81,7 +91,7 @@ export interface NumberField extends BaseField {
 }
 
 export interface AssetField extends BaseField {
-  kind: 'image' | 'images' | 'audio' | 'video' | 'videos'
+  kind: 'image' | 'images' | 'audio' | 'audios' | 'video' | 'videos'
   maxItems?: number
   /** Human-readable constraints, surfaced in the UI. */
   accepts?: string
@@ -120,6 +130,18 @@ export interface VoiceField extends BaseField {
   kind: 'voice'
 }
 
+/**
+ * Saved Omni voices or characters.
+ *
+ * Like the cloned voice, the options belong to the account rather than the
+ * catalog, so they are fetched. The value is the list of Kie ids.
+ */
+export interface LibraryField extends BaseField {
+  kind: 'library'
+  source: 'omni-voices' | 'omni-characters'
+  maxItems?: number
+}
+
 export type Field =
   | PromptField
   | SelectField
@@ -128,6 +150,7 @@ export type Field =
   | AssetField
   | ListField
   | VoiceField
+  | LibraryField
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Shared field builders
@@ -463,6 +486,8 @@ export function defaultsFor(fields: Field[]): Record<string, unknown> {
       }
       case 'images':
       case 'videos':
+      case 'audios':
+      case 'library':
         out[f.name] = []
         break
       case 'list': {
@@ -481,6 +506,14 @@ export function defaultsFor(fields: Field[]): Record<string, unknown> {
 }
 
 /** True when a conditional field should render given the current values. */
+/** Whether a value counts as filled in, for the exclusion check. */
+function hasValue(value: unknown): boolean {
+  if (value == null) return false
+  if (typeof value === 'string') return value.trim().length > 0
+  if (Array.isArray(value)) return value.some((v) => v != null && v !== '')
+  return true
+}
+
 export function isVisible(f: Field, values: Record<string, unknown>): boolean {
   if (!f.showWhen) return true
   return f.showWhen.equals.includes(values[f.showWhen.field])
@@ -536,7 +569,9 @@ export function buildInput(
         break
       }
       case 'images':
-      case 'videos': {
+      case 'videos':
+      case 'audios':
+      case 'library': {
         const arr = Array.isArray(raw) ? raw.filter(Boolean) : []
         if (arr.length) input[f.name] = arr
         break
@@ -594,6 +629,18 @@ export function validate(
       if (over > 0) {
         errors.push(
           `${f.label} is ${over.toLocaleString()} character${over === 1 ? '' : 's'} over the ${f.maxLength.toLocaleString()} this model accepts.`,
+        )
+        continue
+      }
+    }
+
+    if (f.excludes?.length && hasValue(raw)) {
+      const clash = f.excludes
+        .map((name) => fields.find((other) => other.name === name))
+        .filter((other): other is Field => Boolean(other) && hasValue(values[other!.name]))
+      if (clash.length) {
+        errors.push(
+          `${f.label} cannot be used together with ${clash.map((c) => c.label).join(' or ')}.`,
         )
         continue
       }

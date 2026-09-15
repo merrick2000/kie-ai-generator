@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertTriangle, BarChart3, Coins, ExternalLink, Mic, Settings } from 'lucide-react'
+import { AlertTriangle, BarChart3, Coins, ExternalLink, Mic, Settings, UserRound } from 'lucide-react'
 import { useState } from 'react'
 
 import { SettingsDialog } from '@/components/settings/SettingsDialog'
@@ -67,6 +67,16 @@ export function TopBar() {
           >
             <Mic className="size-4" />
             <span className="hidden text-[12px] sm:inline">Voices</span>
+          </a>
+
+          <a
+            href="/characters"
+            aria-label="Characters"
+            title="Design voices and characters for Gemini Omni"
+            className="flex size-8 shrink-0 items-center justify-center gap-1.5 rounded-lg text-ink-faint transition-colors hover:bg-raised hover:text-ink sm:w-auto sm:px-2"
+          >
+            <UserRound className="size-4" />
+            <span className="hidden text-[12px] sm:inline">Characters</span>
           </a>
 
           <button

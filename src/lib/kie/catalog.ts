@@ -1032,6 +1032,18 @@ const VIDEO_TEXT: ModelDef[] = [
         advanced: true,
       },
       nsfwChecker(),
+      {
+        // A voice, music or a sound for the video to follow. Kie does not say
+        // speech will come out in that voice, so it is a reference to try,
+        // not a clone.
+        name: 'reference_audio_urls',
+        kind: 'audios',
+        label: 'Reference audio',
+        maxItems: 3,
+        accepts: 'WAV, MP3 · 2 to 15 s each, 15 s in total',
+        maxSizeMb: 15,
+        description: 'A voice, music or sound for the video to follow.',
+      },
     ],
   },
   {
@@ -1066,6 +1078,18 @@ const VIDEO_TEXT: ModelDef[] = [
       },
       { name: 'generate_audio', kind: 'toggle', label: 'Generate audio', default: true },
       nsfwChecker(),
+      {
+        // A voice, music or a sound for the video to follow. Kie does not say
+        // speech will come out in that voice, so it is a reference to try,
+        // not a clone.
+        name: 'reference_audio_urls',
+        kind: 'audios',
+        label: 'Reference audio',
+        maxItems: 3,
+        accepts: 'WAV, MP3 · 2 to 15 s each, 15 s in total',
+        maxSizeMb: 15,
+        description: 'A voice, music or sound for the video to follow.',
+      },
     ],
   },
   {
@@ -1131,6 +1155,50 @@ const VIDEO_TEXT: ModelDef[] = [
       },
       ratio(['16:9', '9:16', '1:1'], '16:9'),
       resolution(['720p', '1080p'], '720p'),
+      {
+        name: 'audio',
+        kind: 'toggle',
+        label: 'Audio',
+        description: 'Generate sound with the video.',
+        default: false,
+      },
+      {
+        // Named subjects the prompt calls with @name. Photos define the look;
+        // audio is optional and Kie calls it a subject asset, not a voice.
+        name: 'elements',
+        kind: 'list',
+        label: 'Characters',
+        description: 'Name each one, then call it in the prompt with @name.',
+        itemLabel: 'Character',
+        addLabel: 'Add a character',
+        maxItems: 7,
+        item: [
+          { name: 'name', kind: 'text', label: 'Name', required: true, maxLength: 40, placeholder: 'maya' },
+          {
+            name: 'description',
+            kind: 'text',
+            label: 'Description',
+            required: true,
+            placeholder: 'A woman in her thirties with short dark hair',
+          },
+          {
+            name: 'element_input_urls',
+            kind: 'images',
+            label: 'Photos',
+            required: true,
+            maxItems: 4,
+            accepts: 'JPG, PNG · 2 to 4 photos',
+            maxSizeMb: 10,
+          },
+          {
+            name: 'element_input_audio_urls',
+            kind: 'audios',
+            label: 'Audio',
+            maxItems: 3,
+            accepts: 'Audio for this character',
+          },
+        ],
+      },
     ],
   },
   {

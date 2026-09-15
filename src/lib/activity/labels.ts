@@ -38,6 +38,14 @@ export function labelFor(kind: string): string {
       return 'cloned a voice'
     case 'voice_deleted':
       return 'deleted a voice'
+    case 'omni_voice_created':
+      return 'designed a voice'
+    case 'omni_voice_deleted':
+      return 'deleted a designed voice'
+    case 'character_created':
+      return 'created a character'
+    case 'character_deleted':
+      return 'deleted a character'
     default:
       return kind.replace(/_/g, ' ')
   }
@@ -48,6 +56,7 @@ export function toneFor(kind: string): 'normal' | 'good' | 'warn' {
   switch (kind) {
     case 'signup':
     case 'voice_created':
+    case 'character_created':
       return 'good'
     case 'signin_failed':
     case 'signup_blocked':

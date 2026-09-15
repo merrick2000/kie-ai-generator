@@ -269,6 +269,45 @@ const MIGRATIONS: Migration[] = [
       `CREATE INDEX IF NOT EXISTS voices_user_idx ON voices(user_id, created_at DESC)`,
     ],
   },
+  {
+    version: 6,
+    name: 'omni_characters',
+    statements: [
+      // Gemini Omni hands back an id and keeps nothing browsable: there is no
+      // endpoint to list or fetch a voice or a character. What this account
+      // made is therefore only known here, and losing these rows loses the
+      // ids with them.
+      `CREATE TABLE IF NOT EXISTS omni_voices (
+         id                TEXT PRIMARY KEY,
+         user_id           TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+         kie_audio_id      TEXT NOT NULL,
+         name              TEXT NOT NULL,
+         base_voice        TEXT NOT NULL,
+         voice_description TEXT,
+         example_dialogue  TEXT,
+         created_at        BIGINT NOT NULL
+       )`,
+
+      `CREATE INDEX IF NOT EXISTS omni_voices_user_idx ON omni_voices(user_id, created_at DESC)`,
+
+      `CREATE TABLE IF NOT EXISTS omni_characters (
+         id               TEXT PRIMARY KEY,
+         user_id          TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+         kie_character_id TEXT NOT NULL,
+         name             TEXT,
+         description      TEXT NOT NULL,
+         image_url        TEXT NOT NULL,
+         body_image_url   TEXT,
+         -- JSON arrays: the local voice rows picked, and the Kie ids they
+         -- stood for when the character was made.
+         voice_ids        TEXT NOT NULL DEFAULT '[]',
+         kie_audio_ids    TEXT NOT NULL DEFAULT '[]',
+         created_at       BIGINT NOT NULL
+       )`,
+
+      `CREATE INDEX IF NOT EXISTS omni_characters_user_idx ON omni_characters(user_id, created_at DESC)`,
+    ],
+  },
 ]
 
 export async function migrate(db: DatabaseClient): Promise<void> {
@@ -362,6 +401,14 @@ const REQUIRED: Record<string, string[]> = {
     'phrase_task_id', 'phrase', 'verify_url', 'create_task_id',
     'regenerate_task_id', 'voice_id', 'check_task_id', 'available', 'status',
     'error', 'consent_at', 'created_at', 'updated_at',
+  ],
+  omni_voices: [
+    'id', 'user_id', 'kie_audio_id', 'name', 'base_voice', 'voice_description',
+    'example_dialogue', 'created_at',
+  ],
+  omni_characters: [
+    'id', 'user_id', 'kie_character_id', 'name', 'description', 'image_url',
+    'body_image_url', 'voice_ids', 'kie_audio_ids', 'created_at',
   ],
   jobs: [
     'id', 'user_id', 'project_id', 'task_id', 'api', 'model_id',

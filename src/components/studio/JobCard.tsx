@@ -11,6 +11,7 @@ import {
   RefreshCw,
   RotateCw,
   StepForward,
+  Clapperboard,
   Trash2,
   Type,
   X,
@@ -25,6 +26,7 @@ import { colorOf } from '@/lib/projects/colors'
 import { cn, proxied, timeAgo, truncate } from '@/lib/utils'
 import { useStudio } from '@/store/studio'
 import { AssetView } from './AssetView'
+import { AnimateDialog } from './AnimateDialog'
 import { ExtendDialog } from './ExtendDialog'
 import { stripMarkdown } from './Markdown'
 
@@ -61,6 +63,7 @@ export function JobCard({
   const moveJob = useStudio((s) => s.moveJob)
   const rerunJob = useStudio((s) => s.rerunJob)
   const [extending, setExtending] = useState(false)
+  const [animating, setAnimating] = useState(false)
 
   /*
    * Only a finished run that Kie still has a task for can be continued. An
@@ -266,6 +269,20 @@ export function JobCard({
             </button>
           )}
 
+          {/* An audio result, a song with a cloned voice most of all, is one
+              step from a face singing it. */}
+          {job.state === 'success' && primary?.kind === 'audio' && (
+            <button
+              type="button"
+              onClick={() => setAnimating(true)}
+              aria-label="Animate"
+              title="Lip-sync a face to this audio"
+              className="grid size-8 place-items-center rounded-lg text-ink-faint transition-colors hover:bg-overlay hover:text-ink sm:size-6"
+            >
+              <Clapperboard className="size-3.5" />
+            </button>
+          )}
+
           {canExtend && (
             <button
               type="button"
@@ -413,6 +430,10 @@ export function JobCard({
 
       {extending && (
         <ExtendDialog job={job} onClose={() => setExtending(false)} />
+      )}
+
+      {animating && primary && (
+        <AnimateDialog asset={primary} onClose={() => setAnimating(false)} />
       )}
     </div>
   )

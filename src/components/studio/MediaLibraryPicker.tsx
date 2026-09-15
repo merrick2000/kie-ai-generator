@@ -16,6 +16,7 @@ const ACCEPTS: Record<AssetField['kind'], TaskAsset['kind'][]> = {
   image: ['image'],
   images: ['image'],
   audio: ['audio'],
+  audios: ['audio'],
   video: ['video'],
   videos: ['video'],
 }

@@ -21,6 +21,10 @@ import {
   type CreateTaskRequest,
   type KieEnvelope,
   type KieResultJson,
+  type OmniAudioData,
+  type OmniAudioRequest,
+  type OmniCharacterData,
+  type OmniCharacterRequest,
   type RecordInfoData,
   type SunoGenerateRequest,
   type SunoRecordInfoData,
@@ -191,11 +195,17 @@ interface RequestOptions {
   /** Retry idempotent reads on transient upstream failures. */
   retries?: number
   signal?: AbortSignal
+  /**
+   * Body codes to accept as success besides 200. Gemini Omni's audio endpoint
+   * documents a successful answer as `code: 0`, which every other endpoint
+   * would rightly treat as a refusal.
+   */
+  okCodes?: number[]
 }
 
 async function request<T>(
   path: string,
-  { method = 'GET', body, base = API_BASE, retries = 0, signal }: RequestOptions = {},
+  { method = 'GET', body, base = API_BASE, retries = 0, signal, okCodes = [] }: RequestOptions = {},
 ): Promise<T> {
   const url = `${base}${path}`
   let lastError: unknown
@@ -231,7 +241,7 @@ async function request<T>(
       // Kie signals failure in the body `code`, which can disagree with the
       // HTTP status, check both.
       const code = payload?.code ?? res.status
-      if (!res.ok || code !== KIE_CODE.SUCCESS) {
+      if (!res.ok || (code !== KIE_CODE.SUCCESS && !okCodes.includes(code))) {
         log.warn('upstream rejected request', {
           path,
           status: res.status,
@@ -321,6 +331,31 @@ export function getVeoTask(taskId: string, signal?: AbortSignal) {
     `/api/v1/veo/record-info?taskId=${encodeURIComponent(taskId)}`,
     { retries: 2, signal },
   )
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Gemini Omni, voices and characters
+ *
+ * Both answer in the request with an id rather than a task, so there is
+ * nothing to poll and no job to record.
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+export function createOmniAudio(body: OmniAudioRequest, signal?: AbortSignal) {
+  return request<OmniAudioData>('/api/v1/omni/audio/create', {
+    method: 'POST',
+    body,
+    signal,
+    okCodes: [0],
+  })
+}
+
+export function createOmniCharacter(body: OmniCharacterRequest, signal?: AbortSignal) {
+  return request<OmniCharacterData>('/api/v1/omni/character/create', {
+    method: 'POST',
+    body,
+    signal,
+    okCodes: [0],
+  })
 }
 
 /* ────────────────────────────────────────────────────────────────────────────

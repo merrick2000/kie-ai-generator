@@ -43,6 +43,10 @@ export type ActivityKind =
   | 'voice_started'
   | 'voice_created'
   | 'voice_deleted'
+  | 'omni_voice_created'
+  | 'omni_voice_deleted'
+  | 'character_created'
+  | 'character_deleted'
 
 export interface ActivityEvent {
   id: number

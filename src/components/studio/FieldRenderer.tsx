@@ -8,6 +8,7 @@ import { Segmented } from '@/components/ui/Segmented'
 import { Toggle } from '@/components/ui/Toggle'
 import type {
   AssetField,
+  LibraryField,
   ListField,
   Field,
   NumberField,
@@ -17,6 +18,7 @@ import type {
 } from '@/lib/kie/fields'
 import { cn } from '@/lib/utils'
 import { AssetInput } from './AssetInput'
+import { LibraryPicker } from './LibraryPicker'
 import { ListInput } from './ListInput'
 import { RatioPicker } from './RatioPicker'
 import { VoicePicker } from './VoicePicker'
@@ -311,6 +313,7 @@ export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
     case 'image':
     case 'images':
     case 'audio':
+    case 'audios':
     case 'video':
     case 'videos': {
       const f = field as AssetField
@@ -318,7 +321,24 @@ export function FieldRenderer({ field, value, onChange }: FieldRendererProps) {
         <FieldShell label={f.label} description={f.description} required={f.required}>
           <AssetInput
             field={f}
-            value={(value as string | string[]) ?? (f.kind === 'images' || f.kind === 'videos' ? [] : '')}
+            value={
+              (value as string | string[]) ??
+              (f.kind === 'images' || f.kind === 'videos' || f.kind === 'audios' ? [] : '')
+            }
+            onChange={onChange}
+          />
+        </FieldShell>
+      )
+    }
+
+    case 'library': {
+      const f = field as LibraryField
+      return (
+        <FieldShell label={f.label} description={f.description} required={f.required}>
+          <LibraryPicker
+            source={f.source}
+            max={f.maxItems ?? 3}
+            value={Array.isArray(value) ? (value as string[]) : []}
             onChange={onChange}
           />
         </FieldShell>

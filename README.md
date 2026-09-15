@@ -146,6 +146,9 @@ on this account.
 **Voices.** Clone a singing voice once, read one sentence back to prove it
 is yours, and pick it in any Suno song.
 
+**Characters.** Design a voice, bind it to a face, and cast both in Gemini
+Omni video. Or take any audio result and animate a face singing it.
+
 **Watching the instance.** `/admin` answers who signed up, when each account
 was last here and what it has been running, with spend by day and by model, a
 live feed that interleaves every generation with every sign-in, and a count of
@@ -423,6 +426,48 @@ of them.
 reader looks for those names at any depth and in either casing, and logs the
 raw payload whenever one is missing, so the first real run shows where they
 actually land.
+
+---
+
+## Characters
+
+`/characters` makes voices and characters for **Gemini Omni** video.
+
+| Endpoint | In | Out |
+|---|---|---|
+| `/api/v1/omni/audio/create` | one of Gemini's 30 base voices, a name, a description of how it should sound | a `kieAudioId` |
+| `/api/v1/omni/character/create` | a portrait, an optional full-body image, a description, those voices | a `characterId` |
+
+Both answer in the request, so there is no task to poll. Gemini Omni and Omni
+Flash 1.1 then take them as `character_ids` (up to 7) and `audio_ids` (up to
+3), offered in the composer from this account's own list.
+
+The face can be anyone's photo. The voice cannot be: the audio endpoint
+accepts no recording at all, it designs a voice from a base voice and a
+description. Kie keeps no browsable list of either, so the ids live only in
+this database.
+
+Two quirks in Kie's docs are handled rather than guessed at. The audio
+endpoint documents success as `code: 0`, which every other endpoint treats as
+a refusal, so those two calls accept it. The character schema requires
+`descriptions` while its own example sends `description`, so both are sent.
+
+**Your own voice elsewhere.**
+
+- Seedance 2, 2 Fast, 2 Mini and 2.5 now expose `reference_audio_urls`
+  (wav or mp3, 3 files of 2 to 15 s, or 10 of 2 to 30 s on 2.5). Kie does not
+  say generated speech takes on that voice; it is a reference to test.
+- Kling 3 Omni exposes `elements`: named characters the prompt calls with
+  `@name`, each with 2 to 4 photos and optional audio.
+- Any audio result has an **Animate** action that loads it into a lip-sync
+  model: Kling Avatar (up to 5 minutes, so a whole song), InfiniTalk, Wan 2.2
+  Speech to Video, OmniHuman 1.5 (best under 15 s), or Volcengine Lip Sync on
+  an existing video. That is the one path where the voice heard is literally
+  yours.
+
+Fields that cannot be combined, a first frame with characters on Omni Flash or
+with reference audio on Seedance 2.5, are refused in the form rather than by
+Kie.
 
 ---
 

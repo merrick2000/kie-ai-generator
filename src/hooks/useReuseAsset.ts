@@ -25,6 +25,7 @@ const ACCEPTS: Record<string, TaskAsset['kind'][]> = {
   image: ['image'],
   images: ['image'],
   audio: ['audio'],
+  audios: ['audio'],
   video: ['video'],
   videos: ['video'],
 }
@@ -94,7 +95,7 @@ export function useReuseAsset() {
 
         // Multi-value fields append, so several results can be stacked as
         // references; single-value fields replace.
-        if (field.kind === 'images' || field.kind === 'videos') {
+        if (field.kind === 'images' || field.kind === 'videos' || field.kind === 'audios') {
           const existing = useStudio.getState().formsByModel[candidate.id]?.[field.name]
           const list = Array.isArray(existing) ? (existing as string[]) : []
           const room = field.maxItems ?? 10
