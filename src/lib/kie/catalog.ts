@@ -2594,101 +2594,22 @@ const STRUCTURED: ModelDef[] = [
     tagline: 'Cast the speakers, then write the exchange between them.',
     speed: 'fast',
     badges: ['Multi-voice'],
-    fields: [
-      {
-        name: 'speakers',
-        kind: 'list',
-        label: 'Speakers',
-        description:
-          'The cast. Each one gets an id you then use in the turns below.',
-        required: true,
-        minItems: 1,
-        maxItems: 8,
-        itemLabel: 'Speaker',
-        item: [
-          {
-            name: 'speaker_id',
-            kind: 'text',
-            label: 'Id',
-            required: true,
-            placeholder: 'host',
-            description: 'Your own label. The turns below refer to it.',
-          },
-          {
-            name: 'voice_name',
-            kind: 'select',
-            label: 'Voice',
-            options: opts(
-              'Achernar', 'Achird', 'Algenib', 'Algieba', 'Alnilam', 'Aoede',
-              'Autonoe', 'Callirrhoe', 'Charon', 'Despina', 'Enceladus', 'Erinome',
-              'Fenrir', 'Gacrux', 'Iapetus', 'Kore', 'Laomedeia', 'Leda',
-              'Orus', 'Puck', 'Pulcherrima', 'Rasalgethi', 'Sadachbia',
-              'Sadaltager', 'Schedar', 'Sulafat', 'Umbriel', 'Vindemiatrix',
-              'Zephyr', 'Zubenelgenubi',
-            ),
-            default: 'Kore',
-          },
-          {
-            name: 'accent',
-            kind: 'select',
-            label: 'Accent',
-            options: opts(
-              'Neutral', 'American (Gen)', 'American (Valley)', 'American (South)',
-              'American (New York)', 'British (RP)', 'British (Cockney)',
-              'Australian', 'Irish', 'Scottish', 'Indian', 'French', 'German',
-              'Italian', 'Spanish', 'Russian', 'Japanese', 'Korean',
-            ),
-            default: 'Neutral',
-          },
-          {
-            name: 'style',
-            kind: 'select',
-            label: 'Style',
-            options: opts(
-              'Vocal Smile', 'Newscaster', 'Whisper', 'Empathetic', 'Promo/Hype',
-              'Deadpan', 'Storyteller', 'Instructional',
-            ),
-            default: 'Vocal Smile',
-            advanced: true,
-          },
-          {
-            name: 'pace',
-            kind: 'select',
-            label: 'Pace',
-            options: opts('Natural', 'Rapid Fire', 'The Drift', 'Staccato'),
-            default: 'Natural',
-            advanced: true,
-          },
-        ],
-      },
-      {
-        name: 'dialogue_turns',
-        kind: 'list',
-        label: 'Turns',
-        description: 'Who says what, in order.',
-        required: true,
-        minItems: 1,
-        maxItems: 60,
-        itemLabel: 'Turn',
-        item: [
-          {
-            name: 'speaker_id',
-            kind: 'text',
-            label: 'Speaker',
-            required: true,
-            placeholder: 'host',
-            description: 'One of the ids you gave above.',
-          },
-          {
-            name: 'text',
-            kind: 'textarea',
-            label: 'Line',
-            required: true,
-            maxLength: 2000,
-          },
-        ],
-      },
-    ],
+    fields: geminiTtsFields(),
+  },
+  {
+    // Documented under /google/ rather than /market/, which is why the schema
+    // fetcher never saw it. Same createTask endpoint, same shape as 3.1 Flash.
+    id: 'google/gemini-2-5-pro-tts',
+    name: 'Gemini 2.5 Pro TTS',
+    family: 'Google',
+    category: 'audio',
+    mode: 'text-to-audio',
+    api: 'market',
+    output: 'audio',
+    tagline: 'The fuller Gemini voice model, for narration and scenes that need range.',
+    speed: 'balanced',
+    badges: ['Multi-voice'],
+    fields: geminiTtsFields(),
   },
   {
     id: 'kling-3.0/video',
@@ -2864,6 +2785,149 @@ export function getModel(id: string): ModelDef | undefined {
 
 export function modelsByCategory(category: ModelCategory): ModelDef[] {
   return MODELS.filter((m) => m.category === category)
+}
+
+/**
+ * The form shared by Gemini's two speech models.
+ *
+ * Both take the same body, and the first copy of it was wrong in ways that
+ * made every request fail: a free-text speaker id where Kie requires exactly
+ * "Speaker N", twelve accents and two styles Kie's enum does not contain, and
+ * lines capped at 2,000 characters against Kie's 10,000. One builder, checked
+ * against both schemas, keeps the two from drifting apart again.
+ */
+function geminiTtsFields(): ModelDef['fields'] {
+  // Built inside rather than as a module constant: the model arrays above call
+  // this while the module is still initialising, and a `const` declared below
+  // them is not there yet.
+  const speakerIds = Array.from({ length: 8 }, (_, i) => `Speaker ${i + 1}`)
+
+  const speakerId = (label: string, description: string) => ({
+    // A menu rather than free text: Kie refuses anything not shaped exactly
+    // "Speaker N", and a typed "host" is the natural thing to write.
+    name: 'speaker_id',
+    kind: 'select' as const,
+    label,
+    options: speakerIds.map((id) => ({ value: id, label: id })),
+    default: 'Speaker 1',
+    required: true,
+    description,
+  })
+
+  return [
+    {
+      name: 'speakers',
+      kind: 'list',
+      label: 'Speakers',
+      description: 'The cast. Give each one a different number; the lines below refer to it.',
+      required: true,
+      minItems: 1,
+      maxItems: 8,
+      itemLabel: 'Speaker',
+      item: [
+        speakerId('Id', 'Speaker 1, Speaker 2, and so on. Each speaker needs its own.'),
+        {
+          name: 'voice_name',
+          kind: 'select',
+          label: 'Voice',
+          options: opts(
+            'Achernar', 'Achird', 'Algenib', 'Algieba', 'Alnilam', 'Aoede',
+            'Autonoe', 'Callirrhoe', 'Charon', 'Despina', 'Enceladus', 'Erinome',
+            'Fenrir', 'Gacrux', 'Iapetus', 'Kore', 'Laomedeia', 'Leda',
+            'Orus', 'Puck', 'Pulcherrima', 'Rasalgethi', 'Sadachbia',
+            'Sadaltager', 'Schedar', 'Sulafat', 'Umbriel', 'Vindemiatrix',
+            'Zephyr', 'Zubenelgenubi',
+          ),
+          default: 'Kore',
+          required: true,
+        },
+        {
+          name: 'accent',
+          kind: 'select',
+          label: 'Accent',
+          options: opts(
+            'Neutral', 'American (Gen)', 'American (Valley)', 'American (South)',
+            'British (RP)', 'British (Brixton)', 'Transatlantic', 'Australian',
+          ),
+          default: 'Neutral',
+          required: true,
+        },
+        {
+          name: 'audio_profile',
+          kind: 'text',
+          label: 'Character',
+          placeholder: 'A warm and soothing narrator',
+          description: 'Who this voice is, in a few words.',
+          maxLength: 300,
+        },
+        {
+          name: 'style',
+          kind: 'select',
+          label: 'Style',
+          options: opts('Vocal Smile', 'Newscaster', 'Whisper', 'Empathetic', 'Promo/Hype', 'Deadpan'),
+          default: 'Vocal Smile',
+          advanced: true,
+        },
+        {
+          name: 'pace',
+          kind: 'select',
+          label: 'Pace',
+          options: opts('Natural', 'Rapid Fire', 'The Drift', 'Staccato'),
+          default: 'Natural',
+          advanced: true,
+        },
+      ],
+    },
+    {
+      name: 'dialogue_turns',
+      kind: 'list',
+      label: 'Lines',
+      description: 'Who says what, in order. Tone tags like [whispers] or [shouting] work inline.',
+      required: true,
+      minItems: 1,
+      maxItems: 60,
+      itemLabel: 'Line',
+      item: [
+        speakerId('Speaker', 'One of the speakers above.'),
+        {
+          name: 'text',
+          kind: 'textarea',
+          label: 'Text',
+          required: true,
+          maxLength: 10000,
+          placeholder: '[warmly] Once upon a time, in a quiet valley…',
+        },
+      ],
+    },
+    {
+      name: 'scene',
+      kind: 'textarea',
+      label: 'Scene',
+      placeholder: 'A quiet, warm room with a fireplace crackling softly.',
+      description: 'Where this is happening. Shapes the delivery, not the sound effects.',
+      maxLength: 2000,
+      advanced: true,
+    },
+    {
+      name: 'sample_context',
+      kind: 'textarea',
+      label: 'Overall tone',
+      placeholder: 'Audiobook narration. Gentle and inviting.',
+      maxLength: 2000,
+      advanced: true,
+    },
+    {
+      name: 'temperature',
+      kind: 'slider',
+      label: 'Variation',
+      description: 'Lower reads the same way each time; higher takes more liberties.',
+      min: 0,
+      max: 2,
+      step: 0.05,
+      default: 1,
+      advanced: true,
+    },
+  ]
 }
 
 export const CATEGORIES: {

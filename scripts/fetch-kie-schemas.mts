@@ -24,6 +24,9 @@ const OUT = new URL('./kie/schemas.json', import.meta.url).pathname
 /** Concurrent fetches. Their docs site is not the thing being tested. */
 const CONCURRENCY = 8
 
+/** Market-model pages Kie files outside /market/. */
+const EXTRA_PAGES = ['/google/gemini-2-5-pro-tts']
+
 interface FieldSpec {
   type?: string
   enum?: (string | number)[]
@@ -49,7 +52,16 @@ async function sitemapUrls(): Promise<string[]> {
   const xml = await (await fetch(SITEMAP)).text()
   const urls = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1])
   // The /cn/ tree is the same documents in Chinese.
-  return urls.filter((u) => u.includes('/market/') && !u.includes('/cn/'))
+  //
+  // Market models mostly live under /market/, but not all of them: Gemini
+  // 2.5 Pro TTS is documented at /google/gemini-2-5-pro-tts and posts to the
+  // same /api/v1/jobs/createTask. Filtering on the path alone dropped it
+  // from the snapshot, and so from the catalog, without a word. The page
+  // itself decides: anything whose OpenAPI block posts to createTask is kept
+  // by the parser below, whatever folder it sits in.
+  return urls.filter(
+    (u) => !u.includes('/cn/') && (u.includes('/market/') || EXTRA_PAGES.some((p) => u.endsWith(p))),
+  )
 }
 
 /**

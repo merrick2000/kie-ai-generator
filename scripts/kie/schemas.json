@@ -1,51 +1,4 @@
 {
- "elevenlabs/audio-isolation": {
-  "doc": "market/elevenlabs/audio-isolation",
-  "path": "/api/v1/jobs/createTask",
-  "title": "elevenlabs/audio-isolation",
-  "required": [
-   "audio_url"
-  ],
-  "fields": {
-   "audio_url": {
-    "description": "URL of the audio file to isolate voice from (File URL after upload, not file content; Accepted types: audio/mpeg, audio/wav, audio/x-wav, audio/aac, audio/mp4, audio/ogg; Max size: 10.0MB)",
-    "type": "string",
-    "examples": [
-     "https://file.aiquickdraw.com/custom-page/akr/section-images/1756964657418ljw1jbzr.mp3"
-    ]
-   }
-  }
- },
- "omnihuman-1-5/human-identification": {
-  "doc": "market/omnihuman-1-5/human-identification",
-  "path": "/api/v1/jobs/createTask",
-  "title": "Omnihuman 1.5 Human Identification",
-  "required": [
-   "image_url"
-  ],
-  "fields": {
-   "image_url": {
-    "type": "string",
-    "format": "uri",
-    "description": "Portrait image URL. Requirements: JPG/PNG/JPEG format, less than 5MB, resolution under 4096x4096. Recommended: single person facing forward, with the face occupying a large proportion of the image. Accepted file types: image/jpeg, image/png, image/jpg. Max file size: 5MB."
-   }
-  }
- },
- "omnihuman-1-5/subject-detection": {
-  "doc": "market/omnihuman-1-5/subject-detection",
-  "path": "/api/v1/jobs/createTask",
-  "title": "OmniHuman 1.5 Subject Detection",
-  "required": [
-   "image_url"
-  ],
-  "fields": {
-   "image_url": {
-    "type": "string",
-    "format": "uri",
-    "description": "Portrait image URL. Supports detection of up to 5 subjects in the image. Accepted file types: image/jpeg, image/png, image/jpg. Max file size: 5MB."
-   }
-  }
- },
  "google/gemini-3-1-flash-tts": {
   "doc": "market/google/gemini-3-1-flash-tts",
   "path": "/api/v1/jobs/createTask",
@@ -452,67 +405,419 @@
    }
   }
  },
- "volcengine/video-to-video-lip-sync": {
-  "doc": "market/volcengine/video-to-video-lip-sync",
+ "google/gemini-2-5-pro-tts": {
+  "doc": "google/gemini-2-5-pro-tts",
   "path": "/api/v1/jobs/createTask",
-  "title": "Volcengine video to video lip sync",
+  "title": "Gemini 2.5 Pro Text to Speech",
   "required": [
-   "audio_url",
-   "mode",
-   "video_url"
+   "dialogue_turns",
+   "speakers"
   ],
   "fields": {
-   "mode": {
-    "type": "string",
-    "enum": [
-     "lite",
-     "basic"
-    ],
-    "description": "Service mode for lip-sync generation.\n- `lite`: For single-person frontal videos. Faster processing.\n- `basic`: For single-person complex scenes. Supports scene segmentation and speaker identification."
-   },
-   "video_url": {
-    "type": "string",
-    "format": "uri",
-    "description": "Video URL. Supported resolution: 360p–1080p. Videos above 1080p will be compressed to 1080p, while videos below 360p are not supported. Supported formats: MOV, MP4, HDR. Recommended codec: H.264. Other formats/codecs may be transcoded. Max file size: 500 MB. Bitrate: 1–30 Mbps. Frame rate: 24–60 fps."
-   },
-   "audio_url": {
-    "type": "string",
-    "format": "uri",
-    "description": "Target pure vocal audio URL; used to drive video lip movements. Accepted file types: audio/mpeg, audio/wav, audio/x-wav, audio/aac, audio/mp4, audio/ogg. Max file size: 10MB."
-   },
-   "separate_vocal": {
-    "type": "boolean",
-    "default": false,
-    "description": "Enable vocal separation to suppress background noise. Default value: `false`."
-   },
-   "open_scenedet": {
-    "type": "boolean",
-    "default": false,
-    "description": "Whether to enable scene segmentation and speaker identification. Supported only in Basic mode. Default value: `false`."
-   },
-   "align_audio": {
-    "type": "boolean",
-    "default": true,
-    "description": "Supported in Lite mode. Whether to loop the video when the audio is longer than the video. Default value: `true`."
-   },
-   "align_audio_reverse": {
-    "type": "boolean",
-    "default": false,
-    "description": "Supported in Lite mode. Whether to loop the video in reverse (backward). Requires `align_audio` to be set to `true`. Default value: `false`."
-   },
-   "templ_start_seconds": {
+   "temperature": {
     "type": "number",
-    "default": 0,
-    "description": "Supported in Lite mode. Start time of the template video, in seconds. Default value: `0`."
+    "minimum": 0,
+    "maximum": 2,
+    "default": 1,
+    "description": "Sampling temperature, e.g., 1"
+   },
+   "scene": {
+    "type": "string",
+    "default": "",
+    "description": "Scene description, e.g., \"A quiet, warm room with a fireplace crackling softly.\""
+   },
+   "sample_context": {
+    "type": "string",
+    "default": "",
+    "description": "Sample context/overall tone, e.g., \"Audiobook style narration. Tone is gentle and inviting.\""
+   },
+   "speakers": {
+    "type": "array",
+    "description": "List of speaker configurations",
+    "items": {
+     "type": "object",
+     "properties": {
+      "speaker_id": {
+       "type": "string",
+       "description": "Speaker identifier, e.g., \"Speaker 1\" or \"Speaker 2\";Must be 「Speaker N」format"
+      },
+      "voice_name": {
+       "type": "string",
+       "description": "Voice name, e.g., \"Zephyr\", \"Fenrir\", \"Puck\"",
+       "enum": [
+        "Achernar",
+        "Achird",
+        "Algenib",
+        "Algieba",
+        "Alnilam",
+        "Aoede",
+        "Autonoe",
+        "Callirrhoe",
+        "Charon",
+        "Despina",
+        "Enceladus",
+        "Erinome",
+        "Fenrir",
+        "Gacrux",
+        "Iapetus",
+        "Kore",
+        "Laomedeia",
+        "Leda",
+        "Orus",
+        "Puck",
+        "Pulcherrima",
+        "Rasalgethi",
+        "Sadachbia",
+        "Sadaltager",
+        "Schedar",
+        "Sulafat",
+        "Umbriel",
+        "Vindemiatrix",
+        "Zephyr",
+        "Zubenelgenubi"
+       ],
+       "x-apidog-enum": [
+        {
+         "value": "Achernar",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Achird",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Algenib",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Algieba",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Alnilam",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Aoede",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Autonoe",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Callirrhoe",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Charon",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Despina",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Enceladus",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Erinome",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Fenrir",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Gacrux",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Iapetus",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Kore",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Laomedeia",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Leda",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Orus",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Puck",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Pulcherrima",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Rasalgethi",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Sadachbia",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Sadaltager",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Schedar",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Sulafat",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Umbriel",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Vindemiatrix",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Zephyr",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Zubenelgenubi",
+         "name": "",
+         "description": ""
+        }
+       ]
+      },
+      "audio_profile": {
+       "type": "string",
+       "description": "Audio profile description, e.g., \"A warm and soothing narrator\" or \"A stern and weary gatekeeper\""
+      },
+      "accent": {
+       "type": "string",
+       "description": "Accent, e.g., \"British (RP)\" or \"American (Gen)\"",
+       "enum": [
+        "Neutral",
+        "American (Gen)",
+        "American (Valley)",
+        "American (South)",
+        "British (RP)",
+        "British (Brixton)",
+        "Transatlantic",
+        "Australian"
+       ],
+       "x-apidog-enum": [
+        {
+         "value": "Neutral",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "American (Gen)",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "American (Valley)",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "American (South)",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "British (RP)",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "British (Brixton)",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Transatlantic",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Australian",
+         "name": "",
+         "description": ""
+        }
+       ]
+      },
+      "style": {
+       "type": "string",
+       "description": "Emotional style, e.g., \"Gentle\" or \"Deadpan\"",
+       "enum": [
+        "Vocal Smile",
+        "Newscaster",
+        "Whisper",
+        "Empathetic",
+        "Promo/Hype",
+        "Deadpan"
+       ],
+       "x-apidog-enum": [
+        {
+         "value": "Vocal Smile",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Newscaster",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Whisper",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Empathetic",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Promo/Hype",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Deadpan",
+         "name": "",
+         "description": ""
+        }
+       ]
+      },
+      "pace": {
+       "type": "string",
+       "description": "Pace, e.g., \"Slow\" or \"Natural\"",
+       "enum": [
+        "Natural",
+        "Rapid Fire",
+        "The Drift",
+        "Staccato"
+       ],
+       "x-apidog-enum": [
+        {
+         "value": "Natural",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Rapid Fire",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "The Drift",
+         "name": "",
+         "description": ""
+        },
+        {
+         "value": "Staccato",
+         "name": "",
+         "description": ""
+        }
+       ]
+      }
+     },
+     "x-apidog-orders": [
+      "speaker_id",
+      "voice_name",
+      "audio_profile",
+      "accent",
+      "style",
+      "pace"
+     ],
+     "required": [
+      "speaker_id",
+      "voice_name",
+      "accent"
+     ],
+     "x-apidog-ignore-properties": []
+    }
+   },
+   "dialogue_turns": {
+    "type": "array",
+    "description": "List of dialogue turns, output in sequential order",
+    "items": {
+     "type": "object",
+     "properties": {
+      "speaker_id": {
+       "type": "string",
+       "description": "Corresponding speaker identifier, e.g., \"Speaker 1\""
+      },
+      "text": {
+       "type": "string",
+       "description": "The text spoken by the speaker, which may contain tone tags, e.g., \"Once upon a time, in a quiet valley hidden away...\"",
+       "maxLength": 10000
+      }
+     },
+     "x-apidog-orders": [
+      "speaker_id",
+      "text"
+     ],
+     "required": [
+      "speaker_id",
+      "text"
+     ],
+     "x-apidog-ignore-properties": []
+    }
    }
   }
  },
- "elevenlabs/text-to-speech-turbo-2-5": {
-  "doc": "market/elevenlabs/text-to-speech-turbo-2-5",
+ "elevenlabs/text-to-speech-multilingual-v2": {
+  "doc": "market/elevenlabs/text-to-speech-multilingual-v2",
   "path": "/api/v1/jobs/createTask",
-  "title": "elevenlabs/text-to-speech-turbo-2-5",
+  "title": "elevenlabs/text-to-speech-multilingual-v2",
   "required": [
-   "text"
+   "text",
+   "voice"
   ],
   "fields": {
    "text": {
@@ -1007,6 +1312,78 @@
     "examples": [
      ""
     ]
+   }
+  }
+ },
+ "elevenlabs/audio-isolation": {
+  "doc": "market/elevenlabs/audio-isolation",
+  "path": "/api/v1/jobs/createTask",
+  "title": "elevenlabs/audio-isolation",
+  "required": [
+   "audio_url"
+  ],
+  "fields": {
+   "audio_url": {
+    "description": "URL of the audio file to isolate voice from (File URL after upload, not file content; Accepted types: audio/mpeg, audio/wav, audio/x-wav, audio/aac, audio/mp4, audio/ogg; Max size: 10.0MB)",
+    "type": "string",
+    "examples": [
+     "https://file.aiquickdraw.com/custom-page/akr/section-images/1756964657418ljw1jbzr.mp3"
+    ]
+   }
+  }
+ },
+ "volcengine/video-to-video-lip-sync": {
+  "doc": "market/volcengine/video-to-video-lip-sync",
+  "path": "/api/v1/jobs/createTask",
+  "title": "Volcengine video to video lip sync",
+  "required": [
+   "audio_url",
+   "mode",
+   "video_url"
+  ],
+  "fields": {
+   "mode": {
+    "type": "string",
+    "enum": [
+     "lite",
+     "basic"
+    ],
+    "description": "Service mode for lip-sync generation.\n- `lite`: For single-person frontal videos. Faster processing.\n- `basic`: For single-person complex scenes. Supports scene segmentation and speaker identification."
+   },
+   "video_url": {
+    "type": "string",
+    "format": "uri",
+    "description": "Video URL. Supported resolution: 360p–1080p. Videos above 1080p will be compressed to 1080p, while videos below 360p are not supported. Supported formats: MOV, MP4, HDR. Recommended codec: H.264. Other formats/codecs may be transcoded. Max file size: 500 MB. Bitrate: 1–30 Mbps. Frame rate: 24–60 fps."
+   },
+   "audio_url": {
+    "type": "string",
+    "format": "uri",
+    "description": "Target pure vocal audio URL; used to drive video lip movements. Accepted file types: audio/mpeg, audio/wav, audio/x-wav, audio/aac, audio/mp4, audio/ogg. Max file size: 10MB."
+   },
+   "separate_vocal": {
+    "type": "boolean",
+    "default": false,
+    "description": "Enable vocal separation to suppress background noise. Default value: `false`."
+   },
+   "open_scenedet": {
+    "type": "boolean",
+    "default": false,
+    "description": "Whether to enable scene segmentation and speaker identification. Supported only in Basic mode. Default value: `false`."
+   },
+   "align_audio": {
+    "type": "boolean",
+    "default": true,
+    "description": "Supported in Lite mode. Whether to loop the video when the audio is longer than the video. Default value: `true`."
+   },
+   "align_audio_reverse": {
+    "type": "boolean",
+    "default": false,
+    "description": "Supported in Lite mode. Whether to loop the video in reverse (backward). Requires `align_audio` to be set to `true`. Default value: `false`."
+   },
+   "templ_start_seconds": {
+    "type": "number",
+    "default": 0,
+    "description": "Supported in Lite mode. Start time of the template video, in seconds. Default value: `0`."
    }
   }
  },
@@ -1568,6 +1945,36 @@
    }
   }
  },
+ "omnihuman-1-5/subject-detection": {
+  "doc": "market/omnihuman-1-5/subject-detection",
+  "path": "/api/v1/jobs/createTask",
+  "title": "OmniHuman 1.5 Subject Detection",
+  "required": [
+   "image_url"
+  ],
+  "fields": {
+   "image_url": {
+    "type": "string",
+    "format": "uri",
+    "description": "Portrait image URL. Supports detection of up to 5 subjects in the image. Accepted file types: image/jpeg, image/png, image/jpg. Max file size: 5MB."
+   }
+  }
+ },
+ "omnihuman-1-5/human-identification": {
+  "doc": "market/omnihuman-1-5/human-identification",
+  "path": "/api/v1/jobs/createTask",
+  "title": "Omnihuman 1.5 Human Identification",
+  "required": [
+   "image_url"
+  ],
+  "fields": {
+   "image_url": {
+    "type": "string",
+    "format": "uri",
+    "description": "Portrait image URL. Requirements: JPG/PNG/JPEG format, less than 5MB, resolution under 4096x4096. Recommended: single person facing forward, with the face occupying a large proportion of the image. Accepted file types: image/jpeg, image/png, image/jpg. Max file size: 5MB."
+   }
+  }
+ },
  "omnihuman-1-5": {
   "doc": "market/omnihuman-1-5",
   "path": "/api/v1/jobs/createTask",
@@ -1622,13 +2029,12 @@
    }
   }
  },
- "elevenlabs/text-to-speech-multilingual-v2": {
-  "doc": "market/elevenlabs/text-to-speech-multilingual-v2",
+ "elevenlabs/text-to-speech-turbo-2-5": {
+  "doc": "market/elevenlabs/text-to-speech-turbo-2-5",
   "path": "/api/v1/jobs/createTask",
-  "title": "elevenlabs/text-to-speech-multilingual-v2",
+  "title": "elevenlabs/text-to-speech-turbo-2-5",
   "required": [
-   "text",
-   "voice"
+   "text"
   ],
   "fields": {
    "text": {
@@ -2425,81 +2831,6 @@
    }
   }
  },
- "happyhorse-1-1/reference-to-video": {
-  "doc": "market/happyhorse-1-1/reference-to-video",
-  "path": "/api/v1/jobs/createTask",
-  "title": "HappyHorse-1-1 reference-to-video",
-  "required": [
-   "prompt",
-   "reference_image"
-  ],
-  "fields": {
-   "prompt": {
-    "type": "string",
-    "description": "A description of the desired elements and visual style for the generated video.  Input in any language is supported. The length is limited to 5,000 non-Chinese characters or 2,500 Chinese characters. Content exceeding this limit is automatically truncated.  Image referencing: In the prompt, use \"[Image 1]\" and \"[Image 2]\" to refer to the corresponding reference image in the media array. The order must be consistent with the order in the media array. When using a reference, specify the object in the image, such as \"the woman in a red qipao in [Image 1]\".",
-    "maxLength": 5000,
-    "default": "",
-    "examples": [
-     ""
-    ]
-   },
-   "reference_image": {
-    "type": "array",
-    "items": {
-     "type": "string",
-     "format": "uri"
-    },
-    "description": "The URL  of a reference image. \nImage requirements: \n1. Formats: JPEG, JPG, PNG, WEBP. \n2. Resolution: The shortest side must be at least 400 pixels. A clear image with a resolution of 720P or higher is recommended. Avoid using images that are too small, blurry, or overly compressed, as this can degrade the output quality. \n3. Maximum file size: 20 MB.",
-    "maxItems": 9,
-    "default": [],
-    "examples": [
-     []
-    ]
-   },
-   "resolution": {
-    "type": "string",
-    "enum": [
-     "720p",
-     "1080p"
-    ],
-    "description": "The resolution tier of the generated video.\nOptions: 720p; 1080p",
-    "default": "1080p",
-    "examples": [
-     "1080p"
-    ]
-   },
-   "aspect_ratio": {
-    "type": "string",
-    "enum": [
-     "16:9",
-     "9:16",
-     "3:4",
-     "4:3",
-     "4:5",
-     "5:4",
-     "1:1",
-     "9:21",
-     "21:9"
-    ],
-    "description": "The aspect ratio of the generated video.\nOptions: 16:9; 9:16; 3:4; 4:3; 4:5; 5:4; 1:1; 9:21; 21:9",
-    "default": "16:9",
-    "examples": [
-     "16:9"
-    ]
-   },
-   "duration": {
-    "type": "number",
-    "description": "The duration of the generated video, in seconds. Value range: An integer from 3 to 15.",
-    "minimum": 3,
-    "maximum": 15,
-    "multipleOf": 1,
-    "default": 5,
-    "examples": [
-     5
-    ]
-   }
-  }
- },
  "happyhorse-1-1/text-to-video": {
   "doc": "market/happyhorse-1-1/text-to-video",
   "path": "/api/v1/jobs/createTask",
@@ -2882,6 +3213,81 @@
     "default": 0,
     "minimum": 0,
     "maximum": 2147483647
+   }
+  }
+ },
+ "happyhorse-1-1/reference-to-video": {
+  "doc": "market/happyhorse-1-1/reference-to-video",
+  "path": "/api/v1/jobs/createTask",
+  "title": "HappyHorse-1-1 reference-to-video",
+  "required": [
+   "prompt",
+   "reference_image"
+  ],
+  "fields": {
+   "prompt": {
+    "type": "string",
+    "description": "A description of the desired elements and visual style for the generated video.  Input in any language is supported. The length is limited to 5,000 non-Chinese characters or 2,500 Chinese characters. Content exceeding this limit is automatically truncated.  Image referencing: In the prompt, use \"[Image 1]\" and \"[Image 2]\" to refer to the corresponding reference image in the media array. The order must be consistent with the order in the media array. When using a reference, specify the object in the image, such as \"the woman in a red qipao in [Image 1]\".",
+    "maxLength": 5000,
+    "default": "",
+    "examples": [
+     ""
+    ]
+   },
+   "reference_image": {
+    "type": "array",
+    "items": {
+     "type": "string",
+     "format": "uri"
+    },
+    "description": "The URL  of a reference image. \nImage requirements: \n1. Formats: JPEG, JPG, PNG, WEBP. \n2. Resolution: The shortest side must be at least 400 pixels. A clear image with a resolution of 720P or higher is recommended. Avoid using images that are too small, blurry, or overly compressed, as this can degrade the output quality. \n3. Maximum file size: 20 MB.",
+    "maxItems": 9,
+    "default": [],
+    "examples": [
+     []
+    ]
+   },
+   "resolution": {
+    "type": "string",
+    "enum": [
+     "720p",
+     "1080p"
+    ],
+    "description": "The resolution tier of the generated video.\nOptions: 720p; 1080p",
+    "default": "1080p",
+    "examples": [
+     "1080p"
+    ]
+   },
+   "aspect_ratio": {
+    "type": "string",
+    "enum": [
+     "16:9",
+     "9:16",
+     "3:4",
+     "4:3",
+     "4:5",
+     "5:4",
+     "1:1",
+     "9:21",
+     "21:9"
+    ],
+    "description": "The aspect ratio of the generated video.\nOptions: 16:9; 9:16; 3:4; 4:3; 4:5; 5:4; 1:1; 9:21; 21:9",
+    "default": "16:9",
+    "examples": [
+     "16:9"
+    ]
+   },
+   "duration": {
+    "type": "number",
+    "description": "The duration of the generated video, in seconds. Value range: An integer from 3 to 15.",
+    "minimum": 3,
+    "maximum": 15,
+    "multipleOf": 1,
+    "default": 5,
+    "examples": [
+     5
+    ]
    }
   }
  },
@@ -4305,128 +4711,6 @@
    }
   }
  },
- "wan/3-0-video-prime": {
-  "doc": "market/wan/3-0-video-prime",
-  "path": "/api/v1/jobs/createTask",
-  "title": "Wan 3.0 - Video Prime",
-  "required": [],
-  "fields": {
-   "prompt": {
-    "type": "string",
-    "maxLength": 20000,
-    "description": "Text prompt. Chinese and English are supported. Up to 20,000 characters; excess characters are truncated automatically. Required for text-to-video; for other modes, it is recommended to provide it together with media. In reference mode, use Image1/Video1/Audio1 to reference the provided materials.",
-    "examples": [
-     "A kitten running across a rooftop under the moonlight, neon lights flickering in the distance, cinematic quality, with smooth camera movement."
-    ]
-   },
-   "first_frame_url": {
-    "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
-    "type": "object",
-    "properties": {}
-   },
-   "last_frame_url": {
-    "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
-    "type": "object",
-    "properties": {}
-   },
-   "reference_image_urls": {
-    "type": "array",
-    "maxItems": 10,
-    "items": {
-     "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
-     "type": "object",
-     "properties": {}
-    },
-    "description": "Reference images for all-purpose reference mode. Up to 10 images. Correspond to Image1, Image2, and so on in the prompt according to array order. Same specifications as `first_frame_url`. Cannot be provided together with the first-frame or last-frame image."
-   },
-   "reference_video_urls": {
-    "type": "array",
-    "maxItems": 5,
-    "items": {
-     "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
-     "type": "object",
-     "properties": {}
-    },
-    "description": "Reference videos for all-purpose reference mode. Up to 5 videos. Each video must be 1–15s, with a combined duration of ≤ 15s. Correspond to Video1, Video2, and so on according to array order.\nFormats: mp4, mov; each side [240, 4096] px; aspect ratio ≤ 8:1; each file ≤ 100MB.\nThere is an additional output-side limit: the input video duration plus `duration` cannot exceed 30 seconds."
-   },
-   "reference_audio_urls": {
-    "type": "array",
-    "maxItems": 5,
-    "items": {
-     "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
-     "type": "object",
-     "properties": {}
-    },
-    "description": "Reference audio files for all-purpose reference mode. Up to 5 audio files. Each file must be 1–15s, with a combined duration of ≤ 15s. Correspond to Audio1, Audio2, and so on according to array order. Formats: wav, mp3; ≤ 15MB. Even when used as the only media input, it is still recommended to provide an image or video together with it."
-   },
-   "reference_file_urls": {
-    "type": "array",
-    "maxItems": 1,
-    "items": {
-     "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
-     "type": "object",
-     "properties": {}
-    },
-    "description": "File-to-video generation. Up to 1 file. Cannot be provided together with `reference_link_urls`, or with the first-frame/last-frame image.\nFormats: docx/doc/xlsx/xls/pptx/ppt/pdf/txt/key/pages/numbers/md; ≤ 100MB; pdf/docx/ppt/key/pages, etc. ≤ 50 pages."
-   },
-   "reference_link_urls": {
-    "type": "array",
-    "maxItems": 1,
-    "items": {
-     "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
-     "type": "object",
-     "properties": {}
-    },
-    "description": "Link-to-video generation. Up to 1 publicly accessible webpage that does not require login. Cannot be provided together with `reference_file_urls`, or with the first-frame/last-frame image."
-   },
-   "resolution": {
-    "type": "string",
-    "enum": [
-     "480P",
-     "720P",
-     "1080P"
-    ],
-    "default": "1080P",
-    "description": "Output resolution level. Default: **1080P**."
-   },
-   "aspect_ratio": {
-    "type": "string",
-    "enum": [
-     "adaptive",
-     "16:9",
-     "4:3",
-     "1:1",
-     "3:4",
-     "9:16"
-    ],
-    "default": "adaptive",
-    "description": "Output aspect ratio. `adaptive` (default) automatically selects the aspect ratio based on the input materials and intent."
-   },
-   "duration": {
-    "type": "integer",
-    "default": 5,
-    "description": "Output video duration in seconds. Default: 5. When there is no video input, the value must be within [2, 30]. When reference videos are provided: input video duration plus output duration ≤ 30. Pass `-1` to use an intelligent duration determined by the model.",
-    "examples": [
-     5
-    ]
-   },
-   "audio": {
-    "type": "boolean",
-    "default": true,
-    "description": "Whether the output video includes an audio track. Default: true."
-   },
-   "seed": {
-    "type": "integer",
-    "minimum": 0,
-    "maximum": 2147483647,
-    "description": "Random seed used to reproduce results. If omitted, a random seed is used."
-   },
-   "nsfw_checker": {
-    "type": "boolean",
-    "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
-   }
-  }
- },
  "wan/3-0-video": {
   "doc": "market/wan/3-0-video",
   "path": "/api/v1/jobs/createTask",
@@ -5309,6 +5593,128 @@
    }
   }
  },
+ "wan/3-0-video-prime": {
+  "doc": "market/wan/3-0-video-prime",
+  "path": "/api/v1/jobs/createTask",
+  "title": "Wan 3.0 - Video Prime",
+  "required": [],
+  "fields": {
+   "prompt": {
+    "type": "string",
+    "maxLength": 20000,
+    "description": "Text prompt. Chinese and English are supported. Up to 20,000 characters; excess characters are truncated automatically. Required for text-to-video; for other modes, it is recommended to provide it together with media. In reference mode, use Image1/Video1/Audio1 to reference the provided materials.",
+    "examples": [
+     "A kitten running across a rooftop under the moonlight, neon lights flickering in the distance, cinematic quality, with smooth camera movement."
+    ]
+   },
+   "first_frame_url": {
+    "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
+    "type": "object",
+    "properties": {}
+   },
+   "last_frame_url": {
+    "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
+    "type": "object",
+    "properties": {}
+   },
+   "reference_image_urls": {
+    "type": "array",
+    "maxItems": 10,
+    "items": {
+     "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
+     "type": "object",
+     "properties": {}
+    },
+    "description": "Reference images for all-purpose reference mode. Up to 10 images. Correspond to Image1, Image2, and so on in the prompt according to array order. Same specifications as `first_frame_url`. Cannot be provided together with the first-frame or last-frame image."
+   },
+   "reference_video_urls": {
+    "type": "array",
+    "maxItems": 5,
+    "items": {
+     "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
+     "type": "object",
+     "properties": {}
+    },
+    "description": "Reference videos for all-purpose reference mode. Up to 5 videos. Each video must be 1–15s, with a combined duration of ≤ 15s. Correspond to Video1, Video2, and so on according to array order.\nFormats: mp4, mov; each side [240, 4096] px; aspect ratio ≤ 8:1; each file ≤ 100MB.\nThere is an additional output-side limit: the input video duration plus `duration` cannot exceed 30 seconds."
+   },
+   "reference_audio_urls": {
+    "type": "array",
+    "maxItems": 5,
+    "items": {
+     "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
+     "type": "object",
+     "properties": {}
+    },
+    "description": "Reference audio files for all-purpose reference mode. Up to 5 audio files. Each file must be 1–15s, with a combined duration of ≤ 15s. Correspond to Audio1, Audio2, and so on according to array order. Formats: wav, mp3; ≤ 15MB. Even when used as the only media input, it is still recommended to provide an image or video together with it."
+   },
+   "reference_file_urls": {
+    "type": "array",
+    "maxItems": 1,
+    "items": {
+     "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
+     "type": "object",
+     "properties": {}
+    },
+    "description": "File-to-video generation. Up to 1 file. Cannot be provided together with `reference_link_urls`, or with the first-frame/last-frame image.\nFormats: docx/doc/xlsx/xls/pptx/ppt/pdf/txt/key/pages/numbers/md; ≤ 100MB; pdf/docx/ppt/key/pages, etc. ≤ 50 pages."
+   },
+   "reference_link_urls": {
+    "type": "array",
+    "maxItems": 1,
+    "items": {
+     "description": "URL of the first-frame image. Up to 1 image, used strictly as the first frame of the video. Used for first-frame-to-video or first-and-last-frame-to-video generation. Cannot be provided together with `reference_*_urls`.\nFormats: JPEG/JPG, PNG (transparency not supported), BMP, WEBP; each side [240, 8000] px; aspect ratio ≤ 8:1; ≤ 20MB.",
+     "type": "object",
+     "properties": {}
+    },
+    "description": "Link-to-video generation. Up to 1 publicly accessible webpage that does not require login. Cannot be provided together with `reference_file_urls`, or with the first-frame/last-frame image."
+   },
+   "resolution": {
+    "type": "string",
+    "enum": [
+     "480P",
+     "720P",
+     "1080P"
+    ],
+    "default": "1080P",
+    "description": "Output resolution level. Default: **1080P**."
+   },
+   "aspect_ratio": {
+    "type": "string",
+    "enum": [
+     "adaptive",
+     "16:9",
+     "4:3",
+     "1:1",
+     "3:4",
+     "9:16"
+    ],
+    "default": "adaptive",
+    "description": "Output aspect ratio. `adaptive` (default) automatically selects the aspect ratio based on the input materials and intent."
+   },
+   "duration": {
+    "type": "integer",
+    "default": 5,
+    "description": "Output video duration in seconds. Default: 5. When there is no video input, the value must be within [2, 30]. When reference videos are provided: input video duration plus output duration ≤ 30. Pass `-1` to use an intelligent duration determined by the model.",
+    "examples": [
+     5
+    ]
+   },
+   "audio": {
+    "type": "boolean",
+    "default": true,
+    "description": "Whether the output video includes an audio track. Default: true."
+   },
+   "seed": {
+    "type": "integer",
+    "minimum": 0,
+    "maximum": 2147483647,
+    "description": "Random seed used to reproduce results. If omitted, a random seed is used."
+   },
+   "nsfw_checker": {
+    "type": "boolean",
+    "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+   }
+  }
+ },
  "wan/2-6-text-to-video": {
   "doc": "market/wan/2-6-text-to-video",
   "path": "/api/v1/jobs/createTask",
@@ -5700,74 +6106,6 @@
    }
   }
  },
- "hailuo/02-image-to-video-standard": {
-  "doc": "market/hailuo/02-image-to-video-standard",
-  "path": "/api/v1/jobs/createTask",
-  "title": "Hailuo Standard Image to Video",
-  "required": [
-   "image_url",
-   "prompt"
-  ],
-  "fields": {
-   "prompt": {
-    "description": "The text prompt describing the video to generate (Max length: 1500 characters)",
-    "type": "string",
-    "maxLength": 1500,
-    "examples": [
-     "Epic aerial shot: A lone samurai stands atop a jagged mountain peak as a storm of sakura petals is swept across the wind. Behind him, the sky is split in two — half daylight, half night. The shot pulls back to reveal that the mountain is actually the curved back of a sleeping dragon that spans across the horizon. Lightning crackles in the distance as the dragon's eye slowly opens, glowing with ancient magic. The samurai doesn’t flinch; he lowers his straw hat and places his hand on the hilt of his blade."
-    ]
-   },
-   "image_url": {
-    "description": "The URL of the image to use as the first frame of the video (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 10.0MB)",
-    "type": "string",
-    "examples": [
-     "https://file.aiquickdraw.com/custom-page/akr/section-images/17585207681646umf3lz8.png"
-    ]
-   },
-   "end_image_url": {
-    "description": "Optional URL of the image to use as the last frame of the video (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 10.0MB)",
-    "type": "string",
-    "examples": [
-     "https://file.aiquickdraw.com/custom-page/akr/section-images/1758521423357w8586uq8.png"
-    ]
-   },
-   "duration": {
-    "description": "The duration of the video in seconds. 10 seconds videos are not supported for 1080p resolution.",
-    "type": "string",
-    "enum": [
-     "6",
-     "10"
-    ],
-    "default": "10",
-    "examples": [
-     "10"
-    ]
-   },
-   "resolution": {
-    "description": "The resolution of the generated video.",
-    "type": "string",
-    "enum": [
-     "512P",
-     "768P"
-    ],
-    "default": "768P",
-    "examples": [
-     "768P"
-    ]
-   },
-   "prompt_optimizer": {
-    "description": "Whether to use the model's prompt optimizer (Boolean value (true/false))",
-    "type": "boolean",
-    "examples": [
-     true
-    ]
-   },
-   "nsfw_checker": {
-    "type": "boolean",
-    "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
-   }
-  }
- },
  "wan/2-2-a14b-image-to-video-turbo": {
   "doc": "market/wan/2-2-a14b-image-to-video-turbo",
   "path": "/api/v1/jobs/createTask",
@@ -5831,6 +6169,74 @@
     "default": "none",
     "examples": [
      "none"
+    ]
+   },
+   "nsfw_checker": {
+    "type": "boolean",
+    "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
+   }
+  }
+ },
+ "hailuo/02-image-to-video-standard": {
+  "doc": "market/hailuo/02-image-to-video-standard",
+  "path": "/api/v1/jobs/createTask",
+  "title": "Hailuo Standard Image to Video",
+  "required": [
+   "image_url",
+   "prompt"
+  ],
+  "fields": {
+   "prompt": {
+    "description": "The text prompt describing the video to generate (Max length: 1500 characters)",
+    "type": "string",
+    "maxLength": 1500,
+    "examples": [
+     "Epic aerial shot: A lone samurai stands atop a jagged mountain peak as a storm of sakura petals is swept across the wind. Behind him, the sky is split in two — half daylight, half night. The shot pulls back to reveal that the mountain is actually the curved back of a sleeping dragon that spans across the horizon. Lightning crackles in the distance as the dragon's eye slowly opens, glowing with ancient magic. The samurai doesn’t flinch; he lowers his straw hat and places his hand on the hilt of his blade."
+    ]
+   },
+   "image_url": {
+    "description": "The URL of the image to use as the first frame of the video (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 10.0MB)",
+    "type": "string",
+    "examples": [
+     "https://file.aiquickdraw.com/custom-page/akr/section-images/17585207681646umf3lz8.png"
+    ]
+   },
+   "end_image_url": {
+    "description": "Optional URL of the image to use as the last frame of the video (File URL after upload, not file content; Accepted types: image/jpeg, image/png, image/webp; Max size: 10.0MB)",
+    "type": "string",
+    "examples": [
+     "https://file.aiquickdraw.com/custom-page/akr/section-images/1758521423357w8586uq8.png"
+    ]
+   },
+   "duration": {
+    "description": "The duration of the video in seconds. 10 seconds videos are not supported for 1080p resolution.",
+    "type": "string",
+    "enum": [
+     "6",
+     "10"
+    ],
+    "default": "10",
+    "examples": [
+     "10"
+    ]
+   },
+   "resolution": {
+    "description": "The resolution of the generated video.",
+    "type": "string",
+    "enum": [
+     "512P",
+     "768P"
+    ],
+    "default": "768P",
+    "examples": [
+     "768P"
+    ]
+   },
+   "prompt_optimizer": {
+    "description": "Whether to use the model's prompt optimizer (Boolean value (true/false))",
+    "type": "boolean",
+    "examples": [
+     true
     ]
    },
    "nsfw_checker": {
@@ -8304,6 +8710,40 @@
    }
   }
  },
+ "kling/ai-avatar-pro": {
+  "doc": "market/kling/ai-avatar-pro",
+  "path": "/api/v1/jobs/createTask",
+  "title": "Kling AI Avatar Pro",
+  "required": [
+   "audio_url",
+   "image_url",
+   "prompt"
+  ],
+  "fields": {
+   "image_url": {
+    "description": "The URL of the image to use as your avatar (File URL after upload, not file content; Accepted types: image/jpeg, image/png; Max size: 10.0MB)",
+    "type": "string",
+    "examples": [
+     "https://file.aiquickdraw.com/custom-page/akr/section-images/175792685809077e8h8k3.png"
+    ]
+   },
+   "audio_url": {
+    "description": "The URL of the audio file (must be the URL of the uploaded file, not the file content; supported formats: audio/mpeg, audio/wav, audio/x-wav, audio/aac, audio/mp4, audio/ogg; audio size is limited to 100M, and the duration cannot exceed 5 minutes)",
+    "type": "string",
+    "examples": [
+     "https://file.aiquickdraw.com/custom-page/akr/section-images/1757925802302srqfkcqh.mp3"
+    ]
+   },
+   "prompt": {
+    "description": "The prompt to use for the video generation (Max length: 5000 characters)",
+    "type": "string",
+    "maxLength": 5000,
+    "examples": [
+     ""
+    ]
+   }
+  }
+ },
  "kling/v2-1-master-image-to-video": {
   "doc": "market/kling/v25-turbo-image-to-video-pro",
   "path": "/api/v1/jobs/createTask",
@@ -8389,40 +8829,6 @@
     "type": "string",
     "examples": [
      "https://file.aiquickdraw.com/custom-page/akr/section-images/17579258340109gghun47.mp3"
-    ]
-   },
-   "prompt": {
-    "description": "The prompt to use for the video generation (Max length: 5000 characters)",
-    "type": "string",
-    "maxLength": 5000,
-    "examples": [
-     ""
-    ]
-   }
-  }
- },
- "kling/ai-avatar-pro": {
-  "doc": "market/kling/ai-avatar-pro",
-  "path": "/api/v1/jobs/createTask",
-  "title": "Kling AI Avatar Pro",
-  "required": [
-   "audio_url",
-   "image_url",
-   "prompt"
-  ],
-  "fields": {
-   "image_url": {
-    "description": "The URL of the image to use as your avatar (File URL after upload, not file content; Accepted types: image/jpeg, image/png; Max size: 10.0MB)",
-    "type": "string",
-    "examples": [
-     "https://file.aiquickdraw.com/custom-page/akr/section-images/175792685809077e8h8k3.png"
-    ]
-   },
-   "audio_url": {
-    "description": "The URL of the audio file (must be the URL of the uploaded file, not the file content; supported formats: audio/mpeg, audio/wav, audio/x-wav, audio/aac, audio/mp4, audio/ogg; audio size is limited to 100M, and the duration cannot exceed 5 minutes)",
-    "type": "string",
-    "examples": [
-     "https://file.aiquickdraw.com/custom-page/akr/section-images/1757925802302srqfkcqh.mp3"
     ]
    },
    "prompt": {
@@ -9218,212 +9624,6 @@
    }
   }
  },
- "wan/2-7-image": {
-  "doc": "market/wan/2-7-image",
-  "path": "/api/v1/jobs/createTask",
-  "title": "Wan 2.7 Image",
-  "required": [
-   "prompt"
-  ],
-  "fields": {
-   "prompt": {
-    "type": "string",
-    "description": "Prompt for image generation or editing. This field supports both Chinese and English, with a maximum length of 5000 characters as per Alibaba Cloud documentation.",
-    "maxLength": 5000,
-    "examples": [
-     "Transform the food photo by replacing the marked ingredients with sliced red chili pieces while preserving the bowl, lighting, steam, camera angle, and overall realism."
-    ]
-   },
-   "input_urls": {
-    "type": "array",
-    "description": "(Optional) Array of input image URLs. The current project uses `input_urls` as a wrapper field.",
-    "items": {
-     "type": "string",
-     "format": "uri"
-    },
-    "maxItems": 9,
-    "examples": [
-     [
-      "https://static.aiquickdraw.com/tools/example/1775122744247_eSHwJX1k.jpg"
-     ]
-    ]
-   },
-   "aspect_ratio": {
-    "type": "string",
-    "description": "(Optional) Output aspect ratio when no image input is provided. ",
-    "examples": [
-     "1:1"
-    ],
-    "enum": [
-     "1:1",
-     "16:9",
-     "4:3",
-     "21:9",
-     "3:4",
-     "9:16",
-     "8:1",
-     "1:8"
-    ],
-    "x-apidog-enum": [
-     {
-      "value": "1:1",
-      "name": "",
-      "description": ""
-     },
-     {
-      "value": "16:9",
-      "name": "",
-      "description": ""
-     },
-     {
-      "value": "4:3",
-      "name": "",
-      "description": ""
-     },
-     {
-      "value": "21:9",
-      "name": "",
-      "description": ""
-     },
-     {
-      "value": "3:4",
-      "name": "",
-      "description": ""
-     },
-     {
-      "value": "9:16",
-      "name": "",
-      "description": ""
-     },
-     {
-      "value": "8:1",
-      "name": "",
-      "description": ""
-     },
-     {
-      "value": "1:8",
-      "name": "",
-      "description": ""
-     }
-    ]
-   },
-   "enable_sequential": {
-    "type": "boolean",
-    "description": "Whether to enable sequential/group image mode. Default is false.",
-    "default": false,
-    "examples": [
-     false
-    ]
-   },
-   "n": {
-    "type": "integer",
-    "description": "Number of images to generate. Range is 1-4 when `enable_sequential=false` (default: 4); range is 1-12 when `enable_sequential=true` (default: 12).",
-    "examples": [
-     4
-    ]
-   },
-   "resolution": {
-    "type": "string",
-    "description": "Output resolution. The current project uses `resolution` as a wrapper field corresponding to the underlying resolution parameter.",
-    "enum": [
-     "1K",
-     "2K",
-     "4K"
-    ],
-    "default": "2K",
-    "examples": [
-     "2K"
-    ]
-   },
-   "thinking_mode": {
-    "type": "boolean",
-    "description": "Whether to enable thinking mode. Only available when `enable_sequential=false` and `input_urls` is empty; the frontend will automatically disable it in other cases.",
-    "default": false,
-    "examples": [
-     false
-    ]
-   },
-   "color_palette": {
-    "type": "array",
-    "description": "(Optional) Custom color theme. Only available when `enable_sequential=false`. Requires 3-10 colors, 8 recommended.",
-    "minItems": 3,
-    "maxItems": 10,
-    "items": {
-     "type": "object",
-     "properties": {
-      "hex": {
-       "type": "string",
-       "description": "HEX color value.",
-       "pattern": "^#[0-9A-Fa-f]{6}$",
-       "examples": [
-        "#C2D1E6"
-       ]
-      },
-      "ratio": {
-       "type": "string",
-       "description": "Color proportion, format must be xx.xx%.",
-       "pattern": "^\\d{1,3}\\.\\d{2}%$",
-       "examples": [
-        "23.51%"
-       ]
-      }
-     },
-     "required": [
-      "hex",
-      "ratio"
-     ],
-     "x-apidog-orders": [
-      "hex",
-      "ratio"
-     ],
-     "x-apidog-ignore-properties": []
-    }
-   },
-   "bbox_list": {
-    "type": "array",
-    "description": "(Optional) Interactive editing bounding box areas. The outer list length should match `input_urls`; maximum 2 boxes per image; single box format is `[x1, y1, x2, y2]`.",
-    "items": {
-     "type": "array",
-     "maxItems": 2,
-     "items": {
-      "type": "array",
-      "minItems": 4,
-      "maxItems": 4,
-      "items": {
-       "type": "integer"
-      }
-     }
-    },
-    "examples": [
-     [
-      []
-     ]
-    ]
-   },
-   "watermark": {
-    "type": "boolean",
-    "description": "Whether to add watermark.",
-    "default": false,
-    "examples": [
-     false
-    ]
-   },
-   "seed": {
-    "type": "integer",
-    "description": "Random seed, range 0-2147483647.",
-    "minimum": 0,
-    "maximum": 2147483647,
-    "default": 0,
-    "examples": [
-     0
-    ]
-   },
-   "nsfw_checker": {
-    "type": "boolean",
-    "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
-   }
-  }
- },
  "qwen3/image-to-image": {
   "doc": "market/qwen3/image-to-image",
   "path": "/api/v1/jobs/createTask",
@@ -9645,6 +9845,212 @@
     "examples": [
      1
     ]
+   }
+  }
+ },
+ "wan/2-7-image": {
+  "doc": "market/wan/2-7-image",
+  "path": "/api/v1/jobs/createTask",
+  "title": "Wan 2.7 Image",
+  "required": [
+   "prompt"
+  ],
+  "fields": {
+   "prompt": {
+    "type": "string",
+    "description": "Prompt for image generation or editing. This field supports both Chinese and English, with a maximum length of 5000 characters as per Alibaba Cloud documentation.",
+    "maxLength": 5000,
+    "examples": [
+     "Transform the food photo by replacing the marked ingredients with sliced red chili pieces while preserving the bowl, lighting, steam, camera angle, and overall realism."
+    ]
+   },
+   "input_urls": {
+    "type": "array",
+    "description": "(Optional) Array of input image URLs. The current project uses `input_urls` as a wrapper field.",
+    "items": {
+     "type": "string",
+     "format": "uri"
+    },
+    "maxItems": 9,
+    "examples": [
+     [
+      "https://static.aiquickdraw.com/tools/example/1775122744247_eSHwJX1k.jpg"
+     ]
+    ]
+   },
+   "aspect_ratio": {
+    "type": "string",
+    "description": "(Optional) Output aspect ratio when no image input is provided. ",
+    "examples": [
+     "1:1"
+    ],
+    "enum": [
+     "1:1",
+     "16:9",
+     "4:3",
+     "21:9",
+     "3:4",
+     "9:16",
+     "8:1",
+     "1:8"
+    ],
+    "x-apidog-enum": [
+     {
+      "value": "1:1",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "16:9",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "4:3",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "21:9",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "3:4",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "9:16",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "8:1",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "1:8",
+      "name": "",
+      "description": ""
+     }
+    ]
+   },
+   "enable_sequential": {
+    "type": "boolean",
+    "description": "Whether to enable sequential/group image mode. Default is false.",
+    "default": false,
+    "examples": [
+     false
+    ]
+   },
+   "n": {
+    "type": "integer",
+    "description": "Number of images to generate. Range is 1-4 when `enable_sequential=false` (default: 4); range is 1-12 when `enable_sequential=true` (default: 12).",
+    "examples": [
+     4
+    ]
+   },
+   "resolution": {
+    "type": "string",
+    "description": "Output resolution. The current project uses `resolution` as a wrapper field corresponding to the underlying resolution parameter.",
+    "enum": [
+     "1K",
+     "2K",
+     "4K"
+    ],
+    "default": "2K",
+    "examples": [
+     "2K"
+    ]
+   },
+   "thinking_mode": {
+    "type": "boolean",
+    "description": "Whether to enable thinking mode. Only available when `enable_sequential=false` and `input_urls` is empty; the frontend will automatically disable it in other cases.",
+    "default": false,
+    "examples": [
+     false
+    ]
+   },
+   "color_palette": {
+    "type": "array",
+    "description": "(Optional) Custom color theme. Only available when `enable_sequential=false`. Requires 3-10 colors, 8 recommended.",
+    "minItems": 3,
+    "maxItems": 10,
+    "items": {
+     "type": "object",
+     "properties": {
+      "hex": {
+       "type": "string",
+       "description": "HEX color value.",
+       "pattern": "^#[0-9A-Fa-f]{6}$",
+       "examples": [
+        "#C2D1E6"
+       ]
+      },
+      "ratio": {
+       "type": "string",
+       "description": "Color proportion, format must be xx.xx%.",
+       "pattern": "^\\d{1,3}\\.\\d{2}%$",
+       "examples": [
+        "23.51%"
+       ]
+      }
+     },
+     "required": [
+      "hex",
+      "ratio"
+     ],
+     "x-apidog-orders": [
+      "hex",
+      "ratio"
+     ],
+     "x-apidog-ignore-properties": []
+    }
+   },
+   "bbox_list": {
+    "type": "array",
+    "description": "(Optional) Interactive editing bounding box areas. The outer list length should match `input_urls`; maximum 2 boxes per image; single box format is `[x1, y1, x2, y2]`.",
+    "items": {
+     "type": "array",
+     "maxItems": 2,
+     "items": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+       "type": "integer"
+      }
+     }
+    },
+    "examples": [
+     [
+      []
+     ]
+    ]
+   },
+   "watermark": {
+    "type": "boolean",
+    "description": "Whether to add watermark.",
+    "default": false,
+    "examples": [
+     false
+    ]
+   },
+   "seed": {
+    "type": "integer",
+    "description": "Random seed, range 0-2147483647.",
+    "minimum": 0,
+    "maximum": 2147483647,
+    "default": 0,
+    "examples": [
+     0
+    ]
+   },
+   "nsfw_checker": {
+    "type": "boolean",
+    "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
    }
   }
  },
@@ -11414,6 +11820,731 @@
    }
   }
  },
+ "gpt-image-2-5-sunburst-image-to-image": {
+  "doc": "market/gpt/gpt-image-2-5-sunburst-image-to-image",
+  "path": "/api/v1/jobs/createTask",
+  "title": "GPT Image 2.5 Sunburst - Image To Image",
+  "required": [
+   "input_urls",
+   "prompt"
+  ],
+  "fields": {
+   "prompt": {
+    "type": "string",
+    "description": "Text prompts, up to 20,000 characters.",
+    "examples": [
+     "Transform this product image into a premium e-commerce poster style."
+    ]
+   },
+   "input_urls": {
+    "type": "array",
+    "items": {
+     "type": "string",
+     "format": "uri"
+    },
+    "description": "Array of input image URLs.",
+    "examples": [
+     [
+      "https://example.com/"
+     ]
+    ],
+    "maxItems": 16
+   },
+   "aspect_ratio": {
+    "type": "string",
+    "description": "The aspect ratio of the generated image is set to auto by default. The 27:16, 16:27, 9:8 and 8:9 aspect ratios support 1K only. 2K and 4K are available for other aspect ratios.",
+    "enum": [
+     "auto",
+     "1:1",
+     "3:2",
+     "2:3",
+     "4:3",
+     "3:4",
+     "16:9",
+     "9:16",
+     "21:9",
+     "27:16",
+     "16:27",
+     "9:8",
+     "8:9"
+    ],
+    "x-apidog-enum": [
+     {
+      "label": "auto",
+      "value": "auto",
+      "description": ""
+     },
+     {
+      "label": "1:1",
+      "value": "1:1",
+      "description": ""
+     },
+     {
+      "label": "3:2",
+      "value": "3:2",
+      "description": ""
+     },
+     {
+      "label": "2:3",
+      "value": "2:3",
+      "description": ""
+     },
+     {
+      "label": "4:3",
+      "value": "4:3",
+      "description": ""
+     },
+     {
+      "label": "3:4",
+      "value": "3:4",
+      "description": ""
+     },
+     {
+      "label": "5:4",
+      "value": "5:4",
+      "description": ""
+     },
+     {
+      "label": "4:5",
+      "value": "4:5",
+      "description": ""
+     },
+     {
+      "label": "16:9",
+      "value": "16:9",
+      "description": ""
+     },
+     {
+      "label": "9:16",
+      "value": "9:16",
+      "description": ""
+     },
+     {
+      "label": "2:1",
+      "value": "2:1",
+      "description": ""
+     },
+     {
+      "label": "1:2",
+      "value": "1:2",
+      "description": ""
+     },
+     {
+      "label": "3:1",
+      "value": "3:1",
+      "description": ""
+     },
+     {
+      "label": "1:3",
+      "value": "1:3",
+      "description": ""
+     },
+     {
+      "label": "21:9",
+      "value": "21:9",
+      "description": ""
+     },
+     {
+      "value": "9:21",
+      "name": "",
+      "description": ""
+     }
+    ]
+   },
+   "resolution": {
+    "type": "string",
+    "enum": [
+     "1K",
+     "2K",
+     "4K"
+    ],
+    "x-apidog-enum": [
+     {
+      "value": "1K",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "2K",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "4K",
+      "name": "",
+      "description": ""
+     }
+    ],
+    "description": "Image resolution"
+   },
+   "background": {
+    "type": "string",
+    "description": "Image background",
+    "enum": [
+     "transparent",
+     "opaque",
+     "auto"
+    ],
+    "x-apidog-enum": [
+     {
+      "value": "transparent",
+      "name": "Transparency",
+      "description": ""
+     },
+     {
+      "value": "opaque",
+      "name": "Opaque",
+      "description": ""
+     },
+     {
+      "value": "auto",
+      "name": "Automatically",
+      "description": ""
+     }
+    ]
+   }
+  }
+ },
+ "gpt-image-2-5-sunburst-text-to-image": {
+  "doc": "market/gpt/gpt-image-2-5-sunburst-text-to-image",
+  "path": "/api/v1/jobs/createTask",
+  "title": "GPT Image 2.5 Sunburst - Text to Image",
+  "required": [
+   "prompt"
+  ],
+  "fields": {
+   "prompt": {
+    "type": "string",
+    "description": "Text prompt. Required, maximum 20,000 characters.",
+    "minLength": 1,
+    "maxLength": 20000,
+    "examples": [
+     "A cinematic night city poster with neon reflections on a rainy street."
+    ]
+   },
+   "aspect_ratio": {
+    "type": "string",
+    "description": "The aspect ratio of the generated image is set to auto by default. The 27:16, 16:27, 9:8 and 8:9 aspect ratios support 1K only. 2K and 4K are available for other aspect ratios.",
+    "enum": [
+     "auto",
+     "1:1",
+     "3:2",
+     "2:3",
+     "4:3",
+     "3:4",
+     "16:9",
+     "9:16",
+     "21:9",
+     "27:16",
+     "16:27",
+     "9:8",
+     "8:9"
+    ],
+    "x-apidog-enum": [
+     {
+      "label": "auto",
+      "value": "auto",
+      "description": ""
+     },
+     {
+      "label": "1:1",
+      "value": "1:1",
+      "description": ""
+     },
+     {
+      "label": "3:2",
+      "value": "3:2",
+      "description": ""
+     },
+     {
+      "label": "2:3",
+      "value": "2:3",
+      "description": ""
+     },
+     {
+      "label": "4:3",
+      "value": "4:3",
+      "description": ""
+     },
+     {
+      "label": "3:4",
+      "value": "3:4",
+      "description": ""
+     },
+     {
+      "label": "16:9",
+      "value": "16:9",
+      "description": ""
+     },
+     {
+      "label": "9:16",
+      "value": "9:16",
+      "description": ""
+     },
+     {
+      "label": "21:9",
+      "value": "21:9",
+      "description": ""
+     },
+     {
+      "value": "27:16",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "16:27",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "9:8",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "8:9",
+      "name": "",
+      "description": ""
+     }
+    ]
+   },
+   "resolution": {
+    "type": "string",
+    "enum": [
+     "1K",
+     "2K",
+     "4K"
+    ],
+    "x-apidog-enum": [
+     {
+      "value": "1K",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "2K",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "4K",
+      "name": "",
+      "description": ""
+     }
+    ],
+    "description": "Image resolution"
+   },
+   "background": {
+    "type": "string",
+    "description": "Image background ",
+    "enum": [
+     "transparent",
+     "opaque",
+     "auto"
+    ],
+    "x-apidog-enum": [
+     {
+      "value": "transparent",
+      "name": "Transparency",
+      "description": ""
+     },
+     {
+      "value": "opaque",
+      "name": "Opaque",
+      "description": ""
+     },
+     {
+      "value": "auto",
+      "name": "Automatically",
+      "description": ""
+     }
+    ]
+   }
+  }
+ },
+ "gpt-image-2-5-flare-image-to-image": {
+  "doc": "market/gpt/gpt-image-2-5-flare-image-to-image",
+  "path": "/api/v1/jobs/createTask",
+  "title": "GPT Image 2.5 Flare - Image To Image",
+  "required": [
+   "input_urls",
+   "prompt"
+  ],
+  "fields": {
+   "prompt": {
+    "type": "string",
+    "description": "Text prompts, up to 20,000 characters.",
+    "examples": [
+     "Transform this product image into a premium e-commerce poster style."
+    ]
+   },
+   "input_urls": {
+    "type": "array",
+    "items": {
+     "type": "string",
+     "format": "uri"
+    },
+    "description": "Array of input image URLs.",
+    "examples": [
+     [
+      "https://example.com/"
+     ]
+    ],
+    "maxItems": 16
+   },
+   "aspect_ratio": {
+    "type": "string",
+    "description": "The aspect ratio of the generated image is set to auto by default. The 27:16, 16:27, 9:8 and 8:9 aspect ratios support 1K only. 2K and 4K are available for other aspect ratios.",
+    "enum": [
+     "auto",
+     "1:1",
+     "3:2",
+     "2:3",
+     "4:3",
+     "3:4",
+     "16:9",
+     "9:16",
+     "21:9",
+     "27:16",
+     "16:27",
+     "9:8",
+     "8:9"
+    ],
+    "x-apidog-enum": [
+     {
+      "label": "auto",
+      "value": "auto",
+      "description": ""
+     },
+     {
+      "label": "1:1",
+      "value": "1:1",
+      "description": ""
+     },
+     {
+      "label": "3:2",
+      "value": "3:2",
+      "description": ""
+     },
+     {
+      "label": "2:3",
+      "value": "2:3",
+      "description": ""
+     },
+     {
+      "label": "4:3",
+      "value": "4:3",
+      "description": ""
+     },
+     {
+      "label": "3:4",
+      "value": "3:4",
+      "description": ""
+     },
+     {
+      "label": "5:4",
+      "value": "5:4",
+      "description": ""
+     },
+     {
+      "label": "4:5",
+      "value": "4:5",
+      "description": ""
+     },
+     {
+      "label": "16:9",
+      "value": "16:9",
+      "description": ""
+     },
+     {
+      "label": "9:16",
+      "value": "9:16",
+      "description": ""
+     },
+     {
+      "label": "2:1",
+      "value": "2:1",
+      "description": ""
+     },
+     {
+      "label": "1:2",
+      "value": "1:2",
+      "description": ""
+     },
+     {
+      "label": "3:1",
+      "value": "3:1",
+      "description": ""
+     },
+     {
+      "label": "1:3",
+      "value": "1:3",
+      "description": ""
+     },
+     {
+      "label": "21:9",
+      "value": "21:9",
+      "description": ""
+     },
+     {
+      "value": "9:21",
+      "name": "",
+      "description": ""
+     }
+    ]
+   },
+   "resolution": {
+    "type": "string",
+    "enum": [
+     "1K",
+     "2K",
+     "4K"
+    ],
+    "x-apidog-enum": [
+     {
+      "value": "1K",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "2K",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "4K",
+      "name": "",
+      "description": ""
+     }
+    ],
+    "description": "Image resolution"
+   },
+   "background": {
+    "type": "string",
+    "enum": [
+     "transparent",
+     "opaque",
+     "auto"
+    ],
+    "description": "Image background ",
+    "x-apidog-enum": [
+     {
+      "value": "transparent",
+      "label": "Transparency",
+      "description": ""
+     },
+     {
+      "value": "opaque",
+      "label": "Opaque",
+      "description": ""
+     },
+     {
+      "value": "auto",
+      "label": "Automatically",
+      "description": ""
+     }
+    ]
+   }
+  }
+ },
+ "gpt-image-2-5-flare-text-to-image": {
+  "doc": "market/gpt/gpt-image-2-5-flare-text-to-image",
+  "path": "/api/v1/jobs/createTask",
+  "title": "GPT Image 2.5 Flare - Text to Image",
+  "required": [
+   "prompt"
+  ],
+  "fields": {
+   "prompt": {
+    "type": "string",
+    "description": "Text prompt. Required, maximum 20,000 characters.",
+    "minLength": 1,
+    "maxLength": 20000,
+    "examples": [
+     "A cinematic night city poster with neon reflections on a rainy street."
+    ]
+   },
+   "aspect_ratio": {
+    "type": "string",
+    "description": "The aspect ratio of the generated image is set to auto by default. The 27:16, 16:27, 9:8 and 8:9 aspect ratios support 1K only. 2K and 4K are available for other aspect ratios.",
+    "enum": [
+     "auto",
+     "1:1",
+     "3:2",
+     "2:3",
+     "4:3",
+     "3:4",
+     "16:9",
+     "9:16",
+     "21:9",
+     "27:16",
+     "16:27",
+     "9:8",
+     "8:9"
+    ],
+    "x-apidog-enum": [
+     {
+      "label": "auto",
+      "value": "auto",
+      "description": ""
+     },
+     {
+      "label": "1:1",
+      "value": "1:1",
+      "description": ""
+     },
+     {
+      "label": "3:2",
+      "value": "3:2",
+      "description": ""
+     },
+     {
+      "label": "2:3",
+      "value": "2:3",
+      "description": ""
+     },
+     {
+      "label": "4:3",
+      "value": "4:3",
+      "description": ""
+     },
+     {
+      "label": "3:4",
+      "value": "3:4",
+      "description": ""
+     },
+     {
+      "label": "16:9",
+      "value": "16:9",
+      "description": ""
+     },
+     {
+      "label": "9:16",
+      "value": "9:16",
+      "description": ""
+     },
+     {
+      "label": "21:9",
+      "value": "21:9",
+      "description": ""
+     },
+     {
+      "value": "27:16",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "16:27",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "9:8",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "8:9",
+      "name": "",
+      "description": ""
+     }
+    ]
+   },
+   "resolution": {
+    "type": "string",
+    "enum": [
+     "1K",
+     "2K",
+     "4K"
+    ],
+    "x-apidog-enum": [
+     {
+      "value": "1K",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "2K",
+      "name": "",
+      "description": ""
+     },
+     {
+      "value": "4K",
+      "name": "",
+      "description": ""
+     }
+    ],
+    "description": "Image resolution"
+   },
+   "background": {
+    "type": "string",
+    "description": "Image background",
+    "enum": [
+     "transparent",
+     "opaque",
+     "auto"
+    ],
+    "x-apidog-enum": [
+     {
+      "value": "transparent",
+      "name": "Transparency",
+      "description": ""
+     },
+     {
+      "value": "opaque",
+      "name": "Opaque",
+      "description": ""
+     },
+     {
+      "value": "auto",
+      "name": "Automatically",
+      "description": ""
+     }
+    ]
+   }
+  }
+ },
+ "grok-imagine-image-2-0/segment-edit": {
+  "doc": "market/grok-imagine-image-2-0/image-edit",
+  "path": "/api/v1/jobs/createTask",
+  "title": "Grok Imagine Image 2.0 Segment Edit",
+  "required": [
+   "prompt",
+   "task_id"
+  ],
+  "fields": {
+   "prompt": {
+    "type": "string",
+    "description": "Text prompt describing the desired image.",
+    "examples": [
+     "Change the background to a sunset beach while preserving the subject."
+    ],
+    "maxLength": 390000
+   },
+   "task_id": {
+    "type": "string",
+    "description": "The source task ID to use for image editing(This can be a task ID generated by the `grok-imagine-image-2-0/text-to-image` model, or a task ID generated by the `grok-imagine-image-2-0/segment-map` model by passing an `image_url`.).",
+    "examples": [
+     "task_grok_imagine_1234567890"
+    ]
+   },
+   "mask_indexs": {
+    "type": "array",
+    "minItems": 1,
+    "items": {
+     "type": "integer",
+     "minimum": 1
+    },
+    "description": "Please enter the index numbers of the segment array items you want to use. ",
+    "examples": [
+     [
+      1,
+      2
+     ]
+    ]
+   }
+  }
+ },
  "grok-imagine/image-to-image": {
   "doc": "market/grok-imagine/image-to-image",
   "path": "/api/v1/jobs/createTask",
@@ -11522,47 +12653,6 @@
     "examples": [
      [
       "https://static.aiquickdraw.com/tools/example/1767602105243_0MmMCrwq.png"
-     ]
-    ]
-   }
-  }
- },
- "grok-imagine-image-2-0/segment-edit": {
-  "doc": "market/grok-imagine-image-2-0/image-edit",
-  "path": "/api/v1/jobs/createTask",
-  "title": "Grok Imagine Image 2.0 Segment Edit",
-  "required": [
-   "prompt",
-   "task_id"
-  ],
-  "fields": {
-   "prompt": {
-    "type": "string",
-    "description": "Text prompt describing the desired image.",
-    "examples": [
-     "Change the background to a sunset beach while preserving the subject."
-    ],
-    "maxLength": 390000
-   },
-   "task_id": {
-    "type": "string",
-    "description": "The source task ID to use for image editing(This can be a task ID generated by the `grok-imagine-image-2-0/text-to-image` model, or a task ID generated by the `grok-imagine-image-2-0/segment-map` model by passing an `image_url`.).",
-    "examples": [
-     "task_grok_imagine_1234567890"
-    ]
-   },
-   "mask_indexs": {
-    "type": "array",
-    "minItems": 1,
-    "items": {
-     "type": "integer",
-     "minimum": 1
-    },
-    "description": "Please enter the index numbers of the segment array items you want to use. ",
-    "examples": [
-     [
-      1,
-      2
      ]
     ]
    }
@@ -12251,83 +13341,6 @@
    }
   }
  },
- "google/nano-banana": {
-  "doc": "market/google/nano-banana",
-  "path": "/api/v1/jobs/createTask",
-  "title": "Google - Nano Banana",
-  "required": [
-   "prompt"
-  ],
-  "fields": {
-   "prompt": {
-    "description": "The prompt for image generation (Max length: 5000 characters)",
-    "type": "string",
-    "maxLength": 5000,
-    "examples": [
-     "A surreal painting of a giant banana floating in space, stars and galaxies in the background, vibrant colors, digital art"
-    ]
-   },
-   "output_format": {
-    "description": "Output format for the images",
-    "type": "string",
-    "enum": [
-     "png",
-     "jpeg"
-    ],
-    "default": "png",
-    "examples": [
-     "png"
-    ]
-   },
-   "aspect_ratio": {
-    "description": "Radio description",
-    "type": "string",
-    "enum": [
-     "1:1",
-     "9:16",
-     "16:9",
-     "3:4",
-     "4:3",
-     "3:2",
-     "2:3",
-     "5:4",
-     "4:5",
-     "21:9",
-     "auto"
-    ],
-    "default": "1:1",
-    "examples": [
-     "1:1"
-    ]
-   },
-   "image_size": {
-    "type": "string",
-    "description": "The aspect ratio of the generated image (this parameter has been replaced by aspect_ratio; please use the latest aspect_ratio parameter).",
-    "enum": [
-     "1:1",
-     "9:16",
-     "16:9",
-     "3:4",
-     "4:3",
-     "3:2",
-     "2:3",
-     "5:4",
-     "4:5",
-     "21:9",
-     "auto"
-    ],
-    "default": "1:1",
-    "examples": [
-     "1:1"
-    ],
-    "deprecated": true
-   },
-   "nsfw_checker": {
-    "type": "boolean",
-    "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
-   }
-  }
- },
  "google/nano-banana-edit": {
   "doc": "market/google/nano-banana-edit",
   "path": "/api/v1/jobs/createTask",
@@ -12741,6 +13754,83 @@
    "seed": {
     "description": "Random seed to control the stochasticity of image generation.",
     "type": "integer"
+   }
+  }
+ },
+ "google/nano-banana": {
+  "doc": "market/google/nano-banana",
+  "path": "/api/v1/jobs/createTask",
+  "title": "Google - Nano Banana",
+  "required": [
+   "prompt"
+  ],
+  "fields": {
+   "prompt": {
+    "description": "The prompt for image generation (Max length: 5000 characters)",
+    "type": "string",
+    "maxLength": 5000,
+    "examples": [
+     "A surreal painting of a giant banana floating in space, stars and galaxies in the background, vibrant colors, digital art"
+    ]
+   },
+   "output_format": {
+    "description": "Output format for the images",
+    "type": "string",
+    "enum": [
+     "png",
+     "jpeg"
+    ],
+    "default": "png",
+    "examples": [
+     "png"
+    ]
+   },
+   "aspect_ratio": {
+    "description": "Radio description",
+    "type": "string",
+    "enum": [
+     "1:1",
+     "9:16",
+     "16:9",
+     "3:4",
+     "4:3",
+     "3:2",
+     "2:3",
+     "5:4",
+     "4:5",
+     "21:9",
+     "auto"
+    ],
+    "default": "1:1",
+    "examples": [
+     "1:1"
+    ]
+   },
+   "image_size": {
+    "type": "string",
+    "description": "The aspect ratio of the generated image (this parameter has been replaced by aspect_ratio; please use the latest aspect_ratio parameter).",
+    "enum": [
+     "1:1",
+     "9:16",
+     "16:9",
+     "3:4",
+     "4:3",
+     "3:2",
+     "2:3",
+     "5:4",
+     "4:5",
+     "21:9",
+     "auto"
+    ],
+    "default": "1:1",
+    "examples": [
+     "1:1"
+    ],
+    "deprecated": true
+   },
+   "nsfw_checker": {
+    "type": "boolean",
+    "description": "Defaults to false. You can set it to false based on your needs. If set to false, our content filtering will be disabled, and all results will be returned directly by the model itself.\nNote: There is no guarantee that everything can be filtered out; if you are not satisfied with the results, you will need to make your own arrangements."
    }
   }
  },

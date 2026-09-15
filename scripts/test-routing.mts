@@ -244,6 +244,52 @@ check('a route lands on a field the target really has', () => {
   }
 })
 
+console.log('\ngemini speech')
+
+check('both Gemini speech models build the body Kie documents', () => {
+  for (const id of ['google/gemini-2-5-pro-tts', 'google/gemini-3-1-flash-tts']) {
+    const model = getModel(id)
+    assert.ok(model, `${id} is not in the catalog`)
+
+    const values = {
+      ...defaultsFor(model!.fields),
+      speakers: [
+        { speaker_id: 'Speaker 1', voice_name: 'Fenrir', accent: 'British (RP)', audio_profile: 'A stern gatekeeper', style: 'Deadpan', pace: 'Natural' },
+        { speaker_id: 'Speaker 2', voice_name: 'Puck', accent: 'American (Gen)', audio_profile: '', style: 'Empathetic', pace: 'Staccato' },
+      ],
+      dialogue_turns: [
+        { speaker_id: 'Speaker 1', text: '[shouting] Halt, traveler!' },
+        { speaker_id: 'Speaker 2', text: '[whispers] Let me through.' },
+      ],
+    }
+
+    assert.deepEqual(validate(model!.fields, values), [], id)
+    const input = buildInput(model!.fields, values)
+    const speakers = input.speakers as Record<string, unknown>[]
+
+    assert.equal(speakers[0]!.speaker_id, 'Speaker 1')
+    // A blank profile is left out rather than sent empty.
+    assert.ok(!('audio_profile' in speakers[1]!), 'an empty profile was sent')
+    assert.equal((input.dialogue_turns as unknown[]).length, 2)
+    assert.equal(input.temperature, 1)
+  }
+})
+
+check('a speaker id can only be one Kie accepts', () => {
+  // The old form took free text, and "host" is what people typed.
+  const model = getModel('google/gemini-2-5-pro-tts')!
+  const speakers = model.fields.find((f) => f.name === 'speakers') as { item: { name: string; kind: string; options?: { value: string }[] }[] }
+  const id = speakers.item.find((f) => f.name === 'speaker_id')!
+  assert.equal(id.kind, 'select')
+  assert.ok(id.options!.every((o) => /^Speaker \d+$/.test(o.value)))
+})
+
+check('a line can be as long as Kie allows, and no longer', () => {
+  const model = getModel('google/gemini-2-5-pro-tts')!
+  const turns = model.fields.find((f) => f.name === 'dialogue_turns') as { item: { name: string; maxLength?: number }[] }
+  assert.equal(turns.item.find((f) => f.name === 'text')!.maxLength, 10000)
+})
+
 console.log('\nlength limits')
 
 check('text past a model’s limit is refused before it is submitted', () => {

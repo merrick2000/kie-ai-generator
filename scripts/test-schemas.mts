@@ -25,6 +25,8 @@ interface FieldSpec {
   default?: unknown
   minimum?: number
   maximum?: number
+  /** Array fields: the shape of one entry. */
+  items?: { required?: string[]; properties?: Record<string, FieldSpec> }
 }
 
 interface ModelSpec {
@@ -168,6 +170,51 @@ check('enum options match what the model accepts', () => {
   }
 
   assert.deepEqual(problems, [], `values Kie rejects:\n  ${problems.join('\n  ')}`)
+})
+
+check('each entry of a list field matches the shape Kie expects', () => {
+  // Every check above looks at a model's top-level fields and stops there. A
+  // list field nests a whole form per entry, and nothing compared that form
+  // to Kie's schema, which is how Gemini 3.1 Flash TTS shipped a free-text
+  // speaker id where Kie requires "Speaker N", and accents and styles Kie
+  // refuses. Unknown fields, missing required ones and rejected enum values
+  // are checked here one level down.
+  const problems: string[] = []
+
+  for (const model of market) {
+    const spec = schemas[model.id]
+    if (!spec) continue
+
+    for (const field of model.fields) {
+      if (field.kind !== 'list') continue
+      const entry = spec.fields[field.name]?.items
+      const props = entry?.properties
+      if (!props) continue
+
+      const where = `${model.id}.${field.name}[]`
+      const names = new Set(field.item.map((f) => f.name))
+
+      for (const f of field.item) {
+        if (!(f.name in props)) problems.push(`${where}.${f.name}: not in Kie's schema`)
+      }
+      for (const name of entry.required ?? []) {
+        const f = field.item.find((i) => i.name === name)
+        const defaulted = f && 'default' in f && (f as { default?: unknown }).default !== undefined
+        if (!names.has(name)) problems.push(`${where}.${name}: required by Kie, missing here`)
+        else if (!f!.required && !defaulted) problems.push(`${where}.${name}: required by Kie, optional here`)
+      }
+      for (const f of field.item) {
+        if (f.kind !== 'select' && f.kind !== 'ratio') continue
+        const allowed = props[f.name]?.enum
+        if (!allowed) continue
+        const permitted = new Set(allowed.map(String))
+        const rejected = f.options.map((o) => o.value).filter((v) => v && !permitted.has(v))
+        if (rejected.length) problems.push(`${where}.${f.name}: ${rejected.join(', ')}`)
+      }
+    }
+  }
+
+  assert.deepEqual(problems, [], `list entries Kie would refuse:\n  ${problems.join('\n  ')}`)
 })
 
 check('a model that can turn Kie’s filter off says so on the form', () => {

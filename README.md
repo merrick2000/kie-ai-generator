@@ -337,7 +337,13 @@ bun --preload ./scripts/preload.ts scripts/generate-models.mts <slugs…>
 `test-schemas.mts` then checks the whole catalog against it on every run: that
 each slug exists, that no model sends a field its schema does not define, that
 every required field is on the form, and that no menu offers a value the model
-rejects. It also prints the coverage, so a gap is visible rather than assumed
+rejects. The same checks run one level down, inside each entry of a list field.
+Without that, Gemini 3.1 Flash TTS shipped a cast form with twelve accents and
+two styles Kie refuses, and nothing noticed.
+
+Not every market model is filed under `/market/` in Kie's docs. Gemini 2.5 Pro
+TTS lives at `/google/gemini-2-5-pro-tts`, so the fetcher lists such pages in
+`EXTRA_PAGES` rather than trusting the folder. It also prints the coverage, so a gap is visible rather than assumed
 away.
 
 The chat models put their parameters at the top level rather than under
