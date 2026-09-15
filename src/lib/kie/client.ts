@@ -21,9 +21,7 @@ import {
   type CreateTaskRequest,
   type KieEnvelope,
   type KieResultJson,
-  type OmniAudioData,
   type OmniAudioRequest,
-  type OmniCharacterData,
   type OmniCharacterRequest,
   type RecordInfoData,
   type SunoGenerateRequest,
@@ -201,11 +199,16 @@ interface RequestOptions {
    * would rightly treat as a refusal.
    */
   okCodes?: number[]
+  /**
+   * Return the whole envelope instead of `data`. For endpoints whose answer
+   * does not match their own docs: the id may be beside `data`, not in it.
+   */
+  whole?: boolean
 }
 
 async function request<T>(
   path: string,
-  { method = 'GET', body, base = API_BASE, retries = 0, signal, okCodes = [] }: RequestOptions = {},
+  { method = 'GET', body, base = API_BASE, retries = 0, signal, okCodes = [], whole = false }: RequestOptions = {},
 ): Promise<T> {
   const url = `${base}${path}`
   let lastError: unknown
@@ -258,7 +261,7 @@ async function request<T>(
       }
 
       log.debug('upstream ok', { path, ms: since(startedAt) })
-      return payload.data
+      return (whole ? payload : payload.data) as T
     } catch (err) {
       lastError = err
       // Only retry transient conditions, and never the last attempt.
@@ -340,21 +343,28 @@ export function getVeoTask(taskId: string, signal?: AbortSignal) {
  * nothing to poll and no job to record.
  * ──────────────────────────────────────────────────────────────────────────*/
 
+/*
+ * Both return the whole envelope. Kie documents the ids as `data.kieAudioId`
+ * and `data.characterId`, and a live voice came back created with neither
+ * there, so the caller searches the full answer rather than one path.
+ */
 export function createOmniAudio(body: OmniAudioRequest, signal?: AbortSignal) {
-  return request<OmniAudioData>('/api/v1/omni/audio/create', {
+  return request<unknown>('/api/v1/omni/audio/create', {
     method: 'POST',
     body,
     signal,
     okCodes: [0],
+    whole: true,
   })
 }
 
 export function createOmniCharacter(body: OmniCharacterRequest, signal?: AbortSignal) {
-  return request<OmniCharacterData>('/api/v1/omni/character/create', {
+  return request<unknown>('/api/v1/omni/character/create', {
     method: 'POST',
     body,
     signal,
     okCodes: [0],
+    whole: true,
   })
 }
 

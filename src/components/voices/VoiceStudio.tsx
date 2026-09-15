@@ -400,7 +400,7 @@ const STATUS: Record<VoiceStatus, { label: string; tone: string }> = {
 
 function VoiceCard({ voice, onChange, onRemove }: { voice: Voice; onChange: (v: Voice) => void; onRemove: () => void }) {
   const [reading, setReading] = useState<File | null>(null)
-  const [busy, setBusy] = useState<'verify' | 'regenerate' | 'delete' | null>(null)
+  const [busy, setBusy] = useState<'verify' | 'regenerate' | 'retry' | 'delete' | null>(null)
   const status = STATUS[voice.status]
   const canRead = Boolean(voice.phrase) && (voice.status === 'phrase_ready' || voice.status === 'failed')
 
@@ -434,6 +434,16 @@ function VoiceCard({ voice, onChange, onRemove }: { voice: Voice; onChange: (v: 
     } finally {
       setBusy(null)
     }
+  }
+
+  async function retry() {
+    setBusy('retry')
+    const next = await post(`/api/voices/${voice.id}/retry`)
+    if (next) {
+      onChange(next)
+      toast.success('Sent again. Kie is writing a phrase for you to read.')
+    }
+    setBusy(null)
   }
 
   async function regenerate() {
@@ -541,11 +551,27 @@ function VoiceCard({ voice, onChange, onRemove }: { voice: Voice; onChange: (v: 
         </p>
       )}
 
+      {/*
+        It used to say to delete and start over, for what is usually a timeout
+        on Kie's side. The recording and its stretch are still stored, so the
+        first thing offered is to ask again with them.
+      */}
       {voice.status === 'failed' && !voice.phrase && (
-        <p className="text-[12px] text-ink-faint">
-          This one stopped before a phrase was written. Delete it and start again with a cleaner
-          recording.
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[12px] text-ink-faint">
+            The phrase never arrived. Your recording is kept, so you can ask again.
+          </p>
+          <Button
+            size="sm"
+            variant="primary"
+            loading={busy === 'retry'}
+            disabled={busy !== null}
+            onClick={() => void retry()}
+          >
+            {busy !== 'retry' && <RotateCw className="size-3.5" />}
+            Try again
+          </Button>
+        </div>
       )}
     </article>
   )

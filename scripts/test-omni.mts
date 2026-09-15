@@ -101,6 +101,42 @@ await check('the portrait is first and the body second', () => {
   assert.equal(body.character_name, 'Maya')
 })
 
+console.log('\nreading the id Kie sends back')
+
+await check('the documented shape', () => {
+  assert.equal(omni.findOmniId({ code: 0, data: { kieAudioId: 'a-1', name: 'x' } }, 'audio'), 'a-1')
+  assert.equal(omni.findOmniId({ code: 200, data: { characterId: 'c-1' } }, 'character'), 'c-1')
+})
+
+await check('the id is found when it is not where the docs say', () => {
+  // A live voice came back created with no data.kieAudioId, and the page
+  // told its owner Kie had sent no id. These are the shapes that could be.
+  assert.equal(omni.findOmniId({ code: 0, data: { audio_id: 'a-2' } }, 'audio'), 'a-2')
+  assert.equal(omni.findOmniId({ code: 0, data: { audioId: 'a-3' } }, 'audio'), 'a-3')
+  assert.equal(omni.findOmniId({ code: 0, kieAudioId: 'a-4', data: null }, 'audio'), 'a-4')
+  assert.equal(omni.findOmniId({ code: 0, data: { result: { voice_id: 'a-5' } } }, 'audio'), 'a-5')
+  assert.equal(omni.findOmniId({ code: 0, data: 'a-6' }, 'audio'), 'a-6')
+  assert.equal(omni.findOmniId({ code: 0, data: { id: 'a-7' } }, 'audio'), 'a-7')
+  assert.equal(omni.findOmniId({ code: 0, data: { character_id: 'c-2' } }, 'character'), 'c-2')
+})
+
+await check('a character answer does not hand back one of its voices as its id', () => {
+  const answer = { code: 0, data: { audio_ids: ['voice-9'], voice: { id: 'voice-9' }, characterId: 'c-3' } }
+  assert.equal(omni.findOmniId(answer, 'character'), 'c-3')
+})
+
+await check('no id at all is reported as none, not guessed', () => {
+  assert.equal(omni.findOmniId({ code: 0, msg: 'success', data: { name: 'x' } }, 'audio'), null)
+  assert.equal(omni.findOmniId({ code: 0, data: { nested: { id: 'deep' } } }, 'audio'), null)
+  assert.equal(omni.findOmniId(null, 'audio'), null)
+  assert.equal(omni.findOmniId({ code: 0, data: '   ' }, 'audio'), null)
+})
+
+await check('the excerpt shown to a person is bounded', () => {
+  const long = { data: { blob: 'x'.repeat(2000) } }
+  assert.ok(omni.answerExcerpt(long).length <= 240)
+})
+
 console.log('\nstorage and ownership')
 
 await check('voices and characters round-trip, scoped to their account', async () => {

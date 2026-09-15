@@ -12,9 +12,11 @@ import { createOmniAudio, createOmniCharacter, KieError } from '@/lib/kie/client
 import { explainUpstream } from '@/lib/kie/errors-upstream'
 import { createLogger } from '@/lib/logger'
 import {
+  answerExcerpt,
   characterBody,
   checkCharacter,
   checkVoice,
+  findOmniId,
   voiceBody,
   type CharacterDraft,
   type VoiceDraft,
@@ -58,12 +60,16 @@ export async function createVoice(actor: Actor, draft: VoiceDraft): Promise<Resu
   const body = voiceBody(draft)
   let kieAudioId: string
   try {
-    const data = await createOmniAudio(body)
-    if (!data?.kieAudioId) {
-      log.warn('voice created without an id', { data: JSON.stringify(data).slice(0, 400) })
-      return refused('Kie made the voice but sent no id back.', 502)
+    const answer = await createOmniAudio(body)
+    const id = findOmniId(answer, 'audio')
+    if (!id) {
+      log.warn('voice created without a recognisable id', { answer: answerExcerpt(answer, 800) })
+      // The raw answer goes into the message on purpose: this has already
+      // happened once with a voice that did exist, and the answer is the only
+      // thing that says where the id went.
+      return refused(`Kie accepted the voice but its answer has no id we recognise: ${answerExcerpt(answer)}`, 502)
     }
-    kieAudioId = data.kieAudioId
+    kieAudioId = id
   } catch (err) {
     return upstream(err, 'Kie did not create the voice.')
   }
@@ -109,28 +115,30 @@ export async function createCharacter(actor: Actor, draft: CharacterDraft): Prom
   }
   const kieAudioIds = voices.map((v) => v.kieAudioId)
 
-  let data
+  let answer: unknown
   try {
-    data = await createOmniCharacter(characterBody(draft, kieAudioIds))
+    answer = await createOmniCharacter(characterBody(draft, kieAudioIds))
   } catch (err) {
     return upstream(err, 'Kie did not create the character.')
   }
 
-  if (!data?.characterId) {
-    log.warn('character created without an id', { data: JSON.stringify(data).slice(0, 400) })
-    return refused('Kie made the character but sent no id back.', 502)
+  const characterId = findOmniId(answer, 'character')
+  if (!characterId) {
+    log.warn('character created without a recognisable id', { answer: answerExcerpt(answer, 800) })
+    return refused(`Kie accepted the character but its answer has no id we recognise: ${answerExcerpt(answer)}`, 502)
   }
+  const data = ((answer as { data?: unknown })?.data ?? {}) as Record<string, unknown>
 
   const character = await insertOmniCharacter({
     id: newOmniId(),
     userId: actor.id,
-    kieCharacterId: data.characterId,
-    name: trimmed(draft.name) ?? trimmed(data.characterName) ?? null,
+    kieCharacterId: characterId,
+    name: trimmed(draft.name) ?? trimmed(data.characterName ?? data.character_name) ?? null,
     description: String(draft.description).trim(),
     // Kie's own copy when it returns one: uploads expire within days, the
     // character's image should not.
-    imageUrl: trimmed(data.imageUrl) ?? String(draft.portraitUrl).trim(),
-    bodyImageUrl: trimmed(data.bodyImageUrl) ?? trimmed(draft.bodyUrl),
+    imageUrl: trimmed(data.imageUrl ?? data.image_url) ?? String(draft.portraitUrl).trim(),
+    bodyImageUrl: trimmed(data.bodyImageUrl ?? data.body_image_url) ?? trimmed(draft.bodyUrl),
     voiceIds: voices.map((v) => v.id),
     kieAudioIds,
   })

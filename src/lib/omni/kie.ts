@@ -140,3 +140,63 @@ export function characterBody(draft: CharacterDraft, kieAudioIds: string[]) {
   if (name) out.character_name = name
   return out
 }
+
+/**
+ * Finds the id in an Omni answer, wherever Kie put it.
+ *
+ * The docs say `data.kieAudioId` and `data.characterId`. A real voice was
+ * created and came back without the id there, and the account holder saw
+ * "no id" for a voice that existed. So this accepts the documented names and
+ * their plausible variants, at any depth, and a bare string `data` as well.
+ * `wanted` names what the id is of, which keeps a voice id nested inside a
+ * character answer from being taken for the character's own id.
+ */
+export function findOmniId(answer: unknown, wanted: 'audio' | 'character'): string | null {
+  const exact =
+    wanted === 'audio'
+      ? ['kieaudioid', 'audioid', 'voiceid']
+      : ['characterid', 'kiecharacterid']
+
+  const isId = (v: unknown): v is string => typeof v === 'string' && v.trim().length > 0
+
+  // A bare string for data is the simplest shape an id could come back in.
+  if (answer && typeof answer === 'object' && isId((answer as { data?: unknown }).data)) {
+    return (answer as { data: string }).data.trim()
+  }
+
+  let found: string | null = null
+  let fallback: string | null = null
+
+  const visit = (node: unknown, depth: number) => {
+    if (found || depth > 5 || !node || typeof node !== 'object') return
+    if (Array.isArray(node)) {
+      for (const item of node) visit(item, depth + 1)
+      return
+    }
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      const k = key.toLowerCase().replace(/[_-]/g, '')
+      if (exact.includes(k) && isId(value)) {
+        found = value.trim()
+        return
+      }
+      // A plain `id` at the top of `data` is a reasonable last resort, never
+      // one buried in a nested object that may describe something else.
+      if (k === 'id' && depth <= 1 && isId(value) && !fallback) fallback = value.trim()
+    }
+    for (const value of Object.values(node as Record<string, unknown>)) visit(value, depth + 1)
+  }
+
+  visit(answer, 0)
+  return found ?? fallback
+}
+
+/** A short, readable excerpt of an answer, for an error message a person reads. */
+export function answerExcerpt(answer: unknown, max = 240): string {
+  let text: string
+  try {
+    text = JSON.stringify(answer)
+  } catch {
+    text = String(answer)
+  }
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}

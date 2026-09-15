@@ -165,6 +165,48 @@ export async function regeneratePhrase(actor: Actor, voiceId: string): Promise<F
   }
 }
 
+/**
+ * Resubmits step one for a voice whose phrase never arrived.
+ *
+ * A timeout upstream used to leave a dead end: the card said to delete the
+ * voice and start over, which meant uploading and trimming the recording
+ * again for a failure that was Kie's provider running out of time. The
+ * recording, the stretch and the language are all still stored, so this asks
+ * again with them. A fresh task, not a regenerate: regenerating needs a phrase
+ * task that succeeded, and this one did not.
+ */
+export async function retryPhrase(actor: Actor, voiceId: string): Promise<FlowResult> {
+  const voice = await getVoice(actor.id, voiceId)
+  if (!voice) return refused('Not found.', 404)
+
+  if (voice.status !== 'failed' || voice.phrase || voice.voiceId) {
+    return refused('Only a voice that failed before its phrase arrived can be retried this way.')
+  }
+
+  try {
+    const taskId = await submit(
+      VOICE_MODELS.phrase,
+      phraseInput({
+        sourceUrl: voice.sourceUrl,
+        startS: voice.vocalStartS,
+        endS: voice.vocalEndS,
+        language: voice.language,
+      }),
+    )
+    const updated = await updateVoice(actor.id, voice.id, {
+      phraseTaskId: taskId,
+      regenerateTaskId: null,
+      status: 'phrase_pending',
+      error: null,
+    })
+    return updated ? { ok: true, voice: updated } : refused('Not found.', 404)
+  } catch (err) {
+    // The likeliest refusal is an expired upload: Kie deletes them within
+    // days, and then the only way forward really is a new recording.
+    return upstream(err, 'Kie did not accept the recording again. It may have expired; start a new voice.')
+  }
+}
+
 /** Step two: the owner's reading in, the voice requested. */
 export async function verifyVoice(
   actor: Actor,

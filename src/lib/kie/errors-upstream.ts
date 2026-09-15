@@ -37,7 +37,9 @@ const KNOWN: Explained[] = [
   },
   {
     match: /timeout|timed out|deadline/i,
-    text: 'The provider ran out of time on this one. A rerun often works, and a shorter clip or a lower resolution works more often.',
+    // Worded for any model: it reaches voices and speech as well as video,
+    // where advice about clip length and resolution means nothing.
+    text: "Kie's provider ran out of time on this one. It is a problem on their side, not in what was sent, and trying again usually works.",
   },
   {
     match: /insufficient|not enough credit|balance/i,

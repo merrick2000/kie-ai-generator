@@ -236,6 +236,30 @@ await check('a verification needs a phrase to have been read', async () => {
   if (!result.ok) assert.match(result.error, /no phrase/)
 })
 
+await check('only a voice that failed before its phrase can be retried', async () => {
+  // Each of these is refused before any request, so no key is involved. A
+  // voice with a phrase already has regenerate; one still pending needs
+  // nothing; one ready is done.
+  const cases: [string, Record<string, unknown>][] = [
+    ['r-pending', { status: 'phrase_pending' }],
+    ['r-phrase', { status: 'failed', phrase: 'Read me' }],
+  ]
+  for (const [id, patch] of cases) {
+    await store.insertVoice({ ...base, id })
+    await store.updateVoice(OWNER, id, patch)
+    const result = await flow.retryPhrase(actor, id)
+    assert.equal(result.ok, false, id)
+    if (!result.ok) assert.match(result.error, /failed before its phrase/)
+  }
+})
+
+await check('a retry cannot reach another account’s voice', async () => {
+  await store.insertVoice({ ...base, id: 'r-theirs', status: 'failed' as const })
+  const result = await flow.retryPhrase({ id: STRANGER, email: 'x@example.com' }, 'r-theirs')
+  assert.equal(result.ok, false)
+  if (!result.ok) assert.equal(result.status, 404)
+})
+
 await check('deleting is scoped and final', async () => {
   assert.equal(await store.deleteVoice(OWNER, 'v-2'), true)
   assert.equal(await store.getVoice(OWNER, 'v-2'), null)
